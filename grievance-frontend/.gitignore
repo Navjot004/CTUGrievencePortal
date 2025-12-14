@@ -1,0 +1,14 @@
+# Node modules
+node_modules/
+grievance-backend/node_modules/
+grievance-frontend/node_modules/
+
+# Environment files
+.env
+grievance-backend/.env
+grievance-frontend/.env
+
+# Build and logs
+build/
+dist/
+*.log

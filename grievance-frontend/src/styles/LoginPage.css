@@ -1,0 +1,482 @@
+:root {
+  --primary-color: #2563eb; /* Professional Blue */
+  --primary-hover: #1d4ed8;
+  --bg-color: #f8fafc;
+  --text-dark: #1e293b;
+  --text-light: #64748b;
+  --input-border: #e2e8f0;
+  --white: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Main Layout */
+.login-container {
+  display: flex;
+  min-height: 100vh; 
+  width: 100%;
+  background-color: var(--white);
+  overflow-x: hidden;
+}
+
+/* LEFT SIDE: Branding */
+.login-brand-section {
+  flex: 1;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Adding a subtle background pattern circle */
+.login-brand-section::before {
+  content: '';
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 50%;
+  top: -100px;
+  left: -100px;
+}
+
+.brand-content {
+  max-width: 450px;
+  z-index: 2;
+}
+
+.brand-content h1 {
+  font-size: 3rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  line-height: 1.2;
+}
+
+.brand-content p {
+  font-size: 1.1rem;
+  opacity: 0.8;
+  line-height: 1.6;
+}
+
+.brand-footer {
+  position: absolute;
+  bottom: 30px;
+  left: 40px;
+  font-size: 0.85rem;
+  opacity: 0.5;
+}
+
+/* RIGHT SIDE: Form */
+.login-form-section {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--white);
+  padding: 20px;
+}
+
+.form-wrapper {
+  width: 100%;
+  max-width: 420px;
+  padding: 40px;
+}
+
+.form-header {
+  margin-bottom: 2rem;
+}
+
+.form-header h2 {
+  font-size: 2rem;
+  color: var(--text-dark);
+  margin-bottom: 0.5rem;
+}
+
+.form-header p {
+  color: var(--text-light);
+}
+
+/* Form Elements */
+.input-group {
+  margin-bottom: 1.25rem;
+}
+
+.input-group label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-dark);
+  margin-bottom: 0.5rem;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-wrapper .icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-light);
+  display: flex;
+}
+
+.input-wrapper input {
+  width: 100%;
+  padding: 12px 16px 12px 42px; /* Left padding matches icon space */
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font-size: 1rem;
+  color: var(--text-dark);
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.input-wrapper input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+/* Button Styles */
+.btn-primary {
+  width: 100%;
+  padding: 12px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: 1rem;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--text-light);
+  font-size: 0.9rem;
+  cursor: pointer;
+  margin-top: 1rem;
+  width: 100%;
+  text-decoration: underline;
+}
+
+/* Alerts */
+.alert-box {
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.alert-box.error {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fee2e2;
+}
+
+.alert-box.success {
+  background-color: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #dcfce7;
+}
+
+.alert-box.info {
+  background-color: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #dbeafe;
+}
+
+/* OTP Specific */
+.otp-header {
+  background: #f1f5f9;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+  color: var(--text-dark);
+  border-left: 4px solid var(--primary-color);
+}
+
+.form-footer {
+  margin-top: 2rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--text-light);
+}
+
+.form-footer a {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+/* Animation */
+.animated-form {
+  animation: fadeIn 0.4s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============ RESPONSIVE DESIGN ============ */
+
+/* Tablet and Mobile (Devices narrower than 900px) */
+@media (max-width: 900px) {
+  .login-container {
+    flex-direction: column; /* Stack top-to-bottom */
+    height: auto; /* Let height grow naturally */
+  }
+  
+  /* --- Top Brand Section --- */
+  .login-brand-section {
+    flex: none; /* Stop forcing 30% height */
+    width: 100%;
+    min-height: 180px; /* Give it minimum space */
+    padding: 30px 20px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .brand-content {
+    max-width: 100%;
+    text-align: center;
+  }
+
+  .brand-content h1 {
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .brand-content p {
+    font-size: 0.95rem;
+    max-width: 500px; /* Prevent text from stretching too wide */
+    margin: 0 auto; /* Center the text block */
+  }
+
+  /* Hide the footer copyright on mobile to save space, or style it differently */
+  .brand-footer {
+    display: none; 
+  }
+  
+  /* --- Bottom Form Section --- */
+  .login-form-section {
+    flex: none; /* Stop forcing height */
+    width: 100%;
+    height: auto;
+    padding: 30px 20px 50px 20px; /* Add bottom padding for scrolling */
+    align-items: flex-start; /* Reset alignment */
+  }
+
+  .form-wrapper {
+    width: 100%;
+    max-width: 450px; /* Keep form from getting too wide on tablets */
+    padding: 0; /* Remove inner padding on mobile */
+    margin: 0 auto; /* Center the form */
+  }
+
+  .form-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .form-header h2 {
+    font-size: 1.75rem;
+  }
+}
+
+/* Very Small Screens (Phones < 480px) */
+@media (max-width: 480px) {
+  .login-brand-section {
+    padding: 25px 15px;
+  }
+  
+  .brand-content h1 {
+    font-size: 1.5rem;
+  }
+
+  .login-form-section {
+    padding: 20px 15px 40px 15px;
+  }
+}
+
+/* Styles for <select> dropdowns to match inputs */
+.input-wrapper select {
+  width: 100%;
+  padding: 12px 16px 12px 42px; /* Left padding matches icon space */
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font-size: 1rem;
+  color: var(--text-dark);
+  transition: all 0.2s ease;
+  outline: none;
+  
+  /* Remove default arrow and use custom one (optional but cleaner) */
+  appearance: none;
+  background-color: var(--white);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 1.2em;
+}
+
+.input-wrapper select:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+/* ======================================== */
+/* Role Selector (Left Side) */
+/* ======================================== */
+
+.role-selector {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2.5rem;
+  width: 100%;
+}
+
+.role-card {
+  flex: 1;
+  padding: 1.5rem 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--white);
+}
+
+.role-card:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-5px);
+}
+
+.role-card.active {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+  transform: translateY(-5px);
+}
+
+.role-card svg {
+  margin-bottom: 0.75rem;
+  opacity: 0.9;
+}
+
+.role-card h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* Form Placeholder (Right Side) */
+.form-placeholder {
+  text-align: center;
+  padding: 2rem;
+}
+
+.form-placeholder h2 {
+  font-size: 1.8rem;
+  color: var(--text-dark);
+  margin-bottom: 0.5rem;
+}
+
+.form-placeholder p {
+  font-size: 1rem;
+  color: var(--text-light);
+  line-height: 1.6;
+}
+
+/* ============ RADIO BUTTON STYLES ============ */
+
+.radio-group-container {
+  display: flex;
+  gap: 10px;
+}
+
+.radio-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  font-weight: 500;
+  background-color: var(--bg-color);
+  color: var(--text-light);
+}
+
+/* Hide the actual radio circle for a cleaner look */
+.radio-option input[type="radio"] {
+  display: none;
+}
+
+/* Style for when an option is selected */
+.radio-option.active {
+  background-color: #eff6ff; /* Very light blue */
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.radio-option:hover {
+  border-color: var(--primary-color);
+}
+
+/* ============ TWO COLUMN LAYOUT ============ */
+
+/* Isse fields ek line mein aa jayenge */
+.two-col-row {
+  display: flex;
+  gap: 20px; /* Beech mein space */
+  width: 100%;
+}
+
+/* Har input 50% jagah lega */
+.two-col-row .input-group {
+  flex: 1;
+  min-width: 0; /* Input overflow rokne ke liye */
+}
+
+/* Mobile par wapas ek ke neeche ek aa jaye */
+@media (max-width: 768px) {
+  .two-col-row {
+    flex-direction: column;
+    gap: 0;
+  }
+}
+
+/* ✅ Only widen the card on bigger screens, not on mobile */
+@media (min-width: 900px) {
+  .form-wrapper {
+    max-width: 550px; /* Pehle 420px tha, ab thoda wide kiya (desktop only) */
+  }
+}
