@@ -1,3 +1,6 @@
+// server.js — Grievance Portal Backend (MongoDB + Twilio)
+// Ensure package.json has "type": "module"
+
 import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
@@ -52,16 +55,14 @@ const userSchema = new mongoose.Schema({
   password: String,
   program: String, // For students
   staffDepartment: {
-  type: String,
-  enum: ["Accounts", "Admission", "Examination", "Student Welfare", ""],
-  default: ""
-},
-
-isDeptAdminStaff: {
-  type: Boolean,
-  default: false
-}
-
+    type: String,
+    enum: ["Accounts", "Admission", "Examination", "Student Welfare", ""],
+    default: ""
+  },
+  isDeptAdminStaff: {
+    type: Boolean,
+    default: false
+  }
 });
 
 const otpSchema = new mongoose.Schema({
@@ -134,20 +135,29 @@ app.post("/api/auth/register", async (req, res) => {
 // ------------------ 7️⃣ Request OTP ------------------
 app.post("/api/auth/request-otp", async (req, res) => {
   try {
-    const { role, id, phone } = req.body;
-    if (!role || !id || !phone)
-      return res.status(400).json({ message: "Missing fields" });
+    const { role, id, phone, password } = req.body; // ✅ Added Password
+    
+    if (!role || !id || !phone || !password)
+      return res.status(400).json({ message: "Missing fields (Password required)" });
 
     const user = await User.findOne({
       role: role.toLowerCase(),
       id: id.toUpperCase(),
       phone,
     });
+
     if (!user)
       return res.status(404).json({
         message: "User not found or phone mismatch",
       });
 
+    // ✅ NEW SECURITY: Verify Password BEFORE sending OTP
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid Password" });
+    }
+
+    // ... (Baaki OTP generation logic same rahega) ...
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     const otpRecord = await OTP.create({
@@ -156,7 +166,7 @@ app.post("/api/auth/request-otp", async (req, res) => {
       phone,
       otp,
       createdAt: Date.now(),
-      expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
+      expiresAt: Date.now() + 5 * 60 * 1000,
     });
 
     if (twilioClient && process.env.TWILIO_FROM) {
@@ -174,7 +184,7 @@ app.post("/api/auth/request-otp", async (req, res) => {
       console.log(`🧩 Mock OTP for ${id}: ${otp}`);
     }
 
-    res.json({ message: "OTP generated", otpId: otpRecord._id });
+    res.json({ message: "Password Verified & OTP sent", otpId: otpRecord._id });
   } catch (err) {
     console.error("❌ /request-otp:", err);
     res.status(500).json({ message: "Internal server error" });
