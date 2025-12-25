@@ -16,6 +16,7 @@ import { fileURLToPath } from "url";
 import connectDB from "./config/db.js";
 import grievanceRoutes from "./routes/grievanceRoutes.js";
 import adminStaffRoutes from "./routes/adminStaffRoutes.js"; // ✅ NEW
+import chatRoutes from "./routes/chatRoutes.js"; // ✅ NEW: Import Chat Routes
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -84,48 +85,54 @@ app.get("/", (req, res) => {
 });
 
 // ------------------ 6️⃣ Register User ------------------
+// ------------------ 6️⃣ Register User ------------------
 app.post("/api/auth/register", async (req, res) => {
   try {
-    // Destructure new fields if any
-    const { id, role, fullName, email, phone, password, program, studentType } =
-      req.body;
+    const { id, role, fullName, email, phone, password, program } = req.body;
 
     if (!id || !phone || !password || !role)
       return res.status(400).json({ message: "Missing required fields" });
 
-    // ✅ Validate ID format
-    if (role === "admin" && !id.startsWith("ADM"))
-      return res
-        .status(400)
-        .json({ message: "❌ Admin IDs must start with ADM" });
-    if (role === "staff" && !id.startsWith("STF"))
-      return res
-        .status(400)
-        .json({ message: "❌ Staff IDs must start with STF" });
-    if (role === "student" && !id.startsWith("STU"))
-      return res
-        .status(400)
-        .json({ message: "❌ Student IDs must start with STU" });
+    const upperId = id.toUpperCase();
 
-    const exists = await User.findOne({ id });
+    // ✅ Validate ID format
+    if (role === "admin") {
+      // List of ALLOWED Admin IDs
+      const allowedAdmins = [
+        "ADM_MASTER", // 👑 Main Admin
+        "ADM_ACCOUNT", "ADM_ADMISSION", "ADM_WELFARE", "ADM_EXAM", // Core
+        "ADM_ENG", "ADM_MGMT", "ADM_HOTEL", "ADM_LAW", "ADM_PHARMA", "ADM_DESIGN", "ADM_HEALTH", "ADM_SOCIAL" // Schools
+      ];
+
+      if (!allowedAdmins.includes(upperId)) {
+        return res.status(400).json({ 
+          message: "❌ Invalid Admin ID. Use a valid Department or School Admin ID (e.g. ADM_MASTER, ADM_ACCOUNT)." 
+        });
+      }
+    }
+
+    if (role === "staff" && !upperId.startsWith("STF"))
+      return res.status(400).json({ message: "❌ Staff IDs must start with STF" });
+    
+    if (role === "student" && !upperId.startsWith("STU"))
+      return res.status(400).json({ message: "❌ Student IDs must start with STU" });
+
+    const exists = await User.findOne({ id: upperId });
     if (exists) return res.status(400).json({ message: "User already exists" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = await User.create({
-      id: id.toUpperCase(),
+      id: upperId,
       role: role.toLowerCase(),
       fullName,
       email,
       phone,
       password: hashedPassword,
-      program, // Optional
-      // studentType: studentType // You can add this to schema if you want to save it
+      program,
     });
 
-    res
-      .status(201)
-      .json({ message: "✅ Registered successfully", user: newUser });
+    res.status(201).json({ message: "✅ Registered successfully", user: newUser });
   } catch (err) {
     console.error("❌ /register:", err);
     res.status(500).json({ message: "Internal server error" });
@@ -257,6 +264,7 @@ app.use("/api/grievances", grievanceRoutes);
 
 // ------------------ 1️⃣1️⃣ Admin Staff Routes (NEW) ------------------
 app.use("/api/admin-staff", adminStaffRoutes);
+app.use("/api/chat", chatRoutes); // ✅ This line makes chat work!
 
 // ------------------ 1️⃣2️⃣ Start Server ------------------
 const PORT = process.env.PORT || 5000;

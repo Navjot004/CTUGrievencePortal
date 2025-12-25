@@ -65,7 +65,7 @@ function AdminDashboard() {
           status: "Assigned",
           assignedTo: targetAdminId,
           assignedRole: "admin",
-          assignedBy: userId || "ADM01",
+          assignedBy: userId || "ADM_MASTER",
         }),
       });
 

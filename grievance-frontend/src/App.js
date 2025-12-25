@@ -40,7 +40,7 @@ function ProtectedRoute({ children, allowedRoles }) {
   // ✅ DEFINE ALL ADMINS AND THEIR ROUTES
   const adminRoutes = {
     // Core Admins
-    ADM01: "/admin/dashboard",
+    ADM_MASTER: "/admin/dashboard",
     ADM_ACCOUNT: "/admin/account",
     ADM_WELFARE: "/admin/studentwelfare",
     ADM_ADMISSION: "/admin/admission",
