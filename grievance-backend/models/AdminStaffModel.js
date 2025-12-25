@@ -10,7 +10,7 @@ const adminStaffSchema = new mongoose.Schema({
   department: {
     type: String,
     required: true,
-    enum: ["Accounts", "Admission", "Student Welfare", "Examination"],
+    // enum: ["Accounts", "Admission", "Student Welfare", "Examination"],
   },
   createdAt: {
     type: Date,

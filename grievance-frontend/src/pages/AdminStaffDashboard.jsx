@@ -20,7 +20,8 @@ function AdminStaffDashboard() {
   const staffId = localStorage.getItem("grievance_id")?.toUpperCase();
 
   const [staffName, setStaffName] = useState("");
-  const [selectedDept, setSelectedDept] = useState("Accounts");
+  const [myDepartment, setMyDepartment] = useState(""); 
+  
   const [grievances, setGrievances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState("");
@@ -33,52 +34,63 @@ function AdminStaffDashboard() {
     }
   }, [role, navigate]);
 
+  // 1. Fetch Staff Details
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchStaffInfo = async () => {
       try {
-        const res = await fetch(
-          `http://localhost:5000/api/auth/user/${staffId}`
-        );
-        const data = await res.json();
-        if (res.ok) {
-          setStaffName(data.fullName || staffId);
-        } else {
-          setStaffName(staffId || "Staff");
+        const userRes = await fetch(`http://localhost:5000/api/auth/user/${staffId}`);
+        const userData = await userRes.json();
+        if (userRes.ok) setStaffName(userData.fullName || staffId);
+
+        // Get Assigned Admin Department (Just for display purpose)
+        const adminRes = await fetch(`http://localhost:5000/api/admin-staff/check/${staffId}`);
+        const adminData = await adminRes.json();
+
+        if (adminRes.ok && adminData.isAdmin && adminData.departments.length > 0) {
+          setMyDepartment(adminData.departments[0]); 
         }
       } catch (err) {
         console.error("Error fetching staff info:", err);
-        setStaffName(staffId || "Staff");
       }
     };
-    if (staffId) fetchUser();
+
+    if (staffId) fetchStaffInfo();
   }, [staffId]);
 
+  // 2. ✅ FIX: Fetch Grievances Assigned to THIS Staff ID
+  // Pehle hum Department name se search kar rahe the, jo galat tha.
+  // Ab hum 'assigned' endpoint call kar rahe hain.
   useEffect(() => {
-    if (!selectedDept) return;
+    if (!staffId) return;
 
-    const fetchDeptGrievances = async () => {
+    const fetchMyAssignedGrievances = async () => {
       setLoading(true);
       setMsg("");
       try {
         const res = await fetch(
-          `http://localhost:5000/api/grievances/department/${encodeURIComponent(
-            selectedDept
-          )}`
+          `http://localhost:5000/api/grievances/assigned/${staffId}`
         );
         const data = await res.json();
+        
         if (!res.ok) throw new Error(data.message || "Failed to fetch data");
+        
         setGrievances(data);
+        
+        if (data.length === 0) {
+           setMsg("No grievances currently assigned to you.");
+           setStatusType("info");
+        }
       } catch (err) {
-        console.error("Error fetching dept grievances:", err);
-        setMsg("Failed to load grievances for this department.");
+        console.error("Error fetching assigned grievances:", err);
+        setMsg("Failed to load your assigned grievances.");
         setStatusType("error");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchDeptGrievances();
-  }, [selectedDept]);
+    fetchMyAssignedGrievances();
+  }, [staffId]);
 
   const updateStatus = async (id, newStatus) => {
     setMsg("Updating status...");
@@ -98,6 +110,7 @@ function AdminStaffDashboard() {
       setMsg("Status updated successfully!");
       setStatusType("success");
 
+      // Update list locally
       setGrievances((prev) =>
         prev.map((g) => (g._id === id ? data.grievance : g))
       );
@@ -111,10 +124,6 @@ function AdminStaffDashboard() {
   const handleLogout = () => {
     localStorage.clear();
     navigate("/");
-  };
-
-  const goToStaffForm = () => {
-    navigate("/staff/general");
   };
 
   return (
@@ -132,33 +141,18 @@ function AdminStaffDashboard() {
       <nav className="navbar">
         <ul>
           <li className="admin-nav-title">
-            <span>Handle Student Grievances</span>
+            <span>My Assigned Tasks</span>
           </li>
         </ul>
       </nav>
 
       <main className="dashboard-body">
         <div className="card">
-          <h2>Department Grievances</h2>
+          <h2>Assigned Grievances</h2>
           <p style={{ marginBottom: "1rem", color: "#64748b" }}>
-            Select a department queue and help resolve student grievances
-            assigned to your team.
+            Below are the grievances specifically assigned to you 
+            {myDepartment ? ` (Department: ${myDepartment})` : ""}.
           </p>
-
-          <div className="form-row" style={{ marginBottom: "1rem" }}>
-            <div className="input-group">
-              <label>Department Queue</label>
-              <select
-                value={selectedDept}
-                onChange={(e) => setSelectedDept(e.target.value)}
-              >
-                <option value="Accounts">Accounts</option>
-                <option value="Admission">Admission</option>
-                <option value="Student Welfare">Student Welfare</option>
-                <option value="Examination">Examination</option>
-              </select>
-            </div>
-          </div>
 
           {msg && <div className={`alert-box ${statusType}`}>{msg}</div>}
 
@@ -166,7 +160,7 @@ function AdminStaffDashboard() {
             <p>Loading grievances...</p>
           ) : grievances.length === 0 ? (
             <div className="empty-state">
-              <p>No grievances found for {selectedDept} department.</p>
+              <p>No grievances found assigned to your ID.</p>
             </div>
           ) : (
             <div className="table-container">
@@ -200,18 +194,18 @@ function AdminStaffDashboard() {
                         </span>
                       </td>
                       <td>
-                        {g.status !== "Resolved" ? (
-                          <button
-                            className="resolve-btn"
-                            onClick={() => updateStatus(g._id, "Resolved")}
-                          >
-                            Mark Resolved
-                          </button>
-                        ) : (
-                          <button className="resolved-btn" disabled>
-                            Resolved
-                          </button>
-                        )}
+                        <div className="action-buttons">
+                          {g.status !== "Resolved" ? (
+                            <button
+                              className="action-btn resolve-btn"
+                              onClick={() => updateStatus(g._id, "Resolved")}
+                            >
+                              Mark Resolved
+                            </button>
+                          ) : (
+                            <span className="done-btn">Resolved</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -221,10 +215,6 @@ function AdminStaffDashboard() {
           )}
         </div>
       </main>
-
-      <button className="logout-floating" onClick={handleLogout}>
-        Logout
-      </button>
     </div>
   );
 }

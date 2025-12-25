@@ -15,17 +15,20 @@ function SchoolAdminDashboard() {
   const role = localStorage.getItem("grievance_role")?.toLowerCase();
   const userId = localStorage.getItem("grievance_id")?.toUpperCase();
 
-  // Map Admin ID to a Human-Readable Name
+  // ✅ 1. Map Admin ID to Exact School Name (Must match AdminManageStaff dropdown)
   const adminTitleMap = {
     "ADM_ENG": "School of Engineering",
     "ADM_MGMT": "School of Management",
-    "ADM_HOTEL": "Hotel Management",
+    "ADM_HOTEL": "Hotel Management", // Ensure this matches exactly what you selected while adding staff
     "ADM_LAW": "School of Law",
     "ADM_PHARMA": "Pharmaceutical Sciences",
     "ADM_DESIGN": "Design & Innovation",
     "ADM_HEALTH": "Allied Health Sciences",
-    "ADM_SOCIAL": "Social Sciences"
+    "ADM_SOCIAL": "Social Sciences",
+    "ADM_DEPT": "Academic Department" // Fallback
   };
+
+  const currentSchoolName = adminTitleMap[userId] || "Academic Department";
 
   const [grievances, setGrievances] = useState([]);
   const [msg, setMsg] = useState("");
@@ -34,7 +37,7 @@ function SchoolAdminDashboard() {
   const [selectedGrievanceId, setSelectedGrievanceId] = useState(null);
 
   useEffect(() => {
-    // Only allow School Admins (check if their ID is in our map)
+    // Only allow School Admins
     if (!role || role !== "admin" || !adminTitleMap[userId]) {
       navigate("/");
     } else {
@@ -42,7 +45,6 @@ function SchoolAdminDashboard() {
     }
   }, [role, userId, navigate]);
 
-  // ✅ Fetch grievances assigned SPECIFICALLY to this Admin ID
   const fetchMySchoolGrievances = async () => {
     try {
       const res = await fetch(`http://localhost:5000/api/grievances/assigned/${userId}`);
@@ -96,7 +98,7 @@ function SchoolAdminDashboard() {
     <div className="dashboard-container">
       <header className="dashboard-header">
         <div className="header-content">
-          <h1>{adminTitleMap[userId] || "School Admin"} Dashboard</h1>
+          <h1>{currentSchoolName} Dashboard</h1>
           <p>Welcome, HOD ({userId})</p>
         </div>
         <button className="logout-btn-header" onClick={handleLogout}>Logout</button>
@@ -167,7 +169,8 @@ function SchoolAdminDashboard() {
       <AssignStaffPopup
         isOpen={isPopupOpen}
         onClose={() => setIsPopupOpen(false)}
-        department="Department" // Generic context for school staff
+        // ✅ FIX: Pass the ACTUAL school name (e.g., "School of Engineering") instead of "Department"
+        department={currentSchoolName} 
         grievanceId={selectedGrievanceId}
         adminId={userId}
         onAssigned={handleAssignSuccess}

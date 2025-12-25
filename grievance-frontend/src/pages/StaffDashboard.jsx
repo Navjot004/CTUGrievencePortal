@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import "../styles/Dashboard.css";
 
 // Helper: format dates for tables
@@ -271,6 +271,10 @@ function StaffDashboard() {
               : `Welcome, ${staffName || userId}`}
           </p>
         </div>
+        {/* ✅ ADDED: Logout Button in Header */}
+        <button className="logout-btn-header" onClick={handleLogout}>
+          Logout
+        </button>
       </header>
 
       {/* Tabs for Staff */}
