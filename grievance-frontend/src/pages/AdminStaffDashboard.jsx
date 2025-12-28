@@ -1,47 +1,8 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
-
-// Internal styles for Notification Dot & Toast
-const internalStyles = `
-  .chat-btn-wrapper {
-    position: relative;
-    display: inline-block;
-  }
-  .notification-dot {
-    height: 10px;
-    width: 10px;
-    background-color: #ef4444;
-    border-radius: 50%;
-    display: inline-block;
-    position: absolute;
-    top: -3px;
-    right: -3px;
-    border: 1px solid white;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-  }
-  .toast-notification {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background-color: #1e293b; /* Dark Slate */
-    color: white;
-    padding: 12px 20px;
-    border-radius: 8px;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-    z-index: 9999;
-    animation: slideIn 0.3s ease-out;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-weight: 500;
-    border-left: 4px solid #3b82f6; /* Blue Accent */
-  }
-  @keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-  }
-`;
+// ✅ IMPORT CHAT COMPONENT
+import ChatPopup from "../components/ChatPopup";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
@@ -71,15 +32,12 @@ function AdminStaffDashboard() {
   // --- CHAT STATE ---
   const [showChat, setShowChat] = useState(false);
   const [currentChatId, setCurrentChatId] = useState(null);
-  const [chatMessages, setChatMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [isSending, setIsSending] = useState(false);
 
-  // --- NEW: NOTIFICATION STATE ---
-  const [unreadMap, setUnreadMap] = useState({}); // Stores which grievance has unread msgs
+  // --- NOTIFICATION STATE ---
+  const [unreadMap, setUnreadMap] = useState({});
   const [toast, setToast] = useState({ show: false, message: "" });
-  const lastMessageRef = useRef({}); // To track message IDs and detect NEW ones
-  const isFirstPoll = useRef(true); // To prevent toast spam on page load
+  const lastMessageRef = useRef({}); 
+  const isFirstPoll = useRef(true); 
   // ------------------
 
   useEffect(() => {
@@ -97,7 +55,6 @@ function AdminStaffDashboard() {
         const userData = await userRes.json();
         if (userRes.ok) setStaffName(userData.fullName || staffId);
 
-        // Get Assigned Admin Department
         const adminRes = await fetch(`http://localhost:5000/api/admin-staff/check/${staffId}`);
         const adminData = await adminRes.json();
 
@@ -145,7 +102,7 @@ function AdminStaffDashboard() {
     fetchMyAssignedGrievances();
   }, [staffId]);
 
-  // --- 3. NEW: LIVE POLLING FOR MESSAGES & NOTIFICATIONS ---
+  // --- 3. LIVE POLLING FOR NOTIFICATIONS ONLY ---
   useEffect(() => {
     if (!staffId || grievances.length === 0) return;
 
@@ -153,7 +110,6 @@ function AdminStaffDashboard() {
       const newUnreadMap = { ...unreadMap };
       let newToastMsg = null;
 
-      // Check messages for ALL assigned grievances
       await Promise.all(grievances.map(async (g) => {
         try {
           const res = await fetch(`http://localhost:5000/api/chat/${g._id}`);
@@ -163,34 +119,26 @@ function AdminStaffDashboard() {
             if (msgs.length > 0) {
               const lastMsg = msgs[msgs.length - 1];
               
-              // Determine if sender is Student (Logic: if senderRole is NOT staff)
-              const isStudentSender = (lastMsg.senderRole !== "staff" && lastMsg.sender !== "staff");
+              // If sender is NOT staff, then it's student -> UNREAD
+              const isStudentSender = (lastMsg.senderRole !== "staff" && lastMsg.senderId !== staffId);
 
-              // A. Red Dot Logic: If last message is from student, show dot
-              newUnreadMap[g._id] = isStudentSender;
+              // A. Red Dot Logic
+              if (showChat && currentChatId === g._id) {
+                 newUnreadMap[g._id] = false;
+              } else {
+                 newUnreadMap[g._id] = isStudentSender;
+              }
 
-              // B. Toast Logic: If it's a NEW message ID we haven't seen in this session
+              // B. Toast Logic
               if (lastMessageRef.current[g._id] !== lastMsg._id) {
-                // Only show toast if it's NOT the first load AND it's from a student
                 if (!isFirstPoll.current && isStudentSender) {
                    newToastMsg = `New message from ${g.name}`;
                 }
-                // Update Ref
                 lastMessageRef.current[g._id] = lastMsg._id;
-              }
-
-              // C. Live Chat Update: If this grievance chat is currently OPEN
-              if (showChat && currentChatId === g._id) {
-                setChatMessages((prev) => {
-                  // Only update if message count changed (simple check)
-                  if (prev.length !== msgs.length) return msgs;
-                  return prev;
-                });
               }
             }
           }
         } catch (err) {
-          // Silent fail for polling
           console.warn("Polling error for", g._id);
         }
       }));
@@ -201,89 +149,32 @@ function AdminStaffDashboard() {
         showToastNotification(newToastMsg);
       }
 
-      isFirstPoll.current = false; // First load done
+      isFirstPoll.current = false;
     };
 
-    // Poll every 5 seconds
     const intervalId = setInterval(pollMessages, 5000);
-    
-    // Also run once immediately to populate dots
-    pollMessages();
+    pollMessages(); // Run once immediately
 
     return () => clearInterval(intervalId);
-  }, [grievances, staffId, showChat, currentChatId]); // Re-run if grievance list changes
+  }, [grievances, staffId, showChat, currentChatId]); 
 
   const showToastNotification = (message) => {
     setToast({ show: true, message });
-    // Hide after 3 seconds
     setTimeout(() => setToast({ show: false, message: "" }), 3000);
   };
 
   // --- CHAT FUNCTIONS ---
-  const openChat = async (grievanceId) => {
+  const openChat = (grievanceId) => {
     setCurrentChatId(grievanceId);
     setShowChat(true);
-    setChatMessages([]); // Reset old messages
-    
-    // Fetch chat history immediately
-    try {
-      const res = await fetch(`http://localhost:5000/api/chat/${grievanceId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setChatMessages(data);
-        // Mark as read immediately in local state (remove dot)
-        setUnreadMap(prev => ({ ...prev, [grievanceId]: false }));
-      }
-    } catch (err) {
-      console.error("Error fetching chat:", err);
-    }
+    // Remove red dot immediately
+    setUnreadMap(prev => ({ ...prev, [grievanceId]: false }));
   };
 
   const closeChat = () => {
     setShowChat(false);
     setCurrentChatId(null);
-    setChatMessages([]);
   };
-
-  const sendMessage = async () => {
-    if (!newMessage.trim()) return;
-
-    setIsSending(true);
-
-    try {
-      const payload = {
-        grievanceId: currentChatId,
-        senderId: staffId,
-        message: newMessage,
-        senderRole: "staff", 
-        sender: staffName || "Staff"
-      };
-
-      const res = await fetch("http://localhost:5000/api/chat/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        const savedMsg = await res.json();
-        setChatMessages([...chatMessages, savedMsg]);
-        setNewMessage("");
-        
-        // Ensure dot is gone since we replied (sender is now staff)
-        setUnreadMap(prev => ({ ...prev, [currentChatId]: false }));
-      } else {
-        const errorData = await res.json();
-        alert(`Failed to send: ${errorData.message || "Unknown error"}`);
-      }
-    } catch (err) {
-      console.error("Error sending message:", err);
-      alert("Network error. Could not send message.");
-    } finally {
-      setIsSending(false);
-    }
-  };
-  // ----------------------
 
   const updateStatus = async (id, newStatus) => {
     setMsg("Updating status...");
@@ -303,7 +194,6 @@ function AdminStaffDashboard() {
       setMsg("Status updated successfully!");
       setStatusType("success");
 
-      // Update list locally
       setGrievances((prev) =>
         prev.map((g) => (g._id === id ? data.grievance : g))
       );
@@ -321,9 +211,6 @@ function AdminStaffDashboard() {
 
   return (
     <div className="dashboard-container">
-      {/* Inject Internal Styles */}
-      <style>{internalStyles}</style>
-
       {/* Toast Notification */}
       {toast.show && (
         <div className="toast-notification">
@@ -436,64 +323,14 @@ function AdminStaffDashboard() {
         </div>
       </main>
 
-      {/* --- CHAT MODAL UI --- */}
-      {showChat && (
-        <div className="chat-modal-overlay" onClick={closeChat}>
-          <div className="chat-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="chat-header">
-              <h3>Chat with Student</h3>
-              <button className="close-btn" onClick={closeChat}>&times;</button>
-            </div>
-
-            <div className="chat-body">
-              {chatMessages.length === 0 ? (
-                <p style={{ textAlign: "center", color: "#888", marginTop: "20px" }}>
-                  No messages yet. Start the conversation!
-                </p>
-              ) : (
-                chatMessages.map((m, index) => (
-                  <div
-                    key={index}
-                    className={`chat-message ${
-                      // Check both senderRole and sender for compatibility
-                      (m.senderRole === "staff" || m.sender === "staff") ? "sent" : "received"
-                    }`}
-                  >
-                    <div className="msg-bubble">
-                      <span className="msg-sender">
-                        {(m.senderRole === "staff" || m.sender === "staff") ? "You" : "Student"}
-                      </span>
-                      {m.message}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div className="chat-footer">
-              <input
-                type="text"
-                placeholder="Type a message..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                disabled={isSending}
-              />
-              <button 
-                onClick={sendMessage}
-                disabled={!newMessage.trim() || isSending}
-                style={{ 
-                  opacity: (!newMessage.trim() || isSending) ? 0.6 : 1,
-                  cursor: (!newMessage.trim() || isSending) ? 'not-allowed' : 'pointer'
-                }}
-              >
-                {isSending ? "..." : "Send"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* --------------------- */}
+      {/* ✅ Chat Popup (Using Reusable Component) */}
+      <ChatPopup 
+        isOpen={showChat} 
+        onClose={closeChat} 
+        grievanceId={currentChatId} 
+        currentUserId={staffId}
+        currentUserRole="staff"
+      />
     </div>
   );
 }

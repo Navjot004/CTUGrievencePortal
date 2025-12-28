@@ -1,58 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, Link, useLocation } from "react-router-dom";
-import "../styles/Dashboard.css";
-import ChatPopup from "../components/ChatPopup"; // ✅ Import ChatPopup
+import { useNavigate, Link } from "react-router-dom";
+import "../styles/Dashboard.css"; 
+// ✅ Ab hum ChatPopup ko component folder se import kar rahe hain
+import ChatPopup from "../components/ChatPopup"; 
 
-// ✅ DATA: Map Program -> School
-const academicPrograms = {
-  "School of Engineering and Technology": [
-    "B.Tech - Computer Science (CSE)", "B.Tech - AI & Data Science (IBM)", "B.Tech - Cyber Security (IBM)",
-    "B.Tech - Civil Engineering", "B.Tech - Mechanical Engineering", "B.Tech - Electronics & Comm (ECE)",
-    "B.Tech - Robotics & Automation", "M.Tech - CSE / Civil / Mech", "BCA - General / Data Science",
-    "MCA - General / Cyber Security", "B.Sc - Computer Science / IT"
-  ],
-  "School of Management Studies": [
-    "BBA - General", "BBA - Digital Marketing", "BBA - Financial Services", "BBA - Business Analytics (IBM)",
-    "MBA - International Business", "MBA - Finance / Marketing / HR", "MBA - Business Analytics (IBM)",
-    "B.Com - General / Honors"
-  ],
-  "School of Hotel Management, Airlines and Tourism": [
-    "BHMCT (Hotel Mgmt & Catering)", "B.Sc - Airlines & Tourism (ATM)", "Diploma - Food Production", "Diploma - Hotel Management"
-  ],
-  "School of Law": [
-    "BA LL.B (5 Years)", "B.Com LL.B (5 Years)", "BBA LL.B (5 Years)", "LL.B (3 Years)", "LL.M (Master of Laws)"
-  ],
-  "School of Pharmaceutical Sciences": [
-    "B.Pharm (Bachelor of Pharmacy)", "D.Pharm (Diploma in Pharmacy)", "M.Pharm - Pharmaceutics / Pharmacology", "Pharm.D (Doctor of Pharmacy)"
-  ],
-  "School of Design and Innovation": [
-    "B.Des - Interior Design", "B.Des - Fashion Design", "B.Sc - Fashion Design", "B.Sc - Multimedia & Animation",
-    "B.Sc - Graphic Design", "B.Arch (Bachelor of Architecture)", "M.Des / M.Sc - Design"
-  ],
-  "School of Allied Health Sciences": [
-    "BPT (Bachelor of Physiotherapy)", "B.Sc - Medical Lab Tech (MLT)", "B.Sc - Radiology & Imaging Tech",
-    "B.Sc - Operation Theatre Tech (OTT)", "B.Sc - Anesthesia Technology", "B.Optom (Bachelor of Optometry)"
-  ],
-  "School of Social Sciences and Liberal Arts": [
-    "BA - General", "BA - Journalism & Mass Comm", "BA - Physical Education",
-    "MA - English / Punjabi / Economics", "M.Sc - Economics / Psychology"
-  ]
-};
-
-// ✅ Helper: Find School Name
-const getSchoolFromProgram = (programName) => {
-  if (!programName) return "";
-  const cleanDbProgram = programName.trim().toLowerCase().replace(/\s+/g, ' ');
-  for (const [school, programs] of Object.entries(academicPrograms)) {
-    const found = programs.find(p =>
-      p.trim().toLowerCase().replace(/\s+/g, ' ') === cleanDbProgram
-    );
-    if (found) return school;
-  }
-  return "";
-};
-
-// ✅ Helper: Format Date
+// ✅ HELPER FUNCTION
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
   return new Date(dateString).toLocaleDateString("en-US", {
@@ -62,84 +14,60 @@ const formatDate = (dateString) => {
 
 function StudentDashboard() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const role = localStorage.getItem("grievance_role");
   const userId = localStorage.getItem("grievance_id");
+  const role = localStorage.getItem("grievance_role");
 
-  // ✅ STATE MANAGEMENT
-  const [activeTab, setActiveTab] = useState("submit"); // 'submit' or 'history'
-  const [history, setHistory] = useState([]); // Stores past grievances
-  const [stats, setStats] = useState({ total: 0, pending: 0, resolved: 0 }); // Stores counts
-  
-  const [formData, setFormData] = useState({
-    name: "", regid: userId || "", email: "", phone: "", school: "", message: "",
-  });
-  const [attachment, setAttachment] = useState(null);
-  const [msg, setMsg] = useState("");
-  const [statusType, setStatusType] = useState("");
+  // State
+  const [history, setHistory] = useState([]);
+  const [stats, setStats] = useState({ total: 0, pending: 0, resolved: 0, rejected: 0 });
   const [loading, setLoading] = useState(true);
+  const [studentName, setStudentName] = useState("");
 
-  // ✅ Chat State
+  // Chat State
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatGrievanceId, setChatGrievanceId] = useState(null);
 
-  // 1. Route Protection
   useEffect(() => {
     if (!role || role !== "student") navigate("/");
   }, [role, navigate]);
 
-  // 2. Fetch User Profile (Auto-Fill)
+  // Fetch Data
   useEffect(() => {
-    const fetchUserDetails = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/auth/user/${userId}`);
-        const data = await res.json();
-        if (res.ok) {
-          const autoSelectedSchool = getSchoolFromProgram(data.program);
-          setFormData((prev) => ({
-            ...prev,
-            name: data.fullName || "",
-            email: data.email || "",
-            phone: data.phone || "",
-            school: autoSelectedSchool || "",
-          }));
+        // 1. User Info
+        const userRes = await fetch(`http://localhost:5000/api/auth/user/${userId}`);
+        const userData = await userRes.json();
+        if (userRes.ok) setStudentName(userData.fullName);
+
+        // 2. Grievance History
+        const histRes = await fetch(`http://localhost:5000/api/grievances/user/${userId}`);
+        const histData = await histRes.json();
+
+        if (histRes.ok) {
+          setHistory(histData);
+          
+          // Stats Calculation
+          const total = histData.length;
+          const resolved = histData.filter(g => g.status === "Resolved").length;
+          const rejected = histData.filter(g => g.status === "Rejected").length;
+          const pending = total - resolved - rejected;
+          
+          setStats({ total, resolved, rejected, pending });
         }
       } catch (err) {
-        console.error("Error fetching user details:", err);
+        console.error("Error fetching data:", err);
       } finally {
         setLoading(false);
       }
     };
-    if (userId) fetchUserDetails();
+
+    if (userId) fetchData();
   }, [userId]);
 
-  // 3. ✅ NEW: Fetch Grievance History & Calculate Stats
-  useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        const res = await fetch(`http://localhost:5000/api/grievances/user/${userId}`);
-        const data = await res.json();
-        
-        if (res.ok) {
-          setHistory(data);
-          // Calculate Stats
-          const pending = data.filter(g => g.status !== "Resolved" && g.status !== "Rejected").length;
-          const resolved = data.filter(g => g.status === "Resolved").length;
-          setStats({ total: data.length, pending, resolved });
-        }
-      } catch (err) {
-        console.error("Error fetching history:", err);
-      }
-    };
-    if (userId) fetchHistory();
-  }, [userId, msg]); // Re-fetch when 'msg' changes (after a new submission)
-
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleFileChange = (e) => {
-    setAttachment(e.target.files[0]);
+  const openChat = (gId) => {
+    setChatGrievanceId(gId);
+    setIsChatOpen(true);
   };
 
   const handleLogout = () => {
@@ -147,56 +75,38 @@ function StudentDashboard() {
     navigate("/");
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setMsg("Submitting...");
-    setStatusType("info");
+  // Graph Percentages
+  const totalG = stats.total || 1; 
+  const resolvedPct = (stats.resolved / totalG) * 100;
+  const pendingPct = (stats.pending / totalG) * 100;
+  const rejectedPct = (stats.rejected / totalG) * 100;
 
-    const data = new FormData();
-    data.append("userId", userId);
-    data.append("name", formData.name);
-    data.append("regid", formData.regid);
-    data.append("email", formData.email);
-    data.append("phone", formData.phone);
-    data.append("school", formData.school);
-    data.append("category", "Student Welfare"); // Default category for main dash
-    data.append("message", formData.message);
-    if (attachment) data.append("attachment", attachment);
-
-    try {
-      const res = await fetch("http://localhost:5000/api/grievances", {
-        method: "POST",
-        body: data,
-      });
-      const responseData = await res.json();
-      if (!res.ok) throw new Error(responseData.message);
-
-      setMsg("✅ Submitted successfully!");
-      setStatusType("success");
-      setFormData(prev => ({ ...prev, message: "" }));
-      setAttachment(null);
-      document.getElementById("fileInput").value = "";
-      
-      // Switch to history tab to show the new item
-      setTimeout(() => setActiveTab("history"), 1500);
-      
-    } catch (err) {
-      setMsg(`❌ ${err.message}`);
-      setStatusType("error");
-    }
-  };
-
-  const openChat = (gId) => {
-    setChatGrievanceId(gId);
-    setIsChatOpen(true);
+  // Inline Styles for Graph (Clean & Professional)
+  const graphStyles = {
+    statsContainer: {
+      display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '30px', width: '100%'
+    },
+    statCard: {
+      background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+    },
+    statIcon: {
+      width: '50px', height: '50px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem'
+    },
+    graphSection: {
+        background: 'white', padding: '25px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '30px', width: '100%', boxSizing: 'border-box'
+    },
+    barGroup: { display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' },
+    barTrack: { flex: 1, height: '12px', background: '#f1f5f9', borderRadius: '6px', overflow: 'hidden' },
+    barLabel: { width: '100px', fontWeight: '500', color: '#64748b', fontSize: '0.9rem' }
   };
 
   return (
     <div className="dashboard-container">
+      
       <header className="dashboard-header">
         <div className="header-content">
           <h1>Student Dashboard</h1>
-          <p>Welcome back, <strong>{formData.name || userId}</strong></p>
+          <p>Welcome back, <strong>{studentName || userId}</strong></p>
         </div>
         <button className="logout-btn-header" onClick={handleLogout}>Logout</button>
       </header>
@@ -215,154 +125,129 @@ function StudentDashboard() {
 
       <main className="dashboard-body">
         
-        {/* ✅ VISUAL STATS CARDS */}
-        <div className="stats-row">
-          <div className="stat-card total">
-            <h3>Total Grievances</h3>
-            <p>{stats.total}</p>
+        {/* ✅ 1. STATS OVERVIEW CARDS */}
+        <div style={graphStyles.statsContainer}>
+          <div style={graphStyles.statCard}>
+            <div>
+              <h3 style={{margin: 0, fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase'}}>Total Grievances</h3>
+              <p style={{margin: '5px 0 0', fontSize: '2rem', fontWeight: 700, color: '#1e293b'}}>{stats.total}</p>
+            </div>
+            <div style={{...graphStyles.statIcon, background: '#eff6ff', color: '#2563eb'}}>📊</div>
           </div>
-          <div className="stat-card pending">
-            <h3>Pending</h3>
-            <p>{stats.pending}</p>
+          
+          <div style={graphStyles.statCard}>
+            <div>
+              <h3 style={{margin: 0, fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase'}}>Pending</h3>
+              <p style={{margin: '5px 0 0', fontSize: '2rem', fontWeight: 700, color: '#1e293b'}}>{stats.pending}</p>
+            </div>
+            <div style={{...graphStyles.statIcon, background: '#fff7ed', color: '#ea580c'}}>⏳</div>
           </div>
-          <div className="stat-card resolved">
-            <h3>Resolved</h3>
-            <p>{stats.resolved}</p>
+          
+          <div style={graphStyles.statCard}>
+            <div>
+              <h3 style={{margin: 0, fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase'}}>Resolved</h3>
+              <p style={{margin: '5px 0 0', fontSize: '2rem', fontWeight: 700, color: '#1e293b'}}>{stats.resolved}</p>
+            </div>
+            <div style={{...graphStyles.statIcon, background: '#f0fdf4', color: '#16a34a'}}>✅</div>
           </div>
         </div>
 
-        {/* ✅ TOGGLE TABS */}
-        <div className="dashboard-tabs">
-          <button 
-            className={`tab-btn ${activeTab === 'submit' ? 'active' : ''}`} 
-            onClick={() => setActiveTab('submit')}
-          >
-            Submit New Grievance
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`} 
-            onClick={() => setActiveTab('history')}
-          >
-            Track My History
-          </button>
-        </div>
+        {/* ✅ 2. GRAPH / VISUAL REPRESENTATION */}
+        {stats.total > 0 && (
+          <div style={graphStyles.graphSection}>
+            <h2 style={{margin: '0 0 20px', fontSize: '1.2rem', color: '#1e293b'}}>Resolution Status</h2>
+            
+            {/* Resolved Bar */}
+            <div style={graphStyles.barGroup}>
+              <span style={graphStyles.barLabel}>Resolved</span>
+              <div style={graphStyles.barTrack}>
+                <div style={{height: '100%', width: `${resolvedPct}%`, background: '#10b981', borderRadius: '6px', transition: 'width 0.5s'}}></div>
+              </div>
+              <span style={{fontWeight: 600, color: '#334155', width: '40px', textAlign: 'right'}}>{stats.resolved}</span>
+            </div>
 
+            {/* Pending Bar */}
+            <div style={graphStyles.barGroup}>
+              <span style={graphStyles.barLabel}>Pending</span>
+              <div style={graphStyles.barTrack}>
+                <div style={{height: '100%', width: `${pendingPct}%`, background: '#f59e0b', borderRadius: '6px', transition: 'width 0.5s'}}></div>
+              </div>
+              <span style={{fontWeight: 600, color: '#334155', width: '40px', textAlign: 'right'}}>{stats.pending}</span>
+            </div>
+
+            {/* Rejected Bar */}
+            <div style={graphStyles.barGroup}>
+              <span style={graphStyles.barLabel}>Rejected</span>
+              <div style={graphStyles.barTrack}>
+                <div style={{height: '100%', width: `${rejectedPct}%`, background: '#ef4444', borderRadius: '6px', transition: 'width 0.5s'}}></div>
+              </div>
+              <span style={{fontWeight: 600, color: '#334155', width: '40px', textAlign: 'right'}}>{stats.rejected}</span>
+            </div>
+          </div>
+        )}
+
+        {/* ✅ 3. RECENT ACTIVITY TABLE */}
         <div className="card">
-          {/* 🟢 VIEW 1: SUBMIT FORM */}
-          {activeTab === 'submit' && (
-            <>
-              <h2>Submit General Grievance</h2>
-              <p>For specific department issues, please use the navigation bar above.</p>
-              
-              {loading ? <p>Loading profile...</p> : (
-                <form onSubmit={handleSubmit}>
-                  {msg && <div className={`alert-box ${statusType}`}>{msg}</div>}
-
-                  <div className="form-row">
-                    <div className="input-group">
-                      <label>Full Name</label>
-                      <input type="text" value={formData.name} readOnly className="read-only-input" />
-                    </div>
-                    <div className="input-group">
-                      <label>Reg ID</label>
-                      <input type="text" value={formData.regid} readOnly className="read-only-input" />
-                    </div>
-                  </div>
-
-                  <div className="form-row">
-                    <div className="input-group">
-                      <label>Email</label>
-                      <input type="email" value={formData.email} readOnly className="read-only-input" />
-                    </div>
-                    <div className="input-group">
-                      <label>Phone</label>
-                      <input type="text" value={formData.phone} readOnly className="read-only-input" />
-                    </div>
-                  </div>
-
-                  <div className="input-group">
-                    <label>School</label>
-                    <input type="text" value={formData.school} readOnly className="read-only-input" />
-                  </div>
-
-                  <div className="input-group">
-                    <label>Message</label>
-                    <textarea 
-                      name="message" 
-                      value={formData.message} 
-                      onChange={handleChange} 
-                      rows="5" 
-                      placeholder="Describe your issue..." 
-                      required 
-                    ></textarea>
-                  </div>
-
-                  <div className="input-group">
-                    <label>Attach Document (Optional)</label>
-                    <input id="fileInput" type="file" onChange={handleFileChange} className="file-input" />
-                  </div>
-
-                  <button type="submit" className="submit-btn">Submit</button>
-                </form>
-              )}
-            </>
-          )}
-
-          {/* 🔵 VIEW 2: HISTORY TABLE */}
-          {activeTab === 'history' && (
-            <>
-              <h2>My Grievance History</h2>
-              {history.length === 0 ? (
-                <div className="empty-state">
-                  <p>You haven't submitted any grievances yet.</p>
-                </div>
-              ) : (
-                <div className="table-container">
-                  <table className="grievance-table">
-                    <thead>
-                      <tr>
-                        <th>Date</th>
-                        <th>Category</th>
-                        <th>Message</th>
-                        <th>Status</th>
-                        <th>Admin Remark</th>
-                        <th>Action</th> {/* ✅ Added Action Column */}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {history.map((g) => (
-                        <tr key={g._id}>
-                          <td>{formatDate(g.createdAt)}</td>
-                          <td>{g.category}</td>
-                          <td className="message-cell">{g.message.substring(0, 50)}...</td>
-                          <td>
-                            <span className={`status-badge status-${g.status.toLowerCase().replace(" ", "")}`}>
-                              {g.status}
-                            </span>
-                          </td>
-                          <td>{g.resolutionRemarks || "-"}</td>
-                          <td>
-                            {/* ✅ CHAT BUTTON */}
-                            <button 
-                              className="action-btn" 
-                              style={{backgroundColor: "#3b82f6", color: "white"}}
-                              onClick={() => openChat(g._id)}
-                            >
-                              Chat
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </>
+          <h2>Recent Activity</h2>
+          {loading ? (
+            <p>Loading records...</p>
+          ) : history.length === 0 ? (
+            <div style={{textAlign: 'center', padding: '40px', border: '1px dashed #cbd5e1', borderRadius: '12px'}}>
+              <h3>No grievances found</h3>
+              <p>You haven't submitted any grievances yet.</p>
+              <button 
+                style={{marginTop: '15px', padding: '10px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600}} 
+                onClick={() => navigate('/student/welfare')}
+              >
+                Submit a Grievance
+              </button>
+            </div>
+          ) : (
+            <div className="table-container">
+              <table className="grievance-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>School</th>
+                    <th>Message</th>
+                    <th>Status</th>
+                    <th>Remarks</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.map((g) => (
+                    <tr key={g._id}>
+                      <td>{formatDate(g.createdAt)}</td>
+                      <td>{g.category || "General"}</td>
+                      <td>{g.school || "-"}</td>
+                      <td className="message-cell">{g.message.substring(0, 40)}{g.message.length > 40 && "..."}</td>
+                      <td>
+                        <span className={`status-badge status-${g.status.toLowerCase().replace(" ", "")}`}>
+                          {g.status}
+                        </span>
+                      </td>
+                      <td>{g.resolutionRemarks || "-"}</td>
+                      <td>
+                        <button 
+                            className="action-btn" 
+                            style={{backgroundColor: "#3b82f6", color: "white"}}
+                            onClick={() => openChat(g._id)}
+                          >
+                            Chat
+                          </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </main>
 
-      {/* ✅ Chat Popup Component */}
+      {/* ✅ Chat Popup Component (Imported) */}
       <ChatPopup 
         isOpen={isChatOpen} 
         onClose={() => setIsChatOpen(false)} 

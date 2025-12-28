@@ -1,4 +1,4 @@
-// server.js — Grievance Portal Backend (MongoDB + Twilio + Nodemailer)
+// server.js — Grievance Portal Backend (MongoDB + Twilio + Nodemailer + Manual GridFS)
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -9,13 +9,17 @@ import jwt from "jsonwebtoken";
 import path from "path";
 import { fileURLToPath } from "url";
 import nodemailer from "nodemailer";
+import { Readable } from "stream"; // ✅ NEW: Manual streaming ke liye
+
+// ✅ NEW IMPORTS FOR FILE UPLOAD
+import Grid from "gridfs-stream";
+import multer from "multer";
 
 // Modular DB and routes
 import connectDB from "./config/db.js";
 import grievanceRoutes from "./routes/grievanceRoutes.js";
 import adminStaffRoutes from "./routes/adminStaffRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
-// ✅ FIXED: Added missing import for authRoutes
 import authRoutes from "./routes/authRoutes.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -25,27 +29,45 @@ dotenv.config();
 
 const app = express();
 
-// ------------------ 1️⃣ Middleware (Must be before routes) ------------------
+// ------------------ 1️⃣ Middleware ------------------
 app.use(cors({
     origin: ["http://localhost:3000", "http://localhost:3001"],
     credentials: true,
 }));
-// ✅ FIXED: Using built-in express JSON parser instead of redundant bodyParser
 app.use(express.json()); 
 
-// ------------------ 2️⃣ Database Connection ------------------
+// ------------------ 2️⃣ Database Connection & GridFS Init ------------------
 connectDB();
 
-// ------------------ 3️⃣ Email Config (For Registration) ------------------
+// ✅ GRIDFS SETUP (Manual Stream Mode)
+const conn = mongoose.connection;
+let gfs, gridfsBucket;
+
+conn.once("open", () => {
+  // Init Stream
+  gridfsBucket = new mongoose.mongo.GridFSBucket(conn.db, {
+    bucketName: "uploads"
+  });
+  gfs = Grid(conn.db, mongoose.mongo);
+  gfs.collection("uploads");
+  console.log("✅ GridFS Initialized (Native Streaming Mode)");
+});
+
+// ✅ STORAGE ENGINE (Memory Storage)
+// Hum file pehle memory mein lenge, fir manually DB mein stream karenge to fix '_id' error.
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
+// ------------------ 3️⃣ Email Config ------------------
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // 16-digit Google App Password
+    pass: process.env.EMAIL_PASS, 
   },
 });
 
-// ------------------ 4️⃣ Twilio Config (For Login) ------------------
+// ------------------ 4️⃣ Twilio Config ------------------
 const twilioClient = process.env.TWILIO_SID && process.env.TWILIO_TOKEN
     ? twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN)
     : null;
@@ -59,7 +81,7 @@ const userSchema = new mongoose.Schema({
   phone: String,
   password: String,
   program: String,
-  studentType: String, // ✅ ADDED: To store "current" or "alumni" status
+  studentType: String, 
   staffDepartment: { type: String, default: "" },
   isDeptAdminStaff: { type: Boolean, default: false }
 });
@@ -75,9 +97,8 @@ const otpSchema = new mongoose.Schema({
 const User = mongoose.models.User || mongoose.model("User", userSchema);
 const OTP = mongoose.models.OTP || mongoose.model("OTP", otpSchema);
 
-// ------------------ 6️⃣ REGISTRATION (Email OTP) ------------------
+// ------------------ 6️⃣ REGISTRATION ROUTES ------------------
 
-// Step 1: Send OTP to Email
 app.post("/api/auth/register-request", async (req, res) => {
   try {
     const { id, email } = req.body;
@@ -112,7 +133,6 @@ app.post("/api/auth/register-request", async (req, res) => {
   }
 });
 
-// Step 2: Verify Email OTP & Finalize Registration
 app.post("/api/auth/verify-otp", async (req, res) => {
   try {
     const { email, otp, formData } = req.body;
@@ -132,7 +152,7 @@ app.post("/api/auth/verify-otp", async (req, res) => {
       phone: formData.phone,
       password: hashedPassword,
       program: formData.program,
-      studentType: formData.studentType // Store current/alumni status
+      studentType: formData.studentType 
     });
 
     await OTP.deleteOne({ _id: otpRecord._id });
@@ -143,7 +163,7 @@ app.post("/api/auth/verify-otp", async (req, res) => {
   }
 });
 
-// ------------------ 7️⃣ LOGIN (Twilio SMS OTP) ------------------
+// ------------------ 7️⃣ LOGIN ROUTES ------------------
 
 app.post("/api/auth/request-otp", async (req, res) => {
   try {
@@ -201,7 +221,6 @@ app.post("/api/auth/verify-otp-password", async (req, res) => {
   }
 });
 
-// ------------------ 8️⃣ Final Route Registration ------------------
 app.get("/api/auth/user/:id", async (req, res) => {
   try {
     const user = await User.findOne({ id: req.params.id.toUpperCase() });
@@ -212,8 +231,67 @@ app.get("/api/auth/user/:id", async (req, res) => {
   }
 });
 
+// ------------------ 8️⃣ FILE UPLOAD ROUTES (FIXED MANUAL UPLOAD) ------------------
+
+// A. Upload Route (Manually Piping to GridFS)
+app.post("/api/upload", upload.single("file"), (req, res) => {
+  if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+  const filename = `${Date.now()}-${req.file.originalname}`;
+
+  // 1. Create a Readable Stream from the file buffer (Memory)
+  const readableStream = new Readable();
+  readableStream.push(req.file.buffer);
+  readableStream.push(null); // End of stream
+
+  // 2. Open a generic Upload Stream to GridFS
+  const uploadStream = gridfsBucket.openUploadStream(filename, {
+    contentType: req.file.mimetype
+  });
+
+  // 3. Pipe the file buffer -> GridFS
+  readableStream.pipe(uploadStream);
+
+  // 4. Handle Events
+  uploadStream.on("error", (err) => {
+    console.error("Upload Error:", err);
+    return res.status(500).json({ message: "Error uploading file" });
+  });
+
+  uploadStream.on("finish", () => {
+    // Return metadata exactly how frontend expects it
+    res.json({ 
+      filename: filename,
+      fileId: uploadStream.id,
+      contentType: req.file.mimetype,
+      originalName: req.file.originalname 
+    });
+  });
+});
+
+// B. Retrieval Route
+app.get("/api/file/:filename", async (req, res) => {
+  try {
+    const file = await gfs.files.findOne({ filename: req.params.filename });
+    if (!file) {
+      return res.status(404).json({ err: "No file found" });
+    }
+    
+    // Set headers for proper display
+    res.set("Content-Type", file.contentType);
+    
+    // Stream output
+    const readstream = gridfsBucket.openDownloadStreamByName(file.filename);
+    readstream.pipe(res);
+  } catch (err) {
+    console.error("File Read Error:", err);
+    res.status(500).json({ err: "Server Error" });
+  }
+});
+
+// ------------------ 9️⃣ Mount Routes ------------------
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-app.use("/api/auth", authRoutes); // Modularized auth routes
+app.use("/api/auth", authRoutes);
 app.use("/api/grievances", grievanceRoutes);
 app.use("/api/admin-staff", adminStaffRoutes);
 app.use("/api/chat", chatRoutes);
