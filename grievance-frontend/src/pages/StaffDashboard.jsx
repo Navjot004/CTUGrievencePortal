@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, Link, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
 
 // Helper: format dates for tables
@@ -49,6 +49,9 @@ function StaffDashboard() {
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [loadingAssigned, setLoadingAssigned] = useState(true);
   const [loadingMine, setLoadingMine] = useState(true);
+
+  // ✅ State for "See More" Details Popup
+  const [selectedGrievance, setSelectedGrievance] = useState(null);
 
   // Route protection
   useEffect(() => {
@@ -176,7 +179,6 @@ function StaffDashboard() {
     setMsg("Submitting your grievance...");
     setStatusType("info");
 
-    // Map selectedCategory to readable category for backend
     let categoryLabel = "";
     if (selectedCategory === "general") categoryLabel = "General";
     if (selectedCategory === "administration") categoryLabel = "Administration";
@@ -191,7 +193,7 @@ function StaffDashboard() {
           userId,
           name: formData.name,
           email: formData.email,
-          phone: "", // optional for staff, you can add if needed
+          phone: "", 
           regid: formData.staffId,
           school: formData.department || "Staff Department",
           category: categoryLabel || "General",
@@ -211,7 +213,6 @@ function StaffDashboard() {
       }));
       setErrors({});
 
-      // Refresh "My Submissions" tab
       fetchMyGrievances();
     } catch (err) {
       setMsg(`Error: ${err.message}`);
@@ -219,7 +220,6 @@ function StaffDashboard() {
     }
   };
 
-  // Staff updates status of assigned grievance
   const handleUpdateAssignedStatus = async (id, newStatus) => {
     setMsg("Updating grievance status...");
     setStatusType("info");
@@ -241,7 +241,6 @@ function StaffDashboard() {
       setMsg("Grievance updated successfully!");
       setStatusType("success");
 
-      // Refresh both lists
       fetchAssignedGrievances();
       fetchMyGrievances();
     } catch (err) {
@@ -251,7 +250,6 @@ function StaffDashboard() {
     }
   };
 
-  // Human-readable category title
   const prettyCategoryTitle = (key) => {
     if (key === "general") return "General";
     if (key === "administration") return "Administration";
@@ -259,6 +257,19 @@ function StaffDashboard() {
     if (key === "facilities") return "Facilities";
     return key;
   };
+
+  // ✅ Navbar Button Styles (For proper tabs)
+  const navButtonStyle = (isActive) => ({
+    background: "none",
+    border: "none",
+    padding: "10px 15px", // Spacing badha di
+    cursor: "pointer",
+    fontSize: "1rem",
+    fontWeight: isActive ? "600" : "500",
+    color: isActive ? "#2563eb" : "#64748b",
+    borderBottom: isActive ? "2px solid #2563eb" : "2px solid transparent",
+    transition: "all 0.2s ease"
+  });
 
   return (
     <div className="dashboard-container">
@@ -271,53 +282,34 @@ function StaffDashboard() {
               : `Welcome, ${staffName || userId}`}
           </p>
         </div>
-        {/* ✅ ADDED: Logout Button in Header */}
         <button className="logout-btn-header" onClick={handleLogout}>
           Logout
         </button>
       </header>
 
-      {/* Tabs for Staff */}
-      <nav className="navbar">
-        <ul>
-          <li className={activeTab === "submit" ? "active" : ""}>
+      {/* ✅ FIXED NAVBAR TABS */}
+      <nav className="navbar" style={{ padding: '0 20px', background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+        <ul style={{ display: 'flex', gap: '20px', listStyle: 'none', margin: 0, padding: 0 }}>
+          <li>
             <button
-              className="tab-link-button"
               onClick={() => setActiveTab("submit")}
-              style={{
-                background: "none",
-                border: "none",
-                padding: 0,
-                cursor: "pointer",
-              }}
+              style={navButtonStyle(activeTab === "submit")}
             >
               Submit Grievance
             </button>
           </li>
-          <li className={activeTab === "assigned" ? "active" : ""}>
+          <li>
             <button
-              className="tab-link-button"
               onClick={() => setActiveTab("assigned")}
-              style={{
-                background: "none",
-                border: "none",
-                padding: 0,
-                cursor: "pointer",
-              }}
+              style={navButtonStyle(activeTab === "assigned")}
             >
               Assigned to Me
             </button>
           </li>
-          <li className={activeTab === "mine" ? "active" : ""}>
+          <li>
             <button
-              className="tab-link-button"
               onClick={() => setActiveTab("mine")}
-              style={{
-                background: "none",
-                border: "none",
-                padding: 0,
-                cursor: "pointer",
-              }}
+              style={navButtonStyle(activeTab === "mine")}
             >
               My Submissions
             </button>
@@ -327,133 +319,66 @@ function StaffDashboard() {
 
       <main className="dashboard-body">
         <div className="card">
-          {/* Alert messages */}
           {msg && <div className={`alert-box ${statusType}`}>{msg}</div>}
 
           {/* TAB 1: Submit Grievance */}
           {activeTab === "submit" && (
             <>
               <h2>Submit Staff Grievance</h2>
-              <p>
-                Select a category and describe your issue. It will be routed to the appropriate department.
-              </p>
+              <p>Select a category and describe your issue. It will be routed to the appropriate department.</p>
 
-              {/* Category mini-tabs inside submit */}
               <div className="dashboard-tabs" style={{ marginTop: "1rem" }}>
-                <button
-                  className={`tab-btn ${
-                    selectedCategory === "general" ? "active" : ""
-                  }`}
-                  type="button"
-                  onClick={() => setSelectedCategory("general")}
-                >
-                  General
-                </button>
-                <button
-                  className={`tab-btn ${
-                    selectedCategory === "administration" ? "active" : ""
-                  }`}
-                  type="button"
-                  onClick={() => setSelectedCategory("administration")}
-                >
-                  Administration
-                </button>
-                <button
-                  className={`tab-btn ${
-                    selectedCategory === "finance" ? "active" : ""
-                  }`}
-                  type="button"
-                  onClick={() => setSelectedCategory("finance")}
-                >
-                  Finance
-                </button>
-                <button
-                  className={`tab-btn ${
-                    selectedCategory === "facilities" ? "active" : ""
-                  }`}
-                  type="button"
-                  onClick={() => setSelectedCategory("facilities")}
-                >
-                  Facilities
-                </button>
+                {["general", "administration", "finance", "facilities"].map((cat) => (
+                   <button
+                   key={cat}
+                   className={`tab-btn ${selectedCategory === cat ? "active" : ""}`}
+                   type="button"
+                   onClick={() => setSelectedCategory(cat)}
+                 >
+                   {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                 </button>
+                ))}
               </div>
 
               <p style={{ marginTop: "0.75rem", color: "#64748b" }}>
-                Current Category:{" "}
-                <strong>{prettyCategoryTitle(selectedCategory)}</strong>
+                Current Category: <strong>{prettyCategoryTitle(selectedCategory)}</strong>
               </p>
 
               <form onSubmit={handleSubmit} noValidate>
                 <div className="form-row">
                   <div className="input-group">
                     <label>Full Name</label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      placeholder="Your Name"
-                    />
+                    <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Your Name" />
                     {errors.name && <p className="error-text">{errors.name}</p>}
                   </div>
 
                   <div className="input-group">
                     <label>Staff ID</label>
-                    <input
-                      type="text"
-                      name="staffId"
-                      value={formData.staffId}
-                      readOnly
-                      className="read-only-input"
-                    />
+                    <input type="text" name="staffId" value={formData.staffId} readOnly className="read-only-input" />
                   </div>
                 </div>
 
                 <div className="form-row">
                   <div className="input-group">
                     <label>Email</label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      placeholder="you@college.edu"
-                    />
+                    <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="you@college.edu" />
                     {errors.email && <p className="error-text">{errors.email}</p>}
                   </div>
 
                   <div className="input-group">
                     <label>Department</label>
-                    <input
-                      type="text"
-                      name="department"
-                      value={formData.department}
-                      onChange={handleChange}
-                      placeholder="e.g. CSE, Management, etc."
-                    />
-                    {errors.department && (
-                      <p className="error-text">{errors.department}</p>
-                    )}
+                    <input type="text" name="department" value={formData.department} onChange={handleChange} placeholder="e.g. CSE" />
+                    {errors.department && <p className="error-text">{errors.department}</p>}
                   </div>
                 </div>
 
                 <div className="input-group">
                   <label>Message / Query</label>
-                  <textarea
-                    name="message"
-                    value={formData.message}
-                    onChange={handleChange}
-                    placeholder="Describe your issue in detail..."
-                    rows="5"
-                  ></textarea>
-                  {errors.message && (
-                    <p className="error-text">{errors.message}</p>
-                  )}
+                  <textarea name="message" value={formData.message} onChange={handleChange} placeholder="Describe your issue..." rows="5"></textarea>
+                  {errors.message && <p className="error-text">{errors.message}</p>}
                 </div>
 
-                <button type="submit" className="submit-btn">
-                  Submit Grievance
-                </button>
+                <button type="submit" className="submit-btn">Submit Grievance</button>
               </form>
             </>
           )}
@@ -467,9 +392,7 @@ function StaffDashboard() {
               {loadingAssigned ? (
                 <p>Loading assigned grievances...</p>
               ) : assignedGrievances.length === 0 ? (
-                <div className="empty-state">
-                  <p>No grievances are currently assigned to you.</p>
-                </div>
+                <div className="empty-state"><p>No grievances are currently assigned to you.</p></div>
               ) : (
                 <div className="table-container">
                   <table className="grievance-table">
@@ -488,11 +411,39 @@ function StaffDashboard() {
                         <tr key={g._id}>
                           <td>{g.name}</td>
                           <td>{g.category}</td>
-                          <td className="message-cell">{g.message}</td>
+                          
+                          {/* --- FIXED MESSAGE CELL (Max Width 150px + See More) --- */}
+                          <td className="message-cell" style={{ maxWidth: '150px' }}>
+                            {g.message.length > 20 ? (
+                              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '5px' }}>
+                                <span style={{ wordBreak: 'break-all', lineHeight: '1.2' }}>
+                                  {g.message.substring(0, 20)}...
+                                </span>
+                                <button 
+                                  onClick={() => setSelectedGrievance(g)}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: '#2563eb',
+                                    cursor: 'pointer',
+                                    fontSize: '0.75rem',
+                                    fontWeight: '600',
+                                    textDecoration: 'underline',
+                                    padding: 0,
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  See more
+                                </button>
+                              </div>
+                            ) : (
+                              <span style={{ wordBreak: 'break-all' }}>{g.message}</span>
+                            )}
+                          </td>
+                          {/* ---------------------------------------------------- */}
+
                           <td>
-                            <span
-                              className={`status-badge status-${g.status.toLowerCase()}`}
-                            >
+                            <span className={`status-badge status-${g.status.toLowerCase()}`}>
                               {g.status}
                             </span>
                           </td>
@@ -504,27 +455,21 @@ function StaffDashboard() {
                                   <button
                                     className="resolve-btn"
                                     style={{ marginRight: "6px" }}
-                                    onClick={() =>
-                                      handleUpdateAssignedStatus(g._id, "In Progress")
-                                    }
+                                    onClick={() => handleUpdateAssignedStatus(g._id, "In Progress")}
                                   >
                                     In Progress
                                   </button>
                                 )}
                                 <button
                                   className="resolve-btn"
-                                  onClick={() =>
-                                    handleUpdateAssignedStatus(g._id, "Resolved")
-                                  }
+                                  onClick={() => handleUpdateAssignedStatus(g._id, "Resolved")}
                                 >
                                   Mark Resolved
                                 </button>
                               </>
                             )}
                             {g.status === "Resolved" && (
-                              <button className="resolved-btn" disabled>
-                                Resolved
-                              </button>
+                              <button className="resolved-btn" disabled>Resolved</button>
                             )}
                           </td>
                         </tr>
@@ -545,9 +490,7 @@ function StaffDashboard() {
               {loadingMine ? (
                 <p>Loading your grievances...</p>
               ) : myGrievances.length === 0 ? (
-                <div className="empty-state">
-                  <p>You have not submitted any grievances yet.</p>
-                </div>
+                <div className="empty-state"><p>You have not submitted any grievances yet.</p></div>
               ) : (
                 <div className="table-container">
                   <table className="grievance-table">
@@ -564,11 +507,39 @@ function StaffDashboard() {
                       {myGrievances.map((g) => (
                         <tr key={g._id}>
                           <td>{g.category}</td>
-                          <td className="message-cell">{g.message}</td>
+                          
+                          {/* --- FIXED MESSAGE CELL (Max Width 150px + See More) --- */}
+                          <td className="message-cell" style={{ maxWidth: '150px' }}>
+                            {g.message.length > 20 ? (
+                              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '5px' }}>
+                                <span style={{ wordBreak: 'break-all', lineHeight: '1.2' }}>
+                                  {g.message.substring(0, 20)}...
+                                </span>
+                                <button 
+                                  onClick={() => setSelectedGrievance(g)}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: '#2563eb',
+                                    cursor: 'pointer',
+                                    fontSize: '0.75rem',
+                                    fontWeight: '600',
+                                    textDecoration: 'underline',
+                                    padding: 0,
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  See more
+                                </button>
+                              </div>
+                            ) : (
+                              <span style={{ wordBreak: 'break-all' }}>{g.message}</span>
+                            )}
+                          </td>
+                          {/* ---------------------------------------------------- */}
+
                           <td>
-                            <span
-                              className={`status-badge status-${g.status.toLowerCase()}`}
-                            >
+                            <span className={`status-badge status-${g.status.toLowerCase()}`}>
                               {g.status}
                             </span>
                           </td>
@@ -585,7 +556,91 @@ function StaffDashboard() {
         </div>
       </main>
 
-      {/* Floating logout (mobile) */}
+      {/* --- DETAILS POPUP MODAL (Fixed for Long Text) --- */}
+      {selectedGrievance && (
+        <div 
+          onClick={() => setSelectedGrievance(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'white',
+              padding: '20px',
+              borderRadius: '12px',
+              width: '90%',
+              maxWidth: '500px',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+              position: 'relative'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '15px' }}>
+              <h3 style={{ margin: 0 }}>Grievance Details</h3>
+              <button 
+                onClick={() => setSelectedGrievance(null)}
+                style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}
+              >
+                &times;
+              </button>
+            </div>
+            
+            <div style={{ fontSize: '0.95rem', color: '#334155' }}>
+              <p style={{ marginBottom: '8px' }}><strong>Category:</strong> {selectedGrievance.category}</p>
+              
+              {selectedGrievance.name && (
+                <p style={{ marginBottom: '8px' }}><strong>Submitted By:</strong> {selectedGrievance.name}</p>
+              )}
+              
+              <p style={{ marginBottom: '8px' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
+              
+              <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '6px', margin: '15px 0', border: '1px solid #e2e8f0' }}>
+                <strong style={{ display: 'block', marginBottom: '5px', color: '#1e293b' }}>Full Message:</strong>
+                <p style={{ 
+                  margin: 0, 
+                  whiteSpace: 'pre-wrap', 
+                  lineHeight: '1.5',
+                  wordBreak: 'break-all',     
+                  overflowWrap: 'anywhere' 
+                }}>
+                  {selectedGrievance.message}
+                </p>
+              </div>
+
+              <p style={{ marginBottom: '8px' }}><strong>Status:</strong> {selectedGrievance.status}</p>
+            </div>
+
+            <div style={{ textAlign: 'right', marginTop: '15px' }}>
+              <button 
+                onClick={() => setSelectedGrievance(null)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#e2e8f0',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  color: '#475569'
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* --------------------------------------- */}
+
       <button className="logout-floating" onClick={handleLogout}>
         Logout
       </button>

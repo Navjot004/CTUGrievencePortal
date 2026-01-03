@@ -16,6 +16,9 @@ function StudentDashboard() {
   const navigate = useNavigate();
   const userId = localStorage.getItem("grievance_id");
   const role = localStorage.getItem("grievance_role");
+  
+  // ✅ STATE FOR POPUP
+  const [selectedGrievance, setSelectedGrievance] = useState(null);
 
   // State
   const [history, setHistory] = useState([]);
@@ -192,7 +195,7 @@ function StudentDashboard() {
           {loading ? (
             <p>Loading records...</p>
           ) : history.length === 0 ? (
-            <div style={{textAlign: 'center', padding: '40px', border: '1px dashed #cbd5e1', borderRadius: '12px'}}>
+            <div style={{ textAlign: 'center', padding: '40px', border: '1px dashed #cbd5e1', borderRadius: '12px' }}>
               <h3>No grievances found</h3>
               <p>You haven't submitted any grievances yet.</p>
               <button 
@@ -222,7 +225,37 @@ function StudentDashboard() {
                       <td>{formatDate(g.createdAt)}</td>
                       <td>{g.category || "General"}</td>
                       <td>{g.school || "-"}</td>
-                      <td className="message-cell">{g.message.substring(0, 40)}{g.message.length > 40 && "..."}</td>
+
+                      {/* --- FIXED MESSAGE CELL (Max Width 150px) --- */}
+                      <td className="message-cell" style={{ maxWidth: '150px' }}>
+                        {g.message.length > 20 ? (
+                          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '5px' }}>
+                            <span style={{ wordBreak: 'break-all', lineHeight: '1.2' }}>
+                              {g.message.substring(0, 20)}...
+                            </span>
+                            <button 
+                              onClick={() => setSelectedGrievance(g)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: '#2563eb',
+                                cursor: 'pointer',
+                                fontSize: '0.75rem',
+                                fontWeight: '600',
+                                textDecoration: 'underline',
+                                padding: 0,
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              See more
+                            </button>
+                          </div>
+                        ) : (
+                          <span style={{ wordBreak: 'break-all' }}>{g.message}</span>
+                        )}
+                      </td>
+                      {/* ------------------------------------------- */}
+
                       <td>
                         <span className={`status-badge status-${g.status.toLowerCase().replace(" ", "")}`}>
                           {g.status}
@@ -230,13 +263,13 @@ function StudentDashboard() {
                       </td>
                       <td>{g.resolutionRemarks || "-"}</td>
                       <td>
-                        <button 
-                            className="action-btn" 
-                            style={{backgroundColor: "#3b82f6", color: "white"}}
-                            onClick={() => openChat(g._id)}
-                          >
-                            Chat
-                          </button>
+                        <button
+                          className="action-btn"
+                          style={{ backgroundColor: "#3b82f6", color: "white" }}
+                          onClick={() => openChat(g._id)}
+                        >
+                          Chat
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -244,10 +277,99 @@ function StudentDashboard() {
               </table>
             </div>
           )}
+
+          {/* --- POPUP MODAL (Fixed for Long Text) --- */}
+          {selectedGrievance && (
+            <div 
+              onClick={() => setSelectedGrievance(null)}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 1000
+              }}
+            >
+              <div 
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  background: 'white',
+                  padding: '20px',
+                  borderRadius: '12px',
+                  width: '90%',
+                  maxWidth: '500px',
+                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                  position: 'relative'
+                }}
+              >
+                {/* Modal Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '15px' }}>
+                  <h3 style={{ margin: 0 }}>Grievance Details</h3>
+                  <button 
+                    onClick={() => setSelectedGrievance(null)}
+                    style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}
+                  >
+                    &times;
+                  </button>
+                </div>
+                
+                {/* Modal Body */}
+                <div style={{ fontSize: '0.95rem', color: '#334155' }}>
+                  <p style={{ marginBottom: '8px' }}><strong>Category:</strong> {selectedGrievance.category}</p>
+                  <p style={{ marginBottom: '8px' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
+                  
+                  <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '6px', margin: '15px 0', border: '1px solid #e2e8f0' }}>
+                    <strong style={{ display: 'block', marginBottom: '5px', color: '#1e293b' }}>Full Message:</strong>
+                    
+                    {/* --- FIXED: Break-all added here --- */}
+                    <p style={{ 
+                      margin: 0, 
+                      whiteSpace: 'pre-wrap', 
+                      lineHeight: '1.5',
+                      wordBreak: 'break-all',     // Forces long strings to break
+                      overflowWrap: 'anywhere' 
+                    }}>
+                      {selectedGrievance.message}
+                    </p>
+                    {/* ----------------------------------- */}
+
+                  </div>
+
+                  <p style={{ marginBottom: '8px' }}><strong>Status:</strong> {selectedGrievance.status}</p>
+                  {selectedGrievance.resolutionRemarks && (
+                     <p><strong>Remarks:</strong> {selectedGrievance.resolutionRemarks}</p>
+                  )}
+                </div>
+
+                {/* Modal Footer */}
+                <div style={{ textAlign: 'right', marginTop: '15px' }}>
+                  <button 
+                    onClick={() => setSelectedGrievance(null)}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: '#e2e8f0',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                      color: '#475569'
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
-      {/* ✅ Chat Popup Component (Imported) */}
+      {/* ✅ Chat Popup Component */}
       <ChatPopup 
         isOpen={isChatOpen} 
         onClose={() => setIsChatOpen(false)} 
