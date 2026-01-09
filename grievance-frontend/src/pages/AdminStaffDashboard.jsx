@@ -190,7 +190,7 @@ function AdminStaffDashboard() {
     setMsg("Updating status...");
     setStatusType("info");
     try {
-      const res = await fetch(`http://localhost:5000/api/grievances/${id}`, {
+      const res = await fetch(`http://localhost:5000/api/grievances/update/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
