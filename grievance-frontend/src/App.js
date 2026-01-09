@@ -1,87 +1,84 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
-// Pages
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
-
-// Student Pages
 import StudentDashboard from "./pages/StudentDashboard";
 import StudentWelfare from "./pages/StudentWelfare";
 import Admission from "./pages/Admission";
 import Accounts from "./pages/Accounts";
 import Examination from "./pages/Examination";
-import Department from "./pages/Department"; // ✅ NEW
-
-// Staff Pages
+import Department from "./pages/Department";
 import StaffDashboard from "./pages/StaffDashboard";
-import AdminStaffDashboard from "./pages/AdminStaffDashboard";
-
-// Admin Pages
+import AdminStaffDashboard from "./pages/AdminStaffDashboard"; // ✅ Rajesh (Worker) ka Dashboard
 import AdminDashboard from "./pages/AdminDashboard"; 
 import AccountAdminDashboard from "./pages/AccountAdminDashboard";
 import StudentWelfareAdminDashboard from "./pages/StudentWelfareAdminDashboard";
 import AdmissionAdminDashboard from "./pages/AdmissionAdminDashboard";
 import ExaminationAdminDashboard from "./pages/ExaminationAdminDashboard";
 import AdminManageStaff from "./pages/AdminManageStaff";
-
-// ✅ Import New School Admin Dashboard
 import SchoolAdminDashboard from "./pages/SchoolAdminDashboard"; 
 
-function ProtectedRoute({ children, allowedRoles }) {
-  const storedRole = localStorage.getItem("grievance_role");
-  const storedId = localStorage.getItem("grievance_id");
+// Helper to decide where DEPT ADMINS (Priya) go
+const getDeptAdminRoute = (department) => {
+  if (department === "Accounts") return "/admin/account";
+  if (department === "Student Welfare") return "/admin/studentwelfare";
+  if (department === "Admission") return "/admin/admission";
+  if (department === "Examination") return "/admin/examination";
+  return "/admin/school";
+};
 
-  const role = storedRole ? storedRole.toLowerCase() : null;
-  const id = storedId ? storedId.toUpperCase() : null;
+function ProtectedRoute({ children, allowedRoles }) {
+  const role = localStorage.getItem("grievance_role")?.toLowerCase();
+  const id = localStorage.getItem("grievance_id")?.toUpperCase();
+  const isDeptAdmin = localStorage.getItem("is_dept_admin") === "true"; // Boss (Priya)
+  const adminDept = localStorage.getItem("admin_department"); // Both Priya & Rajesh have this
 
   if (!role || !id) return <Navigate to="/" replace />;
 
-  // ✅ DEFINE ALL ADMINS AND THEIR ROUTES
-  const adminRoutes = {
-    // Core Admins
-    ADM_MASTER: "/admin/dashboard",
-    ADM_ACCOUNT: "/admin/account",
-    ADM_WELFARE: "/admin/studentwelfare",
-    ADM_ADMISSION: "/admin/admission",
-    ADM_EXAM: "/admin/examination",
-    
-    // School HODs (All go to the same dynamic component)
-    ADM_ENG: "/admin/school",
-    ADM_MGMT: "/admin/school",
-    ADM_HOTEL: "/admin/school",
-    ADM_LAW: "/admin/school",
-    ADM_PHARMA: "/admin/school",
-    ADM_DESIGN: "/admin/school",
-    ADM_HEALTH: "/admin/school",
-    ADM_SOCIAL: "/admin/school",
-  };
-
-  if (!allowedRoles.includes(role)) {
-    if (role === "student") return <Navigate to="/student/dashboard" replace />;
-    
-    if (role === "staff") {
-       if (window.location.pathname.startsWith("/staff/")) return children;
-       return <Navigate to="/staff/general" replace />;
-    }
-    
-    if (role === "admin") {
-      return <Navigate to={adminRoutes[id] || "/admin/dashboard"} replace />;
-    }
-    
-    return <Navigate to="/" replace />;
+  // 1. Master Admin Logic
+  if (id === "10001") {
+     // Master can go anywhere provided the route allows admins
+     return children; 
   }
 
-  // Admin Routing Check
-  if (role === "admin") {
-    const intendedDashboard = adminRoutes[id];
-    if (intendedDashboard && id !== "ADM01") {
-       const currentPath = window.location.pathname.toLowerCase();
-       const targetDashboard = intendedDashboard.toLowerCase();
-       if (!currentPath.includes("manage-staff") && currentPath !== targetDashboard) {
-         return <Navigate to={intendedDashboard} replace />;
-       }
-    }
+  // 2. Department Admin Logic (Priya)
+  if (role === "admin" || (role === "staff" && isDeptAdmin)) {
+     // Allowed routes: Her Dept Dashboard, Manage Staff, or Generic Staff pages
+     // If she tries to go to root or login, redirect to HER dashboard
+     if (window.location.pathname === "/" || window.location.pathname === "/staff/general") {
+         return <Navigate to={getDeptAdminRoute(adminDept)} replace />;
+     }
+     return children;
+  }
+
+  // 3. Department Team Member Logic (Rajesh)
+  // Condition: Role is Staff, NOT Boss, BUT has a Department assigned
+  if (role === "staff" && !isDeptAdmin && adminDept) {
+     const allowedPaths = ["/staff/admin", "/staff/general"];
+     const currentPath = window.location.pathname.toLowerCase();
+     
+     // Agar Rajesh "StudentDashboard" ya "Dept Admin Dashboard" pe jane ki koshish kare -> Block
+     if (!allowedPaths.includes(currentPath) && !currentPath.startsWith("/staff/admin")) {
+         return <Navigate to="/staff/admin" replace />;
+     }
+     return children;
+  }
+
+  // 4. General Staff Logic (Unassigned)
+  if (role === "staff" && !isDeptAdmin && !adminDept) {
+     if (window.location.pathname !== "/staff/general") {
+        return <Navigate to="/staff/general" replace />;
+     }
+     return children;
+  }
+
+  // 5. Student Logic
+  if (role === "student") {
+     if (!window.location.pathname.startsWith("/student/")) {
+        return <Navigate to="/student/dashboard" replace />;
+     }
+     return children;
   }
 
   return children;
@@ -94,7 +91,7 @@ function App() {
         <Route path="/" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
 
-        {/* Student Routes */}
+        {/* --- STUDENT ROUTES --- */}
         <Route path="/student/dashboard" element={<ProtectedRoute allowedRoles={["student"]}><StudentDashboard /></ProtectedRoute>} />
         <Route path="/student/welfare" element={<ProtectedRoute allowedRoles={["student"]}><StudentWelfare /></ProtectedRoute>} />
         <Route path="/student/admission" element={<ProtectedRoute allowedRoles={["student"]}><Admission /></ProtectedRoute>} />
@@ -102,27 +99,29 @@ function App() {
         <Route path="/student/examination" element={<ProtectedRoute allowedRoles={["student"]}><Examination /></ProtectedRoute>} />
         <Route path="/student/department" element={<ProtectedRoute allowedRoles={["student"]}><Department /></ProtectedRoute>} />
 
-        {/* Staff Routes */}
+        {/* --- STAFF ROUTES --- */}
+        
+        {/* 1. General Staff (Unassigned) */}
         <Route path="/staff/general" element={<ProtectedRoute allowedRoles={["staff"]}><StaffDashboard /></ProtectedRoute>} />
-        <Route path="/staff/administration" element={<ProtectedRoute allowedRoles={["staff"]}><StaffDashboard /></ProtectedRoute>} />
-        <Route path="/staff/finance" element={<ProtectedRoute allowedRoles={["staff"]}><StaffDashboard /></ProtectedRoute>} />
-        <Route path="/staff/facilities" element={<ProtectedRoute allowedRoles={["staff"]}><StaffDashboard /></ProtectedRoute>} />
+        
+        {/* 2. Department Worker (Rajesh - The Worker Dashboard) */}
         <Route path="/staff/admin" element={<ProtectedRoute allowedRoles={["staff"]}><AdminStaffDashboard /></ProtectedRoute>} />
+        
+        {/* Default Redirects for Staff */}
         <Route path="/staff" element={<Navigate to="/staff/general" replace />} />
-        <Route path="/staff/dashboard" element={<Navigate to="/staff/general" replace />} />
 
-        {/* Admin Routes */}
+        {/* --- ADMIN ROUTES (Bosses) --- */}
         <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={["admin"]}><AdminDashboard /></ProtectedRoute>} />
-        <Route path="/admin/account" element={<ProtectedRoute allowedRoles={["admin"]}><AccountAdminDashboard /></ProtectedRoute>} />
-        <Route path="/admin/studentwelfare" element={<ProtectedRoute allowedRoles={["admin"]}><StudentWelfareAdminDashboard /></ProtectedRoute>} />
-        <Route path="/admin/admission" element={<ProtectedRoute allowedRoles={["admin"]}><AdmissionAdminDashboard /></ProtectedRoute>} />
-        <Route path="/admin/examination" element={<ProtectedRoute allowedRoles={["admin"]}><ExaminationAdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/manage-staff" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><AdminManageStaff /></ProtectedRoute>} />
         
-        {/* ✅ SINGLE ROUTE FOR ALL SCHOOL ADMINS */}
-        <Route path="/admin/school" element={<ProtectedRoute allowedRoles={["admin"]}><SchoolAdminDashboard /></ProtectedRoute>} /> 
+        {/* Dept Boss Dashboards */}
+        <Route path="/admin/account" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><AccountAdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/studentwelfare" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><StudentWelfareAdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/admission" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><AdmissionAdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/examination" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><ExaminationAdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/school" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><SchoolAdminDashboard /></ProtectedRoute>} /> 
         
-        <Route path="/admin/manage-staff" element={<ProtectedRoute allowedRoles={["admin"]}><AdminManageStaff /></ProtectedRoute>} />
-
+        {/* Catch All */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

@@ -1,33 +1,17 @@
-import express from "express";
-import {
-  addAdminStaff,
-  listAdminStaff,
-  removeAdminStaff,
-  checkAdminStaff,
-} from "../controllers/adminStaffController.js";
-
+const express = require("express");
 const router = express.Router();
+const adminStaffController = require("../controllers/adminStaffController");
 
-/**
- * ⚠️ IMPORTANT: order matters!
- * /check/:staffId must come BEFORE /:department
- */
+// 1. Get All Staff (For displaying the list)
+// Frontend call: fetch("http://localhost:5000/api/admin-staff/all")
+router.get("/all", adminStaffController.getAllStaff);
 
-// ✅ Check if a staff is an admin staff (used on staff login)
-router.get("/check/:staffId", checkAdminStaff);
+// 2. Manage Role (Promote/Demote)
+// Frontend call: fetch(".../role", { method: "POST" })
+router.post("/role", adminStaffController.manageRole);
 
-// ✅ List all admin staff for a department
-//    GET /api/admin-staff/Accounts
-//    GET /api/admin-staff/Admission
-router.get("/:department", listAdminStaff);
+// 3. Check Admin Status (For Login/Protection)
+// Frontend call: fetch(".../check/:id")
+router.get("/check/:id", adminStaffController.checkAdminStatus);
 
-// ✅ Add a staff to a department's admin staff list
-//    POST /api/admin-staff
-//    body: { staffId: "STF001", department: "Accounts" }
-router.post("/", addAdminStaff);
-
-// ✅ Remove a staff from a department's admin staff list
-//    DELETE /api/admin-staff/Accounts/STF001
-router.delete("/:department/:staffId", removeAdminStaff);
-
-export default router;
+module.exports = router;

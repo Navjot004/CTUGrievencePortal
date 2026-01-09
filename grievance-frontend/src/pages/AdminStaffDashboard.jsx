@@ -18,12 +18,14 @@ const formatDate = (dateString) => {
 
 function AdminStaffDashboard() {
   const navigate = useNavigate();
+  
+  // ✅ Get Details from LocalStorage (Faster & Error Free)
   const role = localStorage.getItem("grievance_role")?.toLowerCase();
   const staffId = localStorage.getItem("grievance_id")?.toUpperCase();
+  const myDepartment = localStorage.getItem("admin_department"); // From Login Response
+  const isDeptAdmin = localStorage.getItem("is_dept_admin") === "true";
 
   const [staffName, setStaffName] = useState("");
-  const [myDepartment, setMyDepartment] = useState(""); 
-  
   const [grievances, setGrievances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState("");
@@ -42,36 +44,41 @@ function AdminStaffDashboard() {
   // ✅ State for "See More" Details Popup
   const [selectedGrievance, setSelectedGrievance] = useState(null);
 
+  // 1. Authorization Check
   useEffect(() => {
+    // Must be Staff
     if (!role || role !== "staff") {
       navigate("/");
       return;
     }
-  }, [role, navigate]);
+    
+    // Must belong to a department (Rajesh has dept, General Staff does not)
+    if (!myDepartment) {
+        // Redirect General Staff back to General Dashboard
+        navigate("/staff/general");
+        return;
+    }
 
-  // 1. Fetch Staff Details
+    // Optional: If Boss tries to access Worker View, redirect them to Boss View?
+    // For now, we allow Boss to see this view if they really want, but usually App.js handles it.
+
+  }, [role, myDepartment, navigate]);
+
+  // 2. Fetch User Name
   useEffect(() => {
     const fetchStaffInfo = async () => {
       try {
         const userRes = await fetch(`http://localhost:5000/api/auth/user/${staffId}`);
         const userData = await userRes.json();
         if (userRes.ok) setStaffName(userData.fullName || staffId);
-
-        const adminRes = await fetch(`http://localhost:5000/api/admin-staff/check/${staffId}`);
-        const adminData = await adminRes.json();
-
-        if (adminRes.ok && adminData.isAdmin && adminData.departments.length > 0) {
-          setMyDepartment(adminData.departments[0]); 
-        }
       } catch (err) {
         console.error("Error fetching staff info:", err);
       }
     };
-
     if (staffId) fetchStaffInfo();
   }, [staffId]);
 
-  // 2. Fetch Assigned Grievances
+  // 3. Fetch Assigned Grievances
   useEffect(() => {
     if (!staffId) return;
 
@@ -79,6 +86,7 @@ function AdminStaffDashboard() {
       setLoading(true);
       setMsg("");
       try {
+        // ✅ Fetches grievances specifically assigned to THIS staff ID
         const res = await fetch(
           `http://localhost:5000/api/grievances/assigned/${staffId}`
         );
@@ -104,7 +112,7 @@ function AdminStaffDashboard() {
     fetchMyAssignedGrievances();
   }, [staffId]);
 
-  // --- 3. LIVE POLLING FOR NOTIFICATIONS ONLY ---
+  // --- 4. LIVE POLLING FOR NOTIFICATIONS ONLY ---
   useEffect(() => {
     if (!staffId || grievances.length === 0) return;
 
@@ -224,7 +232,13 @@ function AdminStaffDashboard() {
       <header className="dashboard-header">
         <div className="header-content">
           <h1>Admin Staff Dashboard</h1>
-          <p>Welcome, {staffName || staffId}</p>
+          <p>
+            Welcome, {staffName || staffId} 
+            {/* ✅ Badge for Team Member */}
+            <span className="status-badge status-assigned" style={{marginLeft: '10px', fontSize: '0.8rem'}}>
+              🛡️ Team: {myDepartment}
+            </span>
+          </p>
         </div>
         <button className="logout-btn-header" onClick={handleLogout}>
           Logout
@@ -243,8 +257,7 @@ function AdminStaffDashboard() {
         <div className="card">
           <h2>Assigned Grievances</h2>
           <p style={{ marginBottom: "1rem", color: "#64748b" }}>
-            Below are the grievances specifically assigned to you 
-            {myDepartment ? ` (Department: ${myDepartment})` : ""}.
+            These grievances have been specifically assigned to you by your Department Admin.
           </p>
 
           {msg && <div className={`alert-box ${statusType}`}>{msg}</div>}

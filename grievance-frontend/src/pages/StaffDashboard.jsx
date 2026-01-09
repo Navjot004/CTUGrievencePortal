@@ -21,7 +21,7 @@ function StaffDashboard() {
   const userId = localStorage.getItem("grievance_id"); // e.g. STF001
 
   // UI State
-  const [activeTab, setActiveTab] = useState("submit"); // "submit" | "assigned" | "mine"
+  const [activeTab, setActiveTab] = useState("submit"); // "submit" | "mine"
   const [selectedCategory, setSelectedCategory] = useState("general");
 
   // Staff Info
@@ -43,11 +43,9 @@ function StaffDashboard() {
   const [errors, setErrors] = useState({});
 
   // Data for tables
-  const [assignedGrievances, setAssignedGrievances] = useState([]);
   const [myGrievances, setMyGrievances] = useState([]);
 
   const [loadingProfile, setLoadingProfile] = useState(true);
-  const [loadingAssigned, setLoadingAssigned] = useState(true);
   const [loadingMine, setLoadingMine] = useState(true);
 
   // ✅ State for "See More" Details Popup
@@ -91,24 +89,6 @@ function StaffDashboard() {
     fetchStaffDetails();
   }, [userId]);
 
-  // Fetch grievances assigned to this staff
-  const fetchAssignedGrievances = async () => {
-    if (!userId) return;
-    setLoadingAssigned(true);
-    try {
-      const res = await fetch(`http://localhost:5000/api/grievances/assigned/${userId}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to fetch assigned grievances");
-      setAssignedGrievances(data);
-    } catch (err) {
-      console.error("Error fetching assigned grievances:", err);
-      setMsg("Failed to load assigned grievances");
-      setStatusType("error");
-    } finally {
-      setLoadingAssigned(false);
-    }
-  };
-
   // Fetch grievances submitted by this staff
   const fetchMyGrievances = async () => {
     if (!userId) return;
@@ -127,9 +107,8 @@ function StaffDashboard() {
     }
   };
 
-  // Initial load of assigned + my grievances
+  // Initial load of my grievances
   useEffect(() => {
-    fetchAssignedGrievances();
     fetchMyGrievances();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
@@ -186,7 +165,7 @@ function StaffDashboard() {
     if (selectedCategory === "facilities") categoryLabel = "Facilities";
 
     try {
-      const res = await fetch("http://localhost:5000/api/grievances", {
+      const res = await fetch("http://localhost:5000/api/grievances/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -241,7 +220,6 @@ function StaffDashboard() {
       setMsg("Grievance updated successfully!");
       setStatusType("success");
 
-      fetchAssignedGrievances();
       fetchMyGrievances();
     } catch (err) {
       console.error("Error updating assigned grievance:", err);
@@ -296,14 +274,6 @@ function StaffDashboard() {
               style={navButtonStyle(activeTab === "submit")}
             >
               Submit Grievance
-            </button>
-          </li>
-          <li>
-            <button
-              onClick={() => setActiveTab("assigned")}
-              style={navButtonStyle(activeTab === "assigned")}
-            >
-              Assigned to Me
             </button>
           </li>
           <li>
@@ -383,105 +353,7 @@ function StaffDashboard() {
             </>
           )}
 
-          {/* TAB 2: Assigned to Me */}
-          {activeTab === "assigned" && (
-            <>
-              <h2>Grievances Assigned to Me</h2>
-              <p>These grievances were assigned to you by your department admin.</p>
-
-              {loadingAssigned ? (
-                <p>Loading assigned grievances...</p>
-              ) : assignedGrievances.length === 0 ? (
-                <div className="empty-state"><p>No grievances are currently assigned to you.</p></div>
-              ) : (
-                <div className="table-container">
-                  <table className="grievance-table">
-                    <thead>
-                      <tr>
-                        <th>From</th>
-                        <th>Category</th>
-                        <th>Message</th>
-                        <th>Status</th>
-                        <th>Submitted At</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {assignedGrievances.map((g) => (
-                        <tr key={g._id}>
-                          <td>{g.name}</td>
-                          <td>{g.category}</td>
-                          
-                          {/* --- FIXED MESSAGE CELL (Max Width 150px + See More) --- */}
-                          <td className="message-cell" style={{ maxWidth: '150px' }}>
-                            {g.message.length > 20 ? (
-                              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '5px' }}>
-                                <span style={{ wordBreak: 'break-all', lineHeight: '1.2' }}>
-                                  {g.message.substring(0, 20)}...
-                                </span>
-                                <button 
-                                  onClick={() => setSelectedGrievance(g)}
-                                  style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    color: '#2563eb',
-                                    cursor: 'pointer',
-                                    fontSize: '0.75rem',
-                                    fontWeight: '600',
-                                    textDecoration: 'underline',
-                                    padding: 0,
-                                    whiteSpace: 'nowrap'
-                                  }}
-                                >
-                                  See more
-                                </button>
-                              </div>
-                            ) : (
-                              <span style={{ wordBreak: 'break-all' }}>{g.message}</span>
-                            )}
-                          </td>
-                          {/* ---------------------------------------------------- */}
-
-                          <td>
-                            <span className={`status-badge status-${g.status.toLowerCase()}`}>
-                              {g.status}
-                            </span>
-                          </td>
-                          <td>{formatDate(g.createdAt)}</td>
-                          <td>
-                            {g.status !== "Resolved" && (
-                              <>
-                                {g.status !== "In Progress" && (
-                                  <button
-                                    className="resolve-btn"
-                                    style={{ marginRight: "6px" }}
-                                    onClick={() => handleUpdateAssignedStatus(g._id, "In Progress")}
-                                  >
-                                    In Progress
-                                  </button>
-                                )}
-                                <button
-                                  className="resolve-btn"
-                                  onClick={() => handleUpdateAssignedStatus(g._id, "Resolved")}
-                                >
-                                  Mark Resolved
-                                </button>
-                              </>
-                            )}
-                            {g.status === "Resolved" && (
-                              <button className="resolved-btn" disabled>Resolved</button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* TAB 3: My Submissions */}
+          {/* TAB 2: My Submissions */}
           {activeTab === "mine" && (
             <>
               <h2>My Submitted Grievances</h2>

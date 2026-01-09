@@ -1,4 +1,3 @@
-// src/components/AssignStaffPopup.jsx
 import React, { useEffect, useState } from "react";
 
 function AssignStaffPopup({
@@ -7,38 +6,37 @@ function AssignStaffPopup({
   department,
   grievanceId,
   adminId,
-  onAssigned, // (message, statusType) => void
+  onAssigned,
 }) {
   const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [loadingAssign, setLoadingAssign] = useState(false);
+  const [assigning, setAssigning] = useState(false);
   const [selectedStaffId, setSelectedStaffId] = useState("");
-  const [localMsg, setLocalMsg] = useState("");
-  const [localStatus, setLocalStatus] = useState("");
+  const [msg, setMsg] = useState("");
+  const [statusType, setStatusType] = useState("");
 
-  // Fetch admin staff for this department when modal opens
+  /* ================= FETCH STAFF ================= */
   useEffect(() => {
     if (!isOpen) return;
 
     const fetchStaff = async () => {
       try {
         setLoading(true);
-        setLocalMsg("");
-        setLocalStatus("");
+        setMsg("");
 
         const res = await fetch(
-          `http://localhost:5000/api/admin-staff/${encodeURIComponent(
+          `http://localhost:5000/api/admin/staff/${encodeURIComponent(
             department
           )}`
         );
         const data = await res.json();
+
         if (!res.ok) throw new Error(data.message || "Failed to load staff");
 
-        setStaffList(data); // each { staffId, department, createdAt }
+        setStaffList(data);
       } catch (err) {
-        console.error("Error loading admin staff:", err);
-        setLocalMsg(err.message);
-        setLocalStatus("error");
+        setMsg("❌ Failed to load staff list");
+        setStatusType("error");
       } finally {
         setLoading(false);
       }
@@ -49,93 +47,83 @@ function AssignStaffPopup({
 
   if (!isOpen) return null;
 
+  /* ================= ASSIGN HANDLER ================= */
   const handleAssign = async () => {
     if (!selectedStaffId) {
-      setLocalMsg("Please select a staff member to assign.");
-      setLocalStatus("error");
+      setMsg("Please select a staff member");
+      setStatusType("error");
       return;
     }
 
-    setLoadingAssign(true);
-    setLocalMsg("Assigning grievance...");
-    setLocalStatus("info");
-
     try {
+      setAssigning(true);
+      setMsg("Assigning grievance...");
+      setStatusType("info");
+
       const res = await fetch(
-        `http://localhost:5000/api/grievances/${grievanceId}`,
+        `http://localhost:5000/api/grievances/assign/${grievanceId}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            status: "Assigned",
-            assignedTo: selectedStaffId.toUpperCase(),
-            assignedRole: "staff",
-            assignedBy: adminId,
+            staffId: selectedStaffId, // ✅ correct field
+            adminId: adminId,          // ✅ dept admin ID
           }),
         }
       );
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to assign");
+      if (!res.ok) throw new Error(data.message);
 
-      const successMsg = `Grievance assigned to ${selectedStaffId.toUpperCase()} successfully!`;
-
-      // Notify parent
       if (onAssigned) {
-        onAssigned(successMsg, "success");
+        onAssigned(`✅ Assigned to ${selectedStaffId}`, "success");
       }
 
-      setLoadingAssign(false);
+      setSelectedStaffId("");
       onClose();
     } catch (err) {
-      console.error("Error assigning grievance:", err);
-      setLocalMsg(err.message);
-      setLocalStatus("error");
-      setLoadingAssign(false);
+      setMsg(err.message);
+      setStatusType("error");
+    } finally {
+      setAssigning(false);
     }
   };
 
+  /* ================= UI ================= */
   return (
     <div className="assign-modal-overlay">
       <div className="assign-modal">
         <div className="assign-modal-header">
-          <h3>Assign to Staff</h3>
+          <h3>Assign Staff – {department}</h3>
           <button className="assign-close-btn" onClick={onClose}>
             ✕
           </button>
         </div>
 
         <p className="assign-modal-subtitle">
-          Select a staff member from <strong>{department}</strong> department to
-          handle this grievance.
+          Select a staff member to handle this grievance.
         </p>
 
-        {localMsg && (
-          <div className={`alert-box ${localStatus}`}>{localMsg}</div>
-        )}
+        {msg && <div className={`alert-box ${statusType}`}>{msg}</div>}
 
         {loading ? (
-          <p>Loading staff list...</p>
+          <p>Loading staff...</p>
         ) : staffList.length === 0 ? (
           <div className="empty-state">
-            <p>
-              No admin staff added for <strong>{department}</strong> yet.
-              <br />
-              Please add staff in <em>Manage Department Staff</em>.
-            </p>
+            <p>No staff found for this department.</p>
           </div>
         ) : (
           <div className="assign-staff-list">
             {staffList.map((s) => (
               <button
-                key={s._id || s.staffId}
+                key={s.id}
                 type="button"
                 className={`staff-pill ${
-                  selectedStaffId === s.staffId ? "selected" : ""
+                  selectedStaffId === s.id ? "selected" : ""
                 }`}
-                onClick={() => setSelectedStaffId(s.staffId)}
+                onClick={() => setSelectedStaffId(s.id)}
               >
-                {s.staffId}
+                {s.fullName} ({s.id})
               </button>
             ))}
           </div>
@@ -143,20 +131,18 @@ function AssignStaffPopup({
 
         <div className="assign-modal-footer">
           <button
-            type="button"
             className="assign-cancel-btn"
             onClick={onClose}
-            disabled={loadingAssign}
+            disabled={assigning}
           >
             Cancel
           </button>
           <button
-            type="button"
             className="assign-confirm-btn"
             onClick={handleAssign}
-            disabled={loadingAssign || !staffList.length}
+            disabled={assigning || !selectedStaffId}
           >
-            {loadingAssign ? "Assigning..." : "Assign Grievance"}
+            {assigning ? "Assigning..." : "Assign"}
           </button>
         </div>
       </div>

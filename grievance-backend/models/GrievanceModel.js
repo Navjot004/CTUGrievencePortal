@@ -1,36 +1,69 @@
 import mongoose from "mongoose";
 
-const grievanceSchema = new mongoose.Schema({
-  userId: { type: String, required: true },
-  name: { type: String, required: true },
-  email: { type: String, required: true },
-  phone: { type: String },
-  regid: { type: String },
-  
-  school: { type: String, required: true },
-  category: { type: String, required: true },
-  message: { type: String, required: true },
-  
-  // ✅ Stores uploaded document path (from Multer)
-  attachment: { type: String, default: null },
+const grievanceSchema = new mongoose.Schema(
+  {
+    // ================= STUDENT INFO =================
+    userId: { type: String, required: true }, // 8-digit Student ID
+    name: { type: String, required: true },
+    email: { type: String, required: true },
+    phone: { type: String },
+    regid: { type: String },
 
-  // ✅ Assignment Flow
-  assignedTo: { type: String, default: null },    // Can be ADM_* or STF*
-  assignedRole: { type: String, default: null },  // "admin" or "staff"
-  assignedBy: { type: String, default: null },    // Who assigned (e.g. ADM01, ADM_ACCOUNT)
+    // ================= STUDENT ACADEMIC =================
+    studentProgram: {
+      type: String,
+      required: true // e.g. B.Tech CSE
+    },
 
-  resolvedBy: { type: String, default: null },
-  resolutionRemarks: { type: String, default: "" },
-  
-  status: { 
-    type: String, 
-    enum: ["Pending", "Assigned", "In Progress", "Resolved", "Rejected"], 
-    default: "Pending" 
+    // ================= GRIEVANCE ROUTING (ONLY CATEGORY) =================
+    category: {
+      type: String,
+      required: true,
+      enum: [
+        "Accounts",
+        "Student Welfare",
+        "Admission",
+        "Examination",
+        "School of Engineering and Technology",
+        "School of Management Studies",
+        "School of Law",
+        "School of Pharmaceutical Sciences",
+        "School of Hotel Management",
+        "School of Design and innovation",
+        "School of Allied Health Sciences",
+        "School of Socail Sciences nad Liberal Arts"
+      ]
+    },
+
+    // ================= CONTENT =================
+    message: { type: String, required: true },
+    attachment: { type: String, default: null },
+
+    // ================= ASSIGNMENT FLOW =================
+    assignedTo: { type: String, default: null },
+    assignedRole: {
+      type: String,
+      enum: ["staff", "admin"],
+      default: null
+    },
+    assignedBy: { type: String, default: null },
+
+    // ================= RESOLUTION =================
+    resolvedBy: { type: String, default: null },
+    resolutionRemarks: { type: String, default: "" },
+
+    // ================= STATUS =================
+    status: {
+      type: String,
+      enum: ["Pending", "Assigned", "In Progress", "Resolved", "Rejected"],
+      default: "Pending"
+    }
   },
-  
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-});
+  { timestamps: true }
+);
 
-const Grievance = mongoose.model("Grievance", grievanceSchema);
+const Grievance =
+  mongoose.models.Grievance ||
+  mongoose.model("Grievance", grievanceSchema);
+
 export default Grievance;

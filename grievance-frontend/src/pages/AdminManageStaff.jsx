@@ -1,331 +1,260 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import "../styles/Dashboard.css";
+import "../styles/Dashboard.css"; 
 
-const formatDate = (dateString) => {
-  if (!dateString) return "N/A";
-  const options = { year: "numeric", month: "short", day: "numeric" };
-  return new Date(dateString).toLocaleDateString("en-US", options);
-};
-
-function AdminManageStaff() {
+const AdminManageStaff = () => {
   const navigate = useNavigate();
-
-  const role = localStorage.getItem("grievance_role")?.toLowerCase();
   const userId = localStorage.getItem("grievance_id")?.toUpperCase();
+  const role = localStorage.getItem("grievance_role")?.toLowerCase();
+  
+  const isMaster = userId === "10001";
+  const myDepartment = localStorage.getItem("admin_department") || "";
+  const isDeptAdmin = localStorage.getItem("is_dept_admin") === "true";
 
-  // ✅ Updated Map: Maps Admin ID to Department Name directly
-  const adminDeptMap = {
-    // Core Departments
-    ADM_ACCOUNT: "Accounts",
-    ADM_ADMISSION: "Admission",
-    ADM_WELFARE: "Student Welfare",
-    ADM_EXAM: "Examination",
-    
-    // School Departments
-    ADM_ENG: "School of Engineering",
-    ADM_MGMT: "School of Management",
-    ADM_HOTEL: "Hotel Management",
-    ADM_LAW: "School of Law",
-    ADM_PHARMA: "Pharmaceutical Sciences",
-    ADM_DESIGN: "Design & Innovation",
-    ADM_HEALTH: "Allied Health Sciences",
-    ADM_SOCIAL: "Social Sciences",
-  };
-
-  // Check if current user is a specific department admin
-  const fixedDepartment = adminDeptMap[userId] || null;
-
-  // If fixedDepartment exists, use it. Otherwise empty (for Main Admin to select)
-  const [department, setDepartment] = useState(fixedDepartment || "");
-  const [staffId, setStaffId] = useState("");
   const [staffList, setStaffList] = useState([]);
-
+  const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState("");
-  const [statusType, setStatusType] = useState(""); 
-  const [loadingList, setLoadingList] = useState(false);
-  const [loadingAdd, setLoadingAdd] = useState(false);
-  const [loadingRemoveId, setLoadingRemoveId] = useState(null);
+  const [statusType, setStatusType] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterRole, setFilterRole] = useState("all"); // all | admins | team | general
 
-  // Check role
+  const allDepartments = [
+    "Accounts", "Examination", "Student Welfare", "Admission", 
+    "School of Engineering", "School of Management", "School of Law", 
+    "Pharmaceutical Sciences", "Hotel Management", "Design & Innovation", 
+    "Allied Health Sciences", "Social Sciences"
+  ];
+
   useEffect(() => {
-    if (!role || role !== "admin") {
+    // Only Admin or Dept Admin allowed
+    if (role !== "admin" && !isDeptAdmin) {
       navigate("/");
+      return;
     }
-  }, [role, navigate]);
+    fetchStaff();
+  }, [role, isDeptAdmin, navigate]);
 
-  // Load list whenever department is set (auto or manual)
-  useEffect(() => {
-    if (!department) return;
-    fetchStaffList(department);
-  }, [department]);
-
-  const fetchStaffList = async (dept) => {
+  const fetchStaff = async () => {
     try {
-      setLoadingList(true);
-      setMsg("");
-      setStatusType("");
-
-      const res = await fetch(
-        `http://localhost:5000/api/admin-staff/${encodeURIComponent(dept)}`
-      );
+      setLoading(true);
+      // ✅ Correct URL matching your new server.js
+      const res = await fetch("http://localhost:5000/api/admin-staff/all");
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to load staff list");
-
-      setStaffList(data);
+      if (res.ok) setStaffList(data);
     } catch (err) {
-      console.error("Error fetching admin staff:", err);
-      setMsg(err.message);
+      setMsg("Failed to load staff list.");
       setStatusType("error");
     } finally {
-      setLoadingList(false);
+      setLoading(false);
     }
   };
 
-  const handleAddStaff = async (e) => {
-    e.preventDefault();
-    if (!department) {
-      setMsg("Please select a department first.");
-      setStatusType("error");
+  const handleRoleChange = async (targetStaffId, action, selectedDept = "") => {
+    if (action === "promote" && !selectedDept) {
+      alert("Please select a department first.");
       return;
     }
-    if (!staffId.trim()) {
-      setMsg("Please enter a Staff ID.");
-      setStatusType("error");
-      return;
+    // Dept Admin Restriction: Can only add to own dept
+    if (!isMaster && action === "promote" && selectedDept !== myDepartment) {
+        alert(`❌ You are only authorized to add staff to ${myDepartment}.`);
+        return;
     }
 
-    setLoadingAdd(true);
-    setMsg("Adding staff...");
-    setStatusType("info");
+    const confirmMsg = action === 'promote' 
+      ? `Assign ${targetStaffId} to ${selectedDept}?` 
+      : `Remove ${targetStaffId} from role?`;
+
+    if (!window.confirm(confirmMsg)) return;
 
     try {
-      const res = await fetch("http://localhost:5000/api/admin-staff", {
+      setMsg("Updating...");
+      setStatusType("info");
+
+      const res = await fetch("http://localhost:5000/api/admin-staff/role", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          staffId: staffId.toUpperCase().trim(),
-          department,
-        }),
+        body: JSON.stringify({ requesterId: userId, targetStaffId, action, department: selectedDept }),
       });
-
+      
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to add staff");
-
-      setMsg("✅ Staff added successfully.");
-      setStatusType("success");
-      setStaffId("");
-      fetchStaffList(department);
+      if (res.ok) {
+        setMsg(data.message);
+        setStatusType("success");
+        fetchStaff(); 
+      } else {
+        setMsg(data.message);
+        setStatusType("error");
+      }
     } catch (err) {
-      setMsg(err.message);
+      setMsg("Server Error.");
       setStatusType("error");
-    } finally {
-      setLoadingAdd(false);
     }
   };
 
-  const handleRemoveStaff = async (staffIdToRemove) => {
-    if (!window.confirm(`Remove ${staffIdToRemove}?`)) {
-      return;
-    }
+  const handleLogout = () => { localStorage.clear(); navigate("/"); };
 
-    setLoadingRemoveId(staffIdToRemove);
-    setMsg("");
-    setStatusType("");
-
-    try {
-      const res = await fetch(
-        `http://localhost:5000/api/admin-staff/${encodeURIComponent(department)}/${encodeURIComponent(staffIdToRemove)}`,
-        {
-          method: "DELETE",
-        }
-      );
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to remove staff");
-
-      setMsg("✅ Staff removed.");
-      setStatusType("success");
-      fetchStaffList(department);
-    } catch (err) {
-      setMsg(err.message);
-      setStatusType("error");
-    } finally {
-      setLoadingRemoveId(null);
-    }
+  // Helper to verify permissions
+  const canEdit = (staff) => {
+      if (isMaster) return true;
+      if (staff.adminDepartment === myDepartment && !staff.isDeptAdmin) return true; // Can edit own team members
+      if (!staff.adminDepartment) return true; // Can add fresh staff
+      return false; // Cannot edit other admins or other dept staff
   };
-
-  const handleLogout = () => {
-    localStorage.clear();
-    navigate("/");
-  };
-
-  // Logic: Only show dropdown if user is NOT a fixed department admin (i.e. Main Admin)
-  const isMainAdmin = !fixedDepartment;
 
   return (
     <div className="dashboard-container">
       <header className="dashboard-header">
         <div className="header-content">
           <h1>Manage Department Staff</h1>
-          <p>Welcome, {userId}</p>
+          <p>Logged in as: <strong>{userId}</strong> {myDepartment ? `(${myDepartment})` : ""}</p>
         </div>
-        <button className="logout-btn-header" onClick={handleLogout}>
-          Logout
-        </button>
+        <button className="logout-btn-header" onClick={handleLogout}>Logout</button>
       </header>
 
+      {/* Navbar logic based on role */}
       <nav className="navbar">
-        <ul>
-          <li className="admin-nav-title">
-            <span>Admin Staff Configuration</span>
-          </li>
-        </ul>
+          <ul>
+              {isMaster ? (
+                  <li className="admin-nav-title"><span>Master Admin Panel</span></li>
+              ) : (
+                  <>
+                    <li className="admin-nav-title"><span>{myDepartment} Admin</span></li>
+                    {/* Add back button for Dept Admin to go to dashboard */}
+                    <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(-1); }} style={{cursor:'pointer'}}>⬅ Back to Dashboard</a></li>
+                  </>
+              )}
+          </ul>
       </nav>
 
       <main className="dashboard-body">
         <div className="card">
-          <h2>Department Admin Staff</h2>
-
-          <p style={{ marginBottom: "1rem", color: "var(--text-light)" }}>
-            {isMainAdmin ? (
-              <>
-                Select a department to add staff members who can handle grievances.
-              </>
-            ) : (
-              <>
-                You are managing staff for <strong>{fixedDepartment}</strong>.
-              </>
-            )}
+          <h2>Department Team Members</h2>
+          <p style={{ color: "#64748b", marginBottom: "15px" }}>
+            {isMaster 
+                ? "Assign Department Admins (Bosses) and view team structures." 
+                : "Add staff members to your team to help resolve grievances."}
           </p>
-
+          
           {msg && <div className={`alert-box ${statusType}`}>{msg}</div>}
 
-          {/* Department Selection (Only for Main Admin) */}
-          <div className="form-row">
-            <div className="input-group">
-              <label>Department</label>
-              {isMainAdmin ? (
-                <select
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                >
-                  <option value="">Select Department</option>
-                  
-                  <optgroup label="Core Departments">
-                    <option value="Accounts">Accounts</option>
-                    <option value="Admission">Admission</option>
-                    <option value="Student Welfare">Student Welfare</option>
-                    <option value="Examination">Examination</option>
-                  </optgroup>
+          {/* Controls */}
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
+            <input
+              placeholder="Search by name or ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ padding: '8px 10px', flex: 1 }}
+            />
 
-                  <optgroup label="Academic Schools">
-                    <option value="School of Engineering">School of Engineering</option>
-                    <option value="School of Management">School of Management</option>
-                    <option value="School of Law">School of Law</option>
-                    <option value="Pharmaceutical Sciences">Pharmaceutical Sciences</option>
-                    <option value="Hotel Management">Hotel Management</option>
-                    <option value="Design & Innovation">Design & Innovation</option>
-                    <option value="Allied Health Sciences">Allied Health Sciences</option>
-                    <option value="Social Sciences">Social Sciences</option>
-                  </optgroup>
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  value={fixedDepartment}
-                  readOnly
-                  className="read-only-input"
-                />
-              )}
-            </div>
+            <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} style={{ padding: '8px' }}>
+              <option value="all">All</option>
+              <option value="admins">Admins (Dept Admin)</option>
+              <option value="team">Admin Staff (Team Members)</option>
+              <option value="general">General Staff</option>
+            </select>
           </div>
 
-          <form onSubmit={handleAddStaff}>
-            <div className="form-row">
-              <div className="input-group">
-                <label>Staff ID (e.g. STF001)</label>
-                <input
-                  type="text"
-                  value={staffId}
-                  onChange={(e) => setStaffId(e.target.value.toUpperCase())}
-                  placeholder="Enter Staff ID"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="submit-btn"
-              disabled={loadingAdd || !department}
-            >
-              {loadingAdd ? "Adding..." : "Add Staff"}
-            </button>
-          </form>
-
-          <h3 style={{ marginTop: "2rem", marginBottom: "0.75rem" }}>
-            Current Staff List
-          </h3>
-
-          {loadingList ? (
-            <p>Loading staff list...</p>
-          ) : !department ? (
-            <p style={{ color: "var(--text-light)" }}>
-              Please select a department to view staff.
-            </p>
-          ) : staffList.length === 0 ? (
-            <div className="empty-state">
-              <p>No staff added yet for {department}.</p>
-            </div>
-          ) : (
+          {loading ? <p>Loading...</p> : (
             <div className="table-container">
               <table className="grievance-table">
-                <thead>
-                  <tr>
-                    <th>Staff ID</th>
-                    <th>Department</th>
-                    <th>Added On</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
+                <thead><tr><th>ID</th><th>Name</th><th>Role / Dept</th><th>Action</th></tr></thead>
                 <tbody>
-                  {staffList.map((s) => (
-                    <tr key={s._id || s.staffId}>
-                      <td>{s.staffId}</td>
-                      <td>{s.department}</td>
-                      <td>{formatDate(s.createdAt)}</td>
-                      <td>
-                        <button
-                          type="button"
-                          className="resolved-btn" // Using resolved-btn style for clean look, override color
-                          style={{
-                            backgroundColor: "#ef4444",
-                            cursor: "pointer",
-                            color: "white",
-                            border: "none"
-                          }}
-                          onClick={() => handleRemoveStaff(s.staffId)}
-                          disabled={loadingRemoveId === s.staffId}
-                        >
-                          {loadingRemoveId === s.staffId
-                            ? "Removing..."
-                            : "Remove"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {(() => {
+                    if (!staffList || staffList.length === 0) return <tr><td colSpan="4">No staff found.</td></tr>;
+
+                    const q = searchQuery.trim().toLowerCase();
+                    let list = staffList.slice();
+
+                    if (filterRole === 'admins') {
+                      list = list.filter(s => s.isDeptAdmin);
+                      if (!isMaster && myDepartment) list = list.filter(s => s.adminDepartment === myDepartment);
+                    } else if (filterRole === 'team') {
+                      list = list.filter(s => s.adminDepartment && !s.isDeptAdmin);
+                      if (!isMaster && myDepartment) list = list.filter(s => s.adminDepartment === myDepartment);
+                    } else if (filterRole === 'general') {
+                      list = list.filter(s => !s.adminDepartment);
+                    }
+
+                    if (q) {
+                      list = list.filter(s => (s.fullName || '').toLowerCase().includes(q) || (s.id || '').toLowerCase().includes(q));
+                    }
+
+                    return list.map((staff) => {
+                      const deptOptions = isMaster ? allDepartments : (myDepartment ? [myDepartment] : []);
+                      const isEditable = canEdit(staff);
+
+                      return (
+                        <tr key={staff.id} style={{ opacity: isEditable ? 1 : 0.6 }}>
+                          <td>{staff.id}</td>
+                          <td>{staff.fullName}</td>
+                          
+                          {/* ✅ HIERARCHY DISPLAY FIX */}
+                          <td>
+                            {staff.isDeptAdmin ? (
+                              <span className="status-badge status-resolved" style={{border: '1px solid #16a34a'}}>
+                                👑 Admin: {staff.adminDepartment}
+                              </span>
+                            ) : staff.adminDepartment ? (
+                              <span className="status-badge status-assigned" style={{border: '1px solid #2563eb'}}>
+                                🛡️ Team: {staff.adminDepartment}
+                              </span>
+                            ) : (
+                              <span className="status-badge status-pending">General Staff</span>
+                            )}
+                          </td>
+
+                          <td>
+                            {!isEditable ? (
+                                <span style={{fontSize:'0.85rem', color:'#94a3b8'}}>🔒 Locked</span>
+                            ) : (
+                                <>
+                                    {staff.adminDepartment ? (
+                                        <button 
+                                            className="action-btn" 
+                                            style={{ backgroundColor: "#ef4444", color: "white" }} 
+                                            onClick={() => handleRoleChange(staff.id, "demote")}
+                                        >
+                                            {staff.isDeptAdmin ? "Remove Admin" : "Remove from Team"}
+                                        </button>
+                                    ) : (
+                                        <div style={{ display: "flex", gap: "8px" }}>
+                                            <select 
+                                                id={`dept-${staff.id}`} 
+                                                className="assign-select" 
+                                                defaultValue={!isMaster ? myDepartment : ""}
+                                                disabled={!isMaster}
+                                            >
+                                                <option value="" disabled>Select Dept...</option>
+                                                {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
+                                            </select>
+                                            
+                                            <button 
+                                                className="action-btn" 
+                                                style={{ backgroundColor: "#10b981", color: "white" }} 
+                                                onClick={() => {
+                                                    const val = document.getElementById(`dept-${staff.id}`).value;
+                                                    handleRoleChange(staff.id, "promote", val);
+                                                }}
+                                            >
+                                                {isMaster ? "Make Admin" : "Add to Team"}
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  })()}
                 </tbody>
               </table>
             </div>
           )}
         </div>
       </main>
-
-      <button className="logout-floating" onClick={handleLogout}>
-        Logout
-      </button>
     </div>
   );
-}
+};
 
 export default AdminManageStaff;

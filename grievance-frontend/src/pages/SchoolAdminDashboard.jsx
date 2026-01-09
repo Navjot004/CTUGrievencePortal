@@ -5,191 +5,107 @@ import AssignStaffPopup from "../components/AssignStaffPopup";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
-  return new Date(dateString).toLocaleDateString("en-US", {
-    year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
-  });
+  return new Date(dateString).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 };
 
 function SchoolAdminDashboard() {
   const navigate = useNavigate();
-  const role = localStorage.getItem("grievance_role")?.toLowerCase();
   const userId = localStorage.getItem("grievance_id")?.toUpperCase();
-
-  // ✅ 1. Map Admin ID to Exact School Name (Must match AdminManageStaff dropdown)
-  const adminTitleMap = {
-    "ADM_ENG": "School of Engineering",
-    "ADM_MGMT": "School of Management",
-    "ADM_HOTEL": "Hotel Management", 
-    "ADM_LAW": "School of Law",
-    "ADM_PHARMA": "Pharmaceutical Sciences",
-    "ADM_DESIGN": "Design & Innovation",
-    "ADM_HEALTH": "Allied Health Sciences",
-    "ADM_SOCIAL": "Social Sciences",
-    "ADM_DEPT": "Academic Department" // Fallback
-  };
-
-  const currentSchoolName = adminTitleMap[userId] || "Academic Department";
+  
+  // ✅ DYNAMIC: Get Department from LocalStorage
+  const mySchoolName = localStorage.getItem("admin_department"); 
+  const isAuthorized = !!mySchoolName; // Must have a department assigned
 
   const [grievances, setGrievances] = useState([]);
   const [msg, setMsg] = useState("");
-  const [statusType, setStatusType] = useState(""); 
+  const [statusType, setStatusType] = useState("");
   
-  // State for Assign Staff Popup
   const [isAssignPopupOpen, setIsAssignPopupOpen] = useState(false);
   const [assignGrievanceId, setAssignGrievanceId] = useState(null);
-
-  // ✅ State for "See More" Details Popup
   const [selectedGrievance, setSelectedGrievance] = useState(null);
 
   useEffect(() => {
-    // Only allow School Admins
-    if (!role || role !== "admin" || !adminTitleMap[userId]) {
+    if (!isAuthorized) {
       navigate("/");
     } else {
       fetchMySchoolGrievances();
     }
-  }, [role, userId, navigate]);
+  }, [navigate, isAuthorized]);
 
   const fetchMySchoolGrievances = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/grievances/assigned/${userId}`);
-      if (!res.ok) throw new Error("Failed to fetch data");
-      const data = await res.json();
-      setGrievances(data);
+      // Fetch grievances by CATEGORY (school name) instead of assigned
+      // This shows ALL grievances for this school, not just assigned ones
+      const category = encodeURIComponent(mySchoolName);
+      const res = await fetch(`http://localhost:5000/api/grievances/category/${category}`);
+      if (res.ok) setGrievances(await res.json());
+      else console.error("Failed to fetch grievances");
     } catch (error) {
       console.error(error);
-      setMsg("Failed to load grievances");
-      setStatusType("error");
     }
   };
 
   const updateStatus = async (id, newStatus) => {
-    setMsg("Updating status...");
-    setStatusType("info");
+    setMsg("Updating...");
     try {
-      const res = await fetch(`http://localhost:5000/api/grievances/${id}`, {
+      await fetch(`http://localhost:5000/api/grievances/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus, resolvedBy: userId }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      setMsg("Status updated successfully!");
+      setMsg("Updated!");
       setStatusType("success");
       fetchMySchoolGrievances(); 
     } catch (err) {
-      setMsg(`Error: ${err.message}`);
-      setStatusType("error");
+      setMsg("Error updating");
     }
   };
 
-  const openAssignPopup = (grievanceId) => {
-    setAssignGrievanceId(grievanceId);
-    setIsAssignPopupOpen(true);
-  };
-
-  const handleAssignSuccess = (message, type) => {
-    setMsg(message);
-    setStatusType(type);
-    fetchMySchoolGrievances(); 
-  };
-
-  const handleLogout = () => {
-    localStorage.clear();
-    navigate("/");
-  };
+  const openAssignPopup = (id) => { setAssignGrievanceId(id); setIsAssignPopupOpen(true); };
+  const handleLogout = () => { localStorage.clear(); navigate("/"); };
 
   return (
     <div className="dashboard-container">
       <header className="dashboard-header">
         <div className="header-content">
-          <h1>{currentSchoolName} Dashboard</h1>
-          <p>Welcome, HOD ({userId})</p>
+          <h1>{mySchoolName || "School"} Dashboard</h1>
+          <p>Admin: {userId}</p>
         </div>
         <button className="logout-btn-header" onClick={handleLogout}>Logout</button>
       </header>
 
       <nav className="navbar">
         <ul>
-          <li className="admin-nav-title"><span>My School Grievances</span></li>
+          <li className="admin-nav-title"><span>Department Issues</span></li>
           <li><Link to="/admin/manage-staff">Manage Staff</Link></li>
         </ul>
       </nav>
 
       <main className="dashboard-body">
         <div className="card">
-          <h2>Department Issues</h2>
+          <h2>Grievances Assigned to {mySchoolName}</h2>
           {msg && <div className={`alert-box ${statusType}`}>{msg}</div>}
 
-          {grievances.length === 0 ? (
-            <div className="empty-state">
-              <p>No grievances currently assigned to your school.</p>
-            </div>
-          ) : (
+          {grievances.length === 0 ? <div className="empty-state"><p>No pending issues.</p></div> : (
             <div className="table-container">
               <table className="grievance-table">
-                <thead>
-                  <tr>
-                    <th>Student Name</th>
-                    <th>Reg ID</th>
-                    <th>Message</th>
-                    <th>Submitted At</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
+                <thead><tr><th>Student</th><th>Message</th><th>Date</th><th>Status</th><th>Action</th></tr></thead>
                 <tbody>
                   {grievances.map((g) => (
                     <tr key={g._id}>
                       <td>{g.name}</td>
-                      <td>{g.regid}</td>
-                      
-                      {/* --- FIXED MESSAGE CELL (Max Width 150px + See More) --- */}
-                      <td className="message-cell" style={{ maxWidth: '150px' }}>
-                        {g.message.length > 20 ? (
-                          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '5px' }}>
-                            <span style={{ wordBreak: 'break-all', lineHeight: '1.2' }}>
-                              {g.message.substring(0, 20)}...
-                            </span>
-                            <button 
-                              onClick={() => setSelectedGrievance(g)}
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                color: '#2563eb',
-                                cursor: 'pointer',
-                                fontSize: '0.75rem',
-                                fontWeight: '600',
-                                textDecoration: 'underline',
-                                padding: 0,
-                                whiteSpace: 'nowrap'
-                              }}
-                            >
-                              See more
-                            </button>
-                          </div>
-                        ) : (
-                          <span style={{ wordBreak: 'break-all' }}>{g.message}</span>
-                        )}
-                      </td>
-                      {/* ---------------------------------------------------- */}
-
+                      <td className="message-cell" onClick={() => setSelectedGrievance(g)} style={{cursor:'pointer', textDecoration:'underline'}}>{g.message.substring(0, 30)}...</td>
                       <td>{formatDate(g.createdAt)}</td>
-                      <td>
-                        <span className={`status-badge status-${g.status.toLowerCase()}`}>
-                          {g.status}
-                        </span>
-                      </td>
+                      <td><span className={`status-badge status-${g.status.toLowerCase()}`}>{g.status}</span></td>
                       <td>
                         <div className="action-buttons">
-                          {g.status !== "Resolved" ? (
-                            <>
-                              <button className="action-btn assign-btn" onClick={() => openAssignPopup(g._id)}>Assign Staff</button>
-                              <button className="action-btn resolve-btn" onClick={() => updateStatus(g._id, "Resolved")}>Mark Resolved</button>
-                            </>
-                          ) : (
-                            <span className="done-btn">Resolved</span>
+                          {g.status !== "Resolved" && (
+                             <>
+                               <button className="action-btn assign-btn" onClick={() => openAssignPopup(g._id)}>Assign</button>
+                               <button className="action-btn resolve-btn" onClick={() => updateStatus(g._id, "Resolved")}>Resolve</button>
+                             </>
                           )}
+
                         </div>
                       </td>
                     </tr>
@@ -201,103 +117,19 @@ function SchoolAdminDashboard() {
         </div>
       </main>
 
-      {/* --- DETAILS POPUP MODAL (Fixed for Long Text) --- */}
+      {/* Details Modal */}
       {selectedGrievance && (
-        <div 
-          onClick={() => setSelectedGrievance(null)}
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1000
-          }}
-        >
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: 'white',
-              padding: '20px',
-              borderRadius: '12px',
-              width: '90%',
-              maxWidth: '500px',
-              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-              position: 'relative'
-            }}
-          >
-            {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '15px' }}>
-              <h3 style={{ margin: 0 }}>Grievance Details</h3>
-              <button 
-                onClick={() => setSelectedGrievance(null)}
-                style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}
-              >
-                &times;
-              </button>
-            </div>
-            
-            {/* Modal Body */}
-            <div style={{ fontSize: '0.95rem', color: '#334155' }}>
-              <p style={{ marginBottom: '8px' }}><strong>Name:</strong> {selectedGrievance.name}</p>
-              <p style={{ marginBottom: '8px' }}><strong>Reg ID:</strong> {selectedGrievance.regid}</p>
-              <p style={{ marginBottom: '8px' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
-              
-              <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '6px', margin: '15px 0', border: '1px solid #e2e8f0' }}>
-                <strong style={{ display: 'block', marginBottom: '5px', color: '#1e293b' }}>Full Message:</strong>
-                
-                {/* --- FIXED: Break-all added here --- */}
-                <p style={{ 
-                  margin: 0, 
-                  whiteSpace: 'pre-wrap', 
-                  lineHeight: '1.5',
-                  wordBreak: 'break-all',     
-                  overflowWrap: 'anywhere' 
-                }}>
-                  {selectedGrievance.message}
-                </p>
-                {/* ----------------------------------- */}
-
-              </div>
-
-              <p style={{ marginBottom: '8px' }}><strong>Status:</strong> {selectedGrievance.status}</p>
-            </div>
-
-            {/* Modal Footer */}
-            <div style={{ textAlign: 'right', marginTop: '15px' }}>
-              <button 
-                onClick={() => setSelectedGrievance(null)}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#e2e8f0',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                  color: '#475569'
-                }}
-              >
-                Close
-              </button>
-            </div>
-          </div>
+        <div className="chat-modal-overlay" onClick={() => setSelectedGrievance(null)}>
+           <div className="chat-modal" style={{height:'auto', padding:'20px'}}>
+              <h3>Details</h3>
+              <p>{selectedGrievance.message}</p>
+              <button className="close-btn" onClick={() => setSelectedGrievance(null)}>Close</button>
+           </div>
         </div>
       )}
-      {/* --------------------------------------- */}
 
-      {/* Existing Assign Staff Popup */}
-      <AssignStaffPopup
-        isOpen={isAssignPopupOpen}
-        onClose={() => setIsAssignPopupOpen(false)}
-        department={currentSchoolName} 
-        grievanceId={assignGrievanceId}
-        adminId={userId}
-        onAssigned={handleAssignSuccess}
-      />
+      <AssignStaffPopup isOpen={isAssignPopupOpen} onClose={() => setIsAssignPopupOpen(false)} department={mySchoolName} grievanceId={assignGrievanceId} adminId={userId} onAssigned={(m, t) => {setMsg(m); setStatusType(t); fetchMySchoolGrievances()}} />
+
     </div>
   );
 }

@@ -6,12 +6,12 @@ import "../styles/Dashboard.css";
 const academicPrograms = {
   "School of Engineering and Technology": [],
   "School of Management Studies": [],
-  "School of Hotel Management, Airlines and Tourism": [],
+  "School of Hotel Management": [],
   "School of Law": [],
   "School of Pharmaceutical Sciences": [],
-  "School of Design and Innovation": [],
+  "School of Design and innovation": [],
   "School of Allied Health Sciences": [],
-  "School of Social Sciences and Liberal Arts": []
+  "School of Socail Sciences nad Liberal Arts": []
 };
 
 // Helper to auto-select if possible
@@ -27,7 +27,7 @@ function Department() {
   const categoryTitle = "Academic Department";
 
   const [formData, setFormData] = useState({
-    name: "", regid: userId || "", email: "", phone: "", school: "", issueType: "", message: "",
+    name: "", regid: userId || "", email: "", phone: "", studentProgram: "", school: "", issueType: "", message: "",
   });
 
   const [attachment, setAttachment] = useState(null);
@@ -51,6 +51,7 @@ function Department() {
             name: data.fullName || "",
             email: data.email || "",
             phone: data.phone || "",
+            studentProgram: data.department || data.program || "", // 🔥
             // school is intentionally left blank for manual selection
           }));
         }
@@ -87,24 +88,35 @@ function Department() {
     data.append("regid", formData.regid);
     data.append("email", formData.email);
     data.append("phone", formData.phone);
+    data.append("studentProgram", formData.school || "Engineering"); // 🔥 Use school selection as program
+
     
-    // ✅ CRITICAL: Send the selected school name exactly as it appears in the dropdown
-    data.append("school", formData.school); 
-    
-    data.append("category", "Department"); 
+    data.append("category", formData.school || "School of Engineering and Technology"); 
     data.append("message", `${formData.issueType} - ${formData.message}`);
 
     if (attachment) {
       data.append("attachment", attachment);
     }
 
+    // Debug: Log what we're sending
+    console.log("Form Data Being Sent:");
+    console.log("userId:", userId);
+    console.log("name:", formData.name);
+    console.log("regid:", formData.regid);
+    console.log("email:", formData.email);
+    console.log("phone:", formData.phone);
+    console.log("studentProgram:", formData.school || "Engineering");
+    console.log("category:", formData.school || "School of Engineering and Technology");
+    console.log("message:", `${formData.issueType} - ${formData.message}`);
+
     try {
-      const res = await fetch("http://localhost:5000/api/grievances", {
+      const res = await fetch("http://localhost:5000/api/grievances/submit", {
         method: "POST",
         body: data,
       });
 
       const responseData = await res.json();
+      console.log("Response:", responseData);
       if (!res.ok) throw new Error(responseData.message);
 
       setMsg("✅ Grievance submitted successfully!");

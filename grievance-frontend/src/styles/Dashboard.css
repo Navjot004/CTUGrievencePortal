@@ -730,3 +730,161 @@ form {
     from { transform: translateX(100%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
   }
+  /* ... (Purane codes ke neeche add karein) ... */
+
+/* ============ UPLOAD COMPONENT STYLES ============ */
+.upload-container {
+  padding: 25px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  border: 1px solid #e2e8f0;
+  max-width: 500px;
+  margin: 30px auto; /* Thoda spacing upar-neeche */
+  text-align: center;
+}
+
+.upload-heading {
+  margin: 0 0 10px 0;
+  color: #1e293b;
+  font-size: 1.4rem;
+}
+
+.upload-info {
+  font-size: 0.95rem;
+  color: #64748b;
+  margin-bottom: 25px;
+  line-height: 1.5;
+}
+
+.upload-box {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  align-items: stretch;
+}
+
+/* File Input Styling */
+.upload-input {
+  padding: 12px;
+  border: 2px dashed #cbd5e1; /* Dashed border for drag-drop feel */
+  border-radius: 8px;
+  cursor: pointer;
+  background-color: #f8fafc;
+  transition: border-color 0.2s;
+  font-size: 0.9rem;
+}
+
+.upload-input:hover {
+  border-color: #2563eb;
+  background-color: #eff6ff;
+}
+
+/* Upload Button Styling */
+.upload-btn {
+  color: white;
+  border: none;
+  padding: 12px 15px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: background 0.2s, transform 0.1s;
+  background-color: #2563eb;
+  cursor: pointer;
+}
+
+.upload-btn:hover:not(:disabled) {
+  background-color: #1d4ed8;
+}
+
+.upload-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.upload-btn:disabled {
+  background-color: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Success/Error Message Box */
+.upload-message {
+  margin-top: 20px;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  text-align: center;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+/* ============ NAVBAR INTERACTIVE EFFECTS ============ */
+
+/* 1. Tab Container (li) Styling */
+.navbar li {
+  cursor: pointer; /* Mouse lejane par Hand icon aayega */
+  transition: all 0.2s ease-in-out; /* Smooth color change animation */
+  border-bottom: 3px solid transparent; /* Pehle se border rakhein taaki layout na hile */
+}
+
+/* 2. Hover Effect (Jab mouse upar layenge) */
+.navbar li:hover {
+  background-color: #f1f5f9; /* Halka Grey Background */
+  border-bottom-color: #cbd5e1; /* Halka Grey Border neeche */
+}
+
+/* 3. Text Color Change on Hover */
+.navbar li:hover .tab-link-button {
+  color: var(--primary-color); /* Text ka color Blue ho jayega */
+}
+
+/* 4. Active Tab Style (Jo tab abhi khula hai) */
+.navbar li.active {
+  border-bottom-color: var(--primary-color); /* Active tab ke neeche Solid Blue Line */
+  background-color: transparent; /* Active tab ka background safed rahe */
+}
+
+.navbar li.active .tab-link-button {
+  color: var(--primary-color); /* Active tab ka text Blue rahe */
+  font-weight: 700; /* Thoda bold dikhe */
+}
+
+/* ============ DEPARTMENT ADMIN NAVBAR ============ */
+
+/* 1. Title Styling (Non-clickable) */
+.navbar li.admin-nav-title {
+  pointer-events: none; /* Clickable nahi hoga */
+  opacity: 1;
+  border-bottom: 3px solid transparent; 
+}
+
+.navbar li.admin-nav-title span {
+  font-weight: 800; /* Extra Bold Title */
+  color: #1e293b;   /* Dark Slate */
+  padding: 1rem 0.5rem;
+  display: block;
+  letter-spacing: 0.5px;
+}
+
+/* 2. Manage Staff Link Styling */
+.navbar li:not(.admin-nav-title) {
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  border-bottom: 3px solid transparent;
+}
+
+.navbar li:not(.admin-nav-title) a {
+  font-weight: 600;
+  color: #64748b; /* Muted Blue-Grey */
+  display: block;
+  padding: 1rem 1rem;
+}
+
+/* 3. Hover Effect on Manage Staff */
+.navbar li:not(.admin-nav-title):hover {
+  background-color: #f1f5f9;
+  border-bottom-color: #cbd5e1;
+}
+
+.navbar li:not(.admin-nav-title):hover a {
+  color: var(--primary-color); /* Blue Text on Hover */
+}

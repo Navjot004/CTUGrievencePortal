@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import "../styles/Dashboard.css"; 
-// ✅ Ab hum ChatPopup ko component folder se import kar rahe hain
+// ✅ ChatPopup Import
 import ChatPopup from "../components/ChatPopup"; 
 
 // ✅ HELPER FUNCTION
@@ -17,14 +17,15 @@ function StudentDashboard() {
   const userId = localStorage.getItem("grievance_id");
   const role = localStorage.getItem("grievance_role");
   
-  // ✅ STATE FOR POPUP
+  // ✅ STATE FOR POPUP & DATA
   const [selectedGrievance, setSelectedGrievance] = useState(null);
-
-  // State
   const [history, setHistory] = useState([]);
   const [stats, setStats] = useState({ total: 0, pending: 0, resolved: 0, rejected: 0 });
   const [loading, setLoading] = useState(true);
+  
+  // ✅ User Details State
   const [studentName, setStudentName] = useState("");
+  const [studentDept, setStudentDept] = useState(""); // 🔥 Department State Added
 
   // Chat State
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -38,10 +39,15 @@ function StudentDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // 1. User Info
+        // 1. User Info Fetch
         const userRes = await fetch(`http://localhost:5000/api/auth/user/${userId}`);
         const userData = await userRes.json();
-        if (userRes.ok) setStudentName(userData.fullName);
+        
+        if (userRes.ok) {
+            setStudentName(userData.fullName);
+            // ✅ Ab server se 'department' sahi aa raha hai
+            setStudentDept(userData.department); 
+        }
 
         // 2. Grievance History
         const histRes = await fetch(`http://localhost:5000/api/grievances/user/${userId}`);
@@ -109,7 +115,15 @@ function StudentDashboard() {
       <header className="dashboard-header">
         <div className="header-content">
           <h1>Student Dashboard</h1>
-          <p>Welcome back, <strong>{studentName || userId}</strong></p>
+          <p>
+              Welcome back, <strong>{studentName || userId}</strong>
+              {/* ✅ Department Badge added here */}
+              {studentDept && (
+                  <span className="status-badge status-assigned" style={{marginLeft: '10px', fontSize: '0.8rem'}}>
+                    🎓 {studentDept}
+                  </span>
+              )}
+          </p>
         </div>
         <button className="logout-btn-header" onClick={handleLogout}>Logout</button>
       </header>
@@ -277,96 +291,43 @@ function StudentDashboard() {
               </table>
             </div>
           )}
-
-          {/* --- POPUP MODAL (Fixed for Long Text) --- */}
-          {selectedGrievance && (
+        </div>
+        
+        {/* --- DETAILS POPUP MODAL --- */}
+        {selectedGrievance && (
             <div 
               onClick={() => setSelectedGrievance(null)}
               style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                zIndex: 1000
+                position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+                backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex',
+                justifyContent: 'center', alignItems: 'center', zIndex: 1000
               }}
             >
               <div 
                 onClick={(e) => e.stopPropagation()}
                 style={{
-                  background: 'white',
-                  padding: '20px',
-                  borderRadius: '12px',
-                  width: '90%',
-                  maxWidth: '500px',
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                  background: 'white', padding: '20px', borderRadius: '12px',
+                  width: '90%', maxWidth: '500px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
                   position: 'relative'
                 }}
               >
-                {/* Modal Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '15px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
                   <h3 style={{ margin: 0 }}>Grievance Details</h3>
-                  <button 
-                    onClick={() => setSelectedGrievance(null)}
-                    style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}
-                  >
-                    &times;
-                  </button>
+                  <button onClick={() => setSelectedGrievance(null)} style={{ border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>&times;</button>
                 </div>
                 
-                {/* Modal Body */}
-                <div style={{ fontSize: '0.95rem', color: '#334155' }}>
-                  <p style={{ marginBottom: '8px' }}><strong>Category:</strong> {selectedGrievance.category}</p>
-                  <p style={{ marginBottom: '8px' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
-                  
-                  <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '6px', margin: '15px 0', border: '1px solid #e2e8f0' }}>
-                    <strong style={{ display: 'block', marginBottom: '5px', color: '#1e293b' }}>Full Message:</strong>
-                    
-                    {/* --- FIXED: Break-all added here --- */}
-                    <p style={{ 
-                      margin: 0, 
-                      whiteSpace: 'pre-wrap', 
-                      lineHeight: '1.5',
-                      wordBreak: 'break-all',     // Forces long strings to break
-                      overflowWrap: 'anywhere' 
-                    }}>
-                      {selectedGrievance.message}
-                    </p>
-                    {/* ----------------------------------- */}
-
-                  </div>
-
-                  <p style={{ marginBottom: '8px' }}><strong>Status:</strong> {selectedGrievance.status}</p>
-                  {selectedGrievance.resolutionRemarks && (
-                     <p><strong>Remarks:</strong> {selectedGrievance.resolutionRemarks}</p>
-                  )}
+                <p><strong>Message:</strong></p>
+                <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '6px', wordBreak: 'break-all' }}>
+                   {selectedGrievance.message}
                 </div>
-
-                {/* Modal Footer */}
+                
                 <div style={{ textAlign: 'right', marginTop: '15px' }}>
-                  <button 
-                    onClick={() => setSelectedGrievance(null)}
-                    style={{
-                      padding: '8px 16px',
-                      backgroundColor: '#e2e8f0',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontWeight: '600',
-                      color: '#475569'
-                    }}
-                  >
-                    Close
-                  </button>
+                  <button onClick={() => setSelectedGrievance(null)} style={{ padding: '8px 16px', background: '#e2e8f0', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Close</button>
                 </div>
               </div>
             </div>
-          )}
-        </div>
+        )}
+
       </main>
 
       {/* ✅ Chat Popup Component */}

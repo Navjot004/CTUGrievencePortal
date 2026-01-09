@@ -1,46 +1,54 @@
 import express from "express";
 import multer from "multer";
-import path from "path";
 import {
   submitGrievance,
   getAllGrievances,
-  getDepartmentGrievances,
+  getCategoryGrievances,
   getUserGrievances,
   getAssignedGrievances,
   updateGrievanceStatus,
+  assignToStaff,
+  getGrievanceDetail,
 } from "../controllers/grievanceController.js";
 
 const router = express.Router();
 
-// ✅ Configure Multer Storage (for file uploads)
+/* ================= MULTER ================= */
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/"); // Files will be saved in 'uploads' folder
-  },
-  filename: (req, file, cb) => {
-    // Unique filename: timestamp-originalName
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
+  destination: (req, file, cb) => cb(null, "uploads/"),
+  filename: (req, file, cb) =>
+    cb(null, `${Date.now()}-${file.originalname}`),
 });
 
 const upload = multer({ storage });
 
-// 🟢 Submit a new grievance (with optional file: "attachment")
-router.post("/", upload.single("attachment"), submitGrievance);
+/* ================= STUDENT ================= */
+// ✅ Student submits grievance (CATEGORY based)
+router.post("/submit", upload.single("attachment"), submitGrievance);
 
-// 🟠 Main Admin - Get ALL grievances
-router.get("/all", getAllGrievances);
-
-// 🟣 Department Admins - Get grievances for their specific department queue
-router.get("/department/:deptName", getDepartmentGrievances);
-
-// 🔵 User History - Get grievances submitted by a specific student/staff
+// ✅ Student grievance history
 router.get("/user/:userId", getUserGrievances);
 
-// 🟡 School/Staff Admin - Get grievances assigned SPECIFICALLY to an ID (e.g. ADM_ENG)
-router.get("/assigned/:assigneeId", getAssignedGrievances);
+// ✅ Get grievance details by ID (for chat header) - with assigned staff info
+router.get("/detail/:grievanceId", getGrievanceDetail);
 
-// 🔴 Update Status / Assignment
-router.put("/:id", updateGrievanceStatus);
+/* ================= MASTER ADMIN ================= */
+// ✅ Master Admin sees ALL grievances
+router.get("/all", getAllGrievances);
+
+/* ================= CATEGORY ADMIN ================= */
+// ✅ Category Admin sees ONLY their category grievances
+router.get("/category/:category", getCategoryGrievances);
+
+// ✅ Category Admin assigns grievance to staff
+router.put("/assign/:id", assignToStaff);
+
+/* ================= STAFF ================= */
+// ✅ Staff sees only grievances assigned to them
+router.get("/assigned/:staffId", getAssignedGrievances);
+
+/* ================= UPDATE (STAFF / ADMIN) ================= */
+// ✅ Update grievance status (Resolve / Reject / In Progress)
+router.put("/update/:id", updateGrievanceStatus);
 
 export default router;

@@ -1,63 +1,12 @@
-// src/pages/Accounts.jsx
-
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import "../styles/Dashboard.css";
-
-// ✅ Program → School mapping
-const academicPrograms = {
-  "School of Engineering and Technology": [
-    "B.Tech - Computer Science (CSE)", "B.Tech - AI & Data Science (IBM)", "B.Tech - Cyber Security (IBM)", 
-    "B.Tech - Civil Engineering", "B.Tech - Mechanical Engineering", "B.Tech - Electronics & Comm (ECE)", 
-    "B.Tech - Robotics & Automation", "M.Tech - CSE / Civil / Mech", "BCA - General / Data Science", 
-    "MCA - General / Cyber Security", "B.Sc - Computer Science / IT"
-  ],
-  "School of Management Studies": [
-    "BBA - General", "BBA - Digital Marketing", "BBA - Financial Services", "BBA - Business Analytics (IBM)", 
-    "MBA - International Business", "MBA - Finance / Marketing / HR", "MBA - Business Analytics (IBM)", 
-    "B.Com - General / Honors"
-  ],
-  "School of Hotel Management, Airlines and Tourism": [
-    "BHMCT (Hotel Mgmt & Catering)", "B.Sc - Airlines & Tourism (ATM)", "Diploma - Food Production", "Diploma - Hotel Management"
-  ],
-  "School of Law": [
-    "BA LL.B (5 Years)", "B.Com LL.B (5 Years)", "BBA LL.B (5 Years)", "LL.B (3 Years)", "LL.M (Master of Laws)"
-  ],
-  "School of Pharmaceutical Sciences": [
-    "B.Pharm (Bachelor of Pharmacy)", "D.Pharm (Diploma in Pharmacy)", "M.Pharm - Pharmaceutics / Pharmacology", "Pharm.D (Doctor of Pharmacy)"
-  ],
-  "School of Design and Innovation": [
-    "B.Des - Interior Design", "B.Des - Fashion Design", "B.Sc - Fashion Design", "B.Sc - Multimedia & Animation", 
-    "B.Sc - Graphic Design", "B.Arch (Bachelor of Architecture)", "M.Des / M.Sc - Design"
-  ],
-  "School of Allied Health Sciences": [
-    "BPT (Bachelor of Physiotherapy)", "B.Sc - Medical Lab Tech (MLT)", "B.Sc - Radiology & Imaging Tech", 
-    "B.Sc - Operation Theatre Tech (OTT)", "B.Sc - Anesthesia Technology", "B.Optom (Bachelor of Optometry)"
-  ],
-  "School of Social Sciences and Liberal Arts": [
-    "BA - General", "BA - Journalism & Mass Comm", "BA - Physical Education", 
-    "MA - English / Punjabi / Economics", "M.Sc - Economics / Psychology"
-  ]
-};
-
-const getSchoolFromProgram = (programName) => {
-  if (!programName) return "";
-  const cleanDbProgram = programName.trim().toLowerCase().replace(/\s+/g, " ");
-  for (const [school, programs] of Object.entries(academicPrograms)) {
-    const found = programs.find((p) =>
-      p.trim().toLowerCase().replace(/\s+/g, " ") === cleanDbProgram
-    );
-    if (found) return school;
-  }
-  return "";
-};
 
 function Accounts() {
   const navigate = useNavigate();
   const role = localStorage.getItem("grievance_role");
   const userId = localStorage.getItem("grievance_id");
 
-  const currentCategory = "accounts";
   const categoryTitle = "Accounts";
 
   const [formData, setFormData] = useState({
@@ -65,7 +14,7 @@ function Accounts() {
     regid: userId || "",
     email: "",
     phone: "",
-    school: "",
+    school: "", // ✅ Yeh API se bhara jayega
     issueType: "",
     message: "",
   });
@@ -75,23 +24,26 @@ function Accounts() {
   const [statusType, setStatusType] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // Auth Check
   useEffect(() => {
     if (!role || role !== "student") navigate("/");
   }, [role, navigate]);
 
+  // ✅ FETCH USER DATA
   useEffect(() => {
     const fetchUserDetails = async () => {
       try {
         const res = await fetch(`http://localhost:5000/api/auth/user/${userId}`);
         const data = await res.json();
+        
         if (res.ok) {
-          const autoSelectedSchool = getSchoolFromProgram(data.program);
           setFormData((prev) => ({
             ...prev,
             name: data.fullName || "",
             email: data.email || "",
             phone: data.phone || "",
-            school: autoSelectedSchool || "",
+            // 🔥 MAIN FIX: API se 'department' field utha kar 'school' mein set ki
+            school: data.department || "", 
           }));
         }
       } catch (err) {
@@ -116,46 +68,55 @@ function Accounts() {
     navigate("/");
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setMsg("Submitting...");
-    setStatusType("info");
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setMsg("Submitting...");
+  setStatusType("info");
 
-    const data = new FormData();
-    data.append("userId", userId);
-    data.append("name", formData.name);
-    data.append("regid", formData.regid);
-    data.append("email", formData.email);
-    data.append("phone", formData.phone);
-    // ✅ student's school, not "Accounts Department"
-    data.append("school", formData.school);
-    data.append("category", "Accounts");
-    data.append("message", `${formData.issueType} - ${formData.message}`);
+  const data = new FormData();
+  data.append("userId", userId);
+  data.append("name", formData.name);
+  data.append("regid", formData.regid);
+  data.append("email", formData.email);
+  data.append("phone", formData.phone);
 
-    if (attachment) {
-      data.append("attachment", attachment);
-    }
+  // 🔥 IMPORTANT FIX (SAME AS Admission)
+  data.append("studentProgram", formData.school); // student's course
+  data.append("school", "Accounts");               // grievance routing
+  data.append("category", "Accounts");
 
-    try {
-      const res = await fetch("http://localhost:5000/api/grievances", {
-        method: "POST",
-        body: data,
-      });
+  data.append(
+    "message",
+    `${formData.issueType} - ${formData.message}`
+  );
 
-      const responseData = await res.json();
-      if (!res.ok) throw new Error(responseData.message);
+  if (attachment) {
+    data.append("attachment", attachment);
+  }
 
-      setMsg("✅ Grievance submitted successfully!");
-      setStatusType("success");
-      setFormData((prev) => ({ ...prev, issueType: "", message: "" }));
-      setAttachment(null);
-      const fileInput = document.getElementById("fileInput");
-      if (fileInput) fileInput.value = "";
-    } catch (err) {
-      setMsg(`❌ ${err.message}`);
-      setStatusType("error");
-    }
-  };
+  try {
+    const res = await fetch("http://localhost:5000/api/grievances/submit", {
+      method: "POST",
+      body: data,
+    });
+
+    const responseData = await res.json();
+    if (!res.ok) throw new Error(responseData.message);
+
+    setMsg("✅ Grievance submitted successfully!");
+    setStatusType("success");
+
+    setFormData((prev) => ({ ...prev, issueType: "", message: "" }));
+    setAttachment(null);
+
+    const fileInput = document.getElementById("fileInput");
+    if (fileInput) fileInput.value = "";
+  } catch (err) {
+    setMsg(`❌ ${err.message}`);
+    setStatusType("error");
+  }
+};
+
 
   return (
     <div className="dashboard-container">
@@ -174,9 +135,9 @@ function Accounts() {
           <li><Link to="/student/dashboard">Dashboard</Link></li>
           <li><Link to="/student/welfare">Student Welfare</Link></li>
           <li><Link to="/student/admission">Admission</Link></li>
-          <li><Link to="/student/accounts">Accounts</Link></li>
+          <li className="active"><Link to="/student/accounts">Accounts</Link></li>
           <li><Link to="/student/examination">Examination</Link></li>
-          <li><Link to="/student/department">Department</Link></li> {/* Add This */}
+          <li><Link to="/student/department">Department</Link></li>
         </ul>
       </nav>
 
@@ -236,7 +197,7 @@ function Accounts() {
                 </div>
               </div>
 
-              {/* ✅ School / Department */}
+              {/* ✅ School / Department Field (Auto-Filled) */}
               <div className="input-group">
                 <label>School / Department</label>
                 <input
@@ -245,6 +206,7 @@ function Accounts() {
                   value={formData.school}
                   readOnly
                   className="read-only-input"
+                  placeholder="Loading department..."
                 />
               </div>
 
@@ -261,6 +223,7 @@ function Accounts() {
                   <option value="Refund Delay">Refund Delay</option>
                   <option value="Receipt Missing">Receipt Missing</option>
                   <option value="Overcharge Issue">Overcharge Issue</option>
+                  <option value="Other">Other</option>
                 </select>
               </div>
 
@@ -293,9 +256,6 @@ function Accounts() {
           )}
         </div>
       </main>
-      <button className="logout-floating" onClick={handleLogout}>
-        Logout
-      </button>
     </div>
   );
 }

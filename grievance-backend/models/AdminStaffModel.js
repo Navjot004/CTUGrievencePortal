@@ -1,27 +1,25 @@
-// models/AdminStaffModel.js
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
 
-const adminStaffSchema = new mongoose.Schema({
-  staffId: {
+const AdminStaffSchema = new mongoose.Schema({
+  id: {
     type: String,
     required: true,
-    trim: true,
+    unique: true, // Staff ID (e.g., 25002)
   },
-  department: {
+  fullName: {
     type: String,
     required: true,
-    // enum: ["Accounts", "Admission", "Student Welfare", "Examination"],
   },
-  createdAt: {
-    type: Date,
-    default: Date.now,
+  // ✅ Ye field zaroori hai nayi hierarchy ke liye
+  adminDepartment: {
+    type: String,
+    default: "", // e.g., "Student Welfare"
   },
-});
+  // ✅ Ye sabse important hai: Batayega ki banda BOSS hai ya WORKER
+  isDeptAdmin: {
+    type: Boolean,
+    default: false, 
+  }
+}, { timestamps: true });
 
-// Prevent duplicate (same staffId + same department)
-adminStaffSchema.index({ staffId: 1, department: 1 }, { unique: true });
-
-const AdminStaff =
-  mongoose.models.AdminStaff || mongoose.model("AdminStaff", adminStaffSchema);
-
-export default AdminStaff;
+module.exports = mongoose.model("AdminStaff", AdminStaffSchema);

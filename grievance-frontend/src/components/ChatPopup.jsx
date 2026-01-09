@@ -6,6 +6,7 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
   const [newMessage, setNewMessage] = useState("");
   const [selectedFile, setSelectedFile] = useState(null); // ✅ NEW: Track selected file
   const [isUploading, setIsUploading] = useState(false);  // ✅ NEW: Loading state for upload
+  const [grievanceData, setGrievanceData] = useState(null); // ✅ Store grievance details
   
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null); // ✅ NEW: Ref for hidden file input
@@ -30,6 +31,25 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
     const interval = setInterval(fetchMessages, 3000);
 
     return () => clearInterval(interval);
+  }, [isOpen, grievanceId]);
+
+  // ✅ Fetch grievance details (name, message) for header
+  useEffect(() => {
+    if (!isOpen || !grievanceId) return;
+
+    const fetchGrievanceDetails = async () => {
+      try {
+        const res = await fetch(`http://localhost:5000/api/grievances/detail/${grievanceId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setGrievanceData(data);
+        }
+      } catch (err) {
+        console.error("Error fetching grievance details:", err);
+      }
+    };
+
+    fetchGrievanceDetails();
   }, [isOpen, grievanceId]);
 
   // Scroll to bottom
@@ -104,7 +124,24 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
     <div className="chat-modal-overlay">
       <div className="chat-modal">
         <div className="chat-header">
-          <h3>Grievance Chat</h3>
+          <div>
+            {currentUserRole === "student" ? (
+              <>
+                <h3 style={{ margin: '0 0 5px 0' }}>
+                  {grievanceData?.assignedStaff?.name || 'Support Team'}
+                </h3>
+                <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b', lineHeight: '1.3' }}>
+                  {grievanceData?.assignedStaff ? `📋 ${grievanceData.assignedStaff.department}` : 'Awaiting assignment...'}
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 style={{ margin: '0 0 5px 0' }}>
+                  {grievanceData?.name || 'Chat'}
+                </h3>
+              </>
+            )}
+          </div>
           <button className="close-btn" onClick={onClose}>✕</button>
         </div>
         

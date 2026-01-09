@@ -1,23 +1,23 @@
-import User from "../models/UserModel.js"; // Ensure path and extension are correct
+import User from "../models/UserModel.js";
 import nodemailer from "nodemailer";
 import bcrypt from "bcryptjs";
 
-// Nodemailer setup
+// ================= EMAIL SETUP =================
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // Use Google App Password
+    pass: process.env.EMAIL_PASS, // Google App Password
   },
 });
 
-// Step 1: OTP bhejna
+// =================================================
+// 1️⃣ REGISTER REQUEST (SEND OTP)
+// =================================================
 export const registerRequest = async (req, res) => {
   try {
     const { email, password, id } = req.body;
 
-    // Check if user already exists
-    // Note: Aapke server.js ke schema ke hisaab se fields check karein
     const existingUser = await User.findOne({ $or: [{ email }, { id }] });
     if (existingUser && existingUser.isVerified) {
       return res.status(400).json({ message: "User already exists" });
@@ -26,37 +26,43 @@ export const registerRequest = async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Data structure prepare karein
     const userData = {
       ...req.body,
       password: hashedPassword,
       otp,
-      otpExpires: Date.now() + 600000, // 10 mins expiry
+      otpExpires: Date.now() + 10 * 60 * 1000, // 10 min
+      isVerified: false,
     };
 
-    // Unverified user update ya create karein
-    await User.findOneAndUpdate({ email }, userData, { upsert: true, new: true });
+    await User.findOneAndUpdate(
+      { email },
+      userData,
+      { upsert: true, new: true }
+    );
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "Verification Code for CT University",
-      text: `Your OTP for registration is: ${otp}. Valid for 10 minutes.`,
+      subject: "CT University - OTP Verification",
+      text: `Your OTP is ${otp}. Valid for 10 minutes.`,
     });
 
-    res.status(200).json({ message: "OTP sent to your email" });
+    res.status(200).json({ message: "OTP sent successfully" });
+
   } catch (err) {
-    console.error("Register Request Error:", err);
+    console.error("Register Error:", err);
     res.status(500).json({ message: err.message });
   }
 };
 
-// Step 2: OTP verify karke register karna
+// =================================================
+// 2️⃣ VERIFY OTP
+// =================================================
 export const verifyOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
-    const user = await User.findOne({ email });
 
+    const user = await User.findOne({ email });
     if (!user || user.otp !== otp || user.otpExpires < Date.now()) {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
@@ -67,8 +73,47 @@ export const verifyOtp = async (req, res) => {
     await user.save();
 
     res.status(200).json({ message: "Account verified successfully" });
+
   } catch (err) {
-    console.error("Verify OTP Error:", err);
+    console.error("OTP Verify Error:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// =================================================
+// 3️⃣ LOGIN USER (🔥 MAIN FIX)
+// =================================================
+export const loginUser = async (req, res) => {
+  try {
+    const { id, password } = req.body;
+
+    const user = await User.findOne({ id });
+    if (!user) {
+      return res.status(400).json({ message: "User not found" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid password" });
+    }
+
+    if (!user.isVerified) {
+      return res.status(403).json({ message: "Please verify OTP first" });
+    }
+
+    res.status(200).json({
+      message: "Login successful",
+      user: {
+        id: user.id,
+        role: user.role,
+        fullName: user.fullName,
+        isDeptAdmin: user.isDeptAdmin,
+        adminDepartment: user.adminDepartment,
+      },
+    });
+
+  } catch (err) {
+    console.error("Login Error:", err);
     res.status(500).json({ message: err.message });
   }
 };
