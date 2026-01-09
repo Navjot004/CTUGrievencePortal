@@ -6,6 +6,7 @@ import RegisterPage from "./pages/RegisterPage";
 import StudentDashboard from "./pages/StudentDashboard";
 import StudentWelfare from "./pages/StudentWelfare";
 import Admission from "./pages/Admission";
+import StudentSection from "./pages/StudentSection";
 import Accounts from "./pages/Accounts";
 import Examination from "./pages/Examination";
 import Department from "./pages/Department";
@@ -15,6 +16,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AccountAdminDashboard from "./pages/AccountAdminDashboard";
 import StudentWelfareAdminDashboard from "./pages/StudentWelfareAdminDashboard";
 import AdmissionAdminDashboard from "./pages/AdmissionAdminDashboard";
+import StudentSectionAdminDashboard from "./pages/StudentSectionAdminDashboard";
 import ExaminationAdminDashboard from "./pages/ExaminationAdminDashboard";
 import AdminManageStaff from "./pages/AdminManageStaff";
 import SchoolAdminDashboard from "./pages/SchoolAdminDashboard"; 
@@ -23,6 +25,7 @@ import SchoolAdminDashboard from "./pages/SchoolAdminDashboard";
 const getDeptAdminRoute = (department) => {
   if (department === "Accounts") return "/admin/account";
   if (department === "Student Welfare") return "/admin/studentwelfare";
+   if (department === "Student Section") return "/admin/studentsection";
   if (department === "Admission") return "/admin/admission";
   if (department === "Examination") return "/admin/examination";
   return "/admin/school";
@@ -95,6 +98,7 @@ function App() {
         <Route path="/student/dashboard" element={<ProtectedRoute allowedRoles={["student"]}><StudentDashboard /></ProtectedRoute>} />
         <Route path="/student/welfare" element={<ProtectedRoute allowedRoles={["student"]}><StudentWelfare /></ProtectedRoute>} />
         <Route path="/student/admission" element={<ProtectedRoute allowedRoles={["student"]}><Admission /></ProtectedRoute>} />
+      <Route path="/student/section" element={<ProtectedRoute allowedRoles={["student"]}><StudentSection /></ProtectedRoute>} />
         <Route path="/student/accounts" element={<ProtectedRoute allowedRoles={["student"]}><Accounts /></ProtectedRoute>} />
         <Route path="/student/examination" element={<ProtectedRoute allowedRoles={["student"]}><Examination /></ProtectedRoute>} />
         <Route path="/student/department" element={<ProtectedRoute allowedRoles={["student"]}><Department /></ProtectedRoute>} />
@@ -118,6 +122,7 @@ function App() {
         <Route path="/admin/account" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><AccountAdminDashboard /></ProtectedRoute>} />
         <Route path="/admin/studentwelfare" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><StudentWelfareAdminDashboard /></ProtectedRoute>} />
         <Route path="/admin/admission" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><AdmissionAdminDashboard /></ProtectedRoute>} />
+      <Route path="/admin/studentsection" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><StudentSectionAdminDashboard /></ProtectedRoute>} />
         <Route path="/admin/examination" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><ExaminationAdminDashboard /></ProtectedRoute>} />
         <Route path="/admin/school" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><SchoolAdminDashboard /></ProtectedRoute>} /> 
         

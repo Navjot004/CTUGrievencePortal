@@ -134,6 +134,7 @@ function StudentDashboard() {
           <li className="active"><Link to="/student/dashboard">Dashboard</Link></li>
           <li><Link to="/student/welfare">Student Welfare</Link></li>
           <li><Link to="/student/admission">Admission</Link></li>
+          <li><Link to="/student/section">Student Section</Link></li>
           <li><Link to="/student/accounts">Accounts</Link></li>
           <li><Link to="/student/examination">Examination</Link></li>
           <li><Link to="/student/department">Department</Link></li>

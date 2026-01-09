@@ -217,6 +217,7 @@ function StaffRoleManager() {
                                 {[
                                   "Accounts",
                                   "Student Welfare",
+                                  "Student Section",
                                   "Admission",
                                   "Examination",
                                   "School of Engineering and Technology",

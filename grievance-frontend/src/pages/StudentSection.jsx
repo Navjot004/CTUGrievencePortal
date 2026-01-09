@@ -1,33 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import "../styles/Dashboard.css"; 
+import "../styles/Dashboard.css";
 
-// ✅ 1. DATA: Map Program -> School (Used for Dropdown)
-const academicPrograms = {
-  "School of Engineering and Technology": [],
-  "School of Management Studies": [],
-  "School of Hotel Management": [],
-  "School of Law": [],
-  "School of Pharmaceutical Sciences": [],
-  "School of Design and innovation": [],
-  "School of Allied Health Sciences": [],
-  "School of Socail Sciences nad Liberal Arts": []
-};
-
-// Helper to auto-select if possible
-const getSchoolFromProgram = (programName) => {
-  return ""; 
-};
-
-function Department() {
+function StudentSection() {
   const navigate = useNavigate();
   const role = localStorage.getItem("grievance_role");
   const userId = localStorage.getItem("grievance_id");
 
-  const categoryTitle = "Academic Department";
+  const categoryTitle = "Student Section";
 
   const [formData, setFormData] = useState({
-    name: "", regid: userId || "", email: "", phone: "", studentProgram: "", school: "", issueType: "", message: "",
+    name: "",
+    regid: userId || "",
+    email: "",
+    phone: "",
+    school: "",
+    issueType: "",
+    message: "",
   });
 
   const [attachment, setAttachment] = useState(null);
@@ -44,15 +33,13 @@ function Department() {
       try {
         const res = await fetch(`http://localhost:5000/api/auth/user/${userId}`);
         const data = await res.json();
-        
         if (res.ok) {
           setFormData((prev) => ({
             ...prev,
             name: data.fullName || "",
             email: data.email || "",
             phone: data.phone || "",
-            studentProgram: data.department || data.program || "", // 🔥
-            // school is intentionally left blank for manual selection
+            school: data.department || "",
           }));
         }
       } catch (err) {
@@ -68,9 +55,7 @@ function Department() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleFileChange = (e) => {
-    setAttachment(e.target.files[0]);
-  };
+  const handleFileChange = (e) => setAttachment(e.target.files[0]);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -88,42 +73,28 @@ function Department() {
     data.append("regid", formData.regid);
     data.append("email", formData.email);
     data.append("phone", formData.phone);
-    data.append("studentProgram", formData.school || "Engineering"); // 🔥 Use school selection as program
 
-    
-    data.append("category", formData.school || "School of Engineering and Technology"); 
+    data.append("studentProgram", formData.school);
+    data.append("school", categoryTitle);
+    data.append("category", categoryTitle);
+
     data.append("message", `${formData.issueType} - ${formData.message}`);
-
-    if (attachment) {
-      data.append("attachment", attachment);
-    }
-
-    // Debug: Log what we're sending
-    console.log("Form Data Being Sent:");
-    console.log("userId:", userId);
-    console.log("name:", formData.name);
-    console.log("regid:", formData.regid);
-    console.log("email:", formData.email);
-    console.log("phone:", formData.phone);
-    console.log("studentProgram:", formData.school || "Engineering");
-    console.log("category:", formData.school || "School of Engineering and Technology");
-    console.log("message:", `${formData.issueType} - ${formData.message}`);
+    if (attachment) data.append("attachment", attachment);
 
     try {
       const res = await fetch("http://localhost:5000/api/grievances/submit", {
         method: "POST",
         body: data,
       });
-
       const responseData = await res.json();
-      console.log("Response:", responseData);
-      if (!res.ok) throw new Error(responseData.message);
+      if (!res.ok) throw new Error(responseData.message || "Submit failed");
 
       setMsg("✅ Grievance submitted successfully!");
       setStatusType("success");
-      setFormData(prev => ({ ...prev, issueType: "", message: "" }));
+      setFormData((prev) => ({ ...prev, issueType: "", message: "" }));
       setAttachment(null);
-      document.getElementById("fileInput").value = "";
+      const fileInput = document.getElementById("fileInputSection");
+      if (fileInput) fileInput.value = "";
     } catch (err) {
       setMsg(`❌ ${err.message}`);
       setStatusType("error");
@@ -135,7 +106,7 @@ function Department() {
       <header className="dashboard-header">
         <div className="header-content">
           <h1>Student Dashboard</h1>
-          <p>Welcome, {userId}</p>
+          <p>Welcome, {formData.name || userId}</p>
         </div>
         <button className="logout-btn-header" onClick={handleLogout}>Logout</button>
       </header>
@@ -145,17 +116,17 @@ function Department() {
           <li><Link to="/student/dashboard">Dashboard</Link></li>
           <li><Link to="/student/welfare">Student Welfare</Link></li>
           <li><Link to="/student/admission">Admission</Link></li>
-          <li><Link to="/student/section">Student Section</Link></li>
+          <li className="active"><Link to="/student/section">Student Section</Link></li>
           <li><Link to="/student/accounts">Accounts</Link></li>
           <li><Link to="/student/examination">Examination</Link></li>
-          <li className="active"><Link to="/student/department">Department</Link></li>
+          <li><Link to="/student/department">Department</Link></li>
         </ul>
       </nav>
 
       <main className="dashboard-body">
         <div className="card">
           <h2>Submit {categoryTitle} Grievance</h2>
-          
+
           {loading ? (
             <p>Loading your details...</p>
           ) : (
@@ -184,29 +155,18 @@ function Department() {
                 </div>
               </div>
 
-              {/* ✅ DROPDOWN FOR SCHOOL SELECTION */}
               <div className="input-group">
-                <label>Select Your School / Department</label>
-                <select name="school" value={formData.school} onChange={handleChange} required>
-                  <option value="">-- Select Your School --</option>
-                  {Object.keys(academicPrograms).map((school) => (
-                    <option key={school} value={school}>{school}</option>
-                  ))}
-                </select>
-                <small style={{color: "#64748b", marginTop: "5px"}}>
-                  Please select the specific school your grievance relates to.
-                </small>
+                <label>School / Department</label>
+                <input type="text" name="school" value={formData.school} readOnly className="read-only-input" />
               </div>
 
               <div className="input-group">
                 <label>Select Issue</label>
                 <select name="issueType" value={formData.issueType} onChange={handleChange} required>
                   <option value="">-- Choose an Issue --</option>
-                  <option value="Faculty Feedback">Faculty / Class Issue</option>
-                  <option value="Course Material">Course Material / Syllabus</option>
-                  <option value="Lab & Equipment">Lab & Equipment Issue</option>
-                  <option value="Attendance Query">Attendance Query</option>
-                  <option value="Timetable Conflict">Timetable Conflict</option>
+                  <option value="Document Request">Document Request</option>
+                  <option value="Enrollment Query">Enrollment Query</option>
+                  <option value="Certificate Issue">Certificate Issue</option>
                   <option value="Other">Other</option>
                 </select>
               </div>
@@ -218,13 +178,7 @@ function Department() {
 
               <div className="input-group">
                 <label>Attach Document (Optional)</label>
-                <input 
-                  id="fileInput"
-                  type="file" 
-                  onChange={handleFileChange}
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  className="file-input"
-                />
+                <input id="fileInputSection" type="file" onChange={handleFileChange} accept=".pdf,.jpg,.jpeg,.png" className="file-input" />
               </div>
 
               <button type="submit" className="submit-btn">Submit Grievance</button>
@@ -232,9 +186,8 @@ function Department() {
           )}
         </div>
       </main>
-      <button className="logout-floating" onClick={handleLogout}>Logout</button>
     </div>
   );
 }
 
-export default Department;
+export default StudentSection;

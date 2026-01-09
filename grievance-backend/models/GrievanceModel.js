@@ -22,6 +22,7 @@ const grievanceSchema = new mongoose.Schema(
       enum: [
         "Accounts",
         "Student Welfare",
+        "Student Section",
         "Admission",
         "Examination",
         "School of Engineering and Technology",
@@ -31,7 +32,7 @@ const grievanceSchema = new mongoose.Schema(
         "School of Hotel Management",
         "School of Design and innovation",
         "School of Allied Health Sciences",
-        "School of Socail Sciences nad Liberal Arts"
+        "School of Social Sciences and Liberal Arts"
       ]
     },
 
