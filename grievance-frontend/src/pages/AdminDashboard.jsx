@@ -4,6 +4,7 @@ import "../styles/Dashboard.css";
 
 import AdminUploadRecords from "../components/AdminUploadRecords";
 import StaffRoleManager from "../components/StaffRoleManager";
+import ctLogo from "../assets/ct-logo.png";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
@@ -31,12 +32,21 @@ function AdminDashboard() {
   const [msg, setMsg] = useState("");
   const [statusType, setStatusType] = useState("");
   const [selectedGrievance, setSelectedGrievance] = useState(null);
+  const [staffMap, setStaffMap] = useState({}); // ✅ Store Staff Names
+
+  // ✅ FILTER STATES
+  const [searchStudentId, setSearchStudentId] = useState("");
+  const [searchStaffId, setSearchStaffId] = useState("");
+  const [filterStatus, setFilterStatus] = useState("All");
+  const [filterDepartment, setFilterDepartment] = useState("All");
+  const [filterMonth, setFilterMonth] = useState("");
 
   useEffect(() => {
     if (!isMasterAdmin && !isDeptAdmin) {
       navigate("/");
     } else {
       fetchAllGrievances();
+      fetchStaffNames(); // ✅ Fetch staff details
     }
   }, [navigate]);
 
@@ -52,18 +62,65 @@ function AdminDashboard() {
     }
   };
 
+  // ✅ Fetch Staff List to Map IDs to Names
+  const fetchStaffNames = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/admin-staff/all");
+      if (res.ok) {
+        const data = await res.json();
+        const map = {};
+        data.forEach((staff) => {
+          map[staff.id] = staff.fullName;
+        });
+        setStaffMap(map);
+      }
+    } catch (error) {
+      console.error("Error fetching staff list:", error);
+    }
+  };
+
   const handleLogout = () => {
     localStorage.clear();
     navigate("/");
   };
 
+  // ✅ FILTER LOGIC
+  const filteredGrievances = grievances.filter((g) => {
+    const matchStudentId = (g.userId || "").toLowerCase().includes(searchStudentId.toLowerCase());
+    const matchStaffId = (g.assignedTo || "").toLowerCase().includes(searchStaffId.toLowerCase());
+    const matchStatus = filterStatus === "All" || g.status === filterStatus;
+    
+    const categoryOrSchool = g.category || g.school || "";
+    const matchDept = filterDepartment === "All" || categoryOrSchool === filterDepartment;
+
+    let matchMonth = true;
+    if (filterMonth) {
+      const gDate = new Date(g.createdAt);
+      const [year, month] = filterMonth.split("-");
+      matchMonth = gDate.getFullYear() === parseInt(year) && (gDate.getMonth() + 1) === parseInt(month);
+    }
+
+    return matchStudentId && matchStaffId && matchStatus && matchDept && matchMonth;
+  });
+
+  // ✅ Unique Departments for Dropdown
+  const uniqueDepartments = [...new Set(grievances.map(g => g.category || g.school).filter(Boolean))];
+
   return (
     <div className="dashboard-container">
       {/* HEADER */}
       <header className="dashboard-header">
-        <div className="header-content">
-          <h1>Admin Dashboard</h1>
-          <p>Welcome, {userId}</p>
+        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+          <img src={ctLogo} alt="CT University" style={{ height: "50px" }} />
+          <div className="header-content">
+            <h1>Admin Dashboard</h1>
+            <p>
+              Welcome, <strong>{userId}</strong>
+              <span className="status-badge status-resolved" style={{marginLeft: '10px', fontSize: '0.8rem'}}>
+                👑 Master Admin
+              </span>
+            </p>
+          </div>
         </div>
         <button className="logout-btn-header" onClick={handleLogout}>
           Logout
@@ -107,15 +164,64 @@ function AdminDashboard() {
           <div className="card">
             <h2>All Incoming Grievances (Read Only)</h2>
 
+            {/* ✅ FILTER BAR */}
+            <div style={{
+              display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "20px", 
+              padding: "15px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0"
+            }}>
+              <input 
+                type="text" placeholder="Search Student ID..." 
+                value={searchStudentId} onChange={(e) => setSearchStudentId(e.target.value)}
+                style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px" }}
+              />
+              <input 
+                type="text" placeholder="Search Staff ID..." 
+                value={searchStaffId} onChange={(e) => setSearchStaffId(e.target.value)}
+                style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px" }}
+              />
+              <select 
+                value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+                style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 120px", cursor: "pointer" }}
+              >
+                <option value="All">All Status</option>
+                <option value="Pending">Pending</option>
+                <option value="Assigned">Assigned</option>
+                <option value="Resolved">Resolved</option>
+                <option value="Rejected">Rejected</option>
+              </select>
+              <select 
+                value={filterDepartment} onChange={(e) => setFilterDepartment(e.target.value)}
+                style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 200px", cursor: "pointer" }}
+              >
+                <option value="All">All Departments</option>
+                {uniqueDepartments.map(dept => <option key={dept} value={dept}>{dept}</option>)}
+              </select>
+              <input 
+                type="month" 
+                value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}
+                style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
+              />
+              <button 
+                onClick={() => {
+                  setSearchStudentId(""); setSearchStaffId(""); setFilterStatus("All"); 
+                  setFilterDepartment("All"); setFilterMonth("");
+                }}
+                style={{ padding: "10px 20px", borderRadius: "6px", border: "none", background: "#64748b", color: "white", cursor: "pointer", fontWeight: "600" }}
+              >
+                Reset
+              </button>
+            </div>
+
             {msg && <div className={`alert-box ${statusType}`}>{msg}</div>}
 
-            {grievances.length === 0 ? (
-              <p>No grievances found.</p>
+            {filteredGrievances.length === 0 ? (
+              <p>No grievances found matching criteria.</p>
             ) : (
               <div className="table-container">
                 <table className="grievance-table">
                   <thead>
                     <tr>
+                      <th>Student ID</th>
                       <th>Department / Category</th>
                       <th>Message</th>
                       <th>Status</th>
@@ -124,12 +230,12 @@ function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {grievances.map((g) => (
+                    {filteredGrievances.map((g) => (
                       <tr key={g._id}>
+                        <td style={{fontWeight: 'bold', color: '#334155'}}>{g.userId}</td>
                         <td>{g.category || g.school || "N/A"}</td>
 
                         <td className="message-cell" style={{ maxWidth: '200px' }}>
-                          {g.attachment && <span style={{ marginRight: "5px", fontSize: "1.1rem" }} title="Has Attachment">📎</span>}
                           <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
                             <span style={{ wordBreak: 'break-word', lineHeight: '1.3' }}>
                               {g.message.substring(0, 30)}{g.message.length > 30 ? "..." : ""}
@@ -153,7 +259,20 @@ function AdminDashboard() {
                           </span>
                         </td>
 
-                        <td>{g.assignedTo || "—"}</td>
+                        {/* ✅ ASSIGNED STAFF COLUMN */}
+                        <td>
+                          {g.assignedTo ? (
+                            <div>
+                              <span style={{ fontWeight: "600", display: "block", color: "#1e293b" }}>
+                                {staffMap[g.assignedTo] || "Staff"}
+                              </span>
+                              <span style={{ fontSize: "0.85rem", color: "#64748b" }}>({g.assignedTo})</span>
+                            </div>
+                          ) : (
+                            <span style={{ color: "#94a3b8", fontStyle: "italic" }}>Not Assigned Yet</span>
+                          )}
+                        </td>
+
                         <td>{formatDate(g.createdAt)}</td>
                       </tr>
                     ))}
@@ -228,6 +347,37 @@ function AdminDashboard() {
             </div>
           </div>
         )}
+
+        {/* ✅ SUPER SMOOTH INTERACTIONS (Makhan UI) */}
+        <style>{`
+          .dashboard-container { animation: fadeIn 0.4s ease-out; }
+          @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+          /* Smooth Transitions */
+          .card, .navbar, input, select, textarea, button, .action-btn, .submit-btn, .logout-btn-header {
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+          }
+
+          /* Hover Effects */
+          .card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important; }
+          
+          button:hover, .action-btn:hover, .submit-btn:hover, .logout-btn-header:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+          }
+          button:active, .action-btn:active { transform: scale(0.95); }
+
+          /* Inputs */
+          input:focus, select:focus, textarea:focus {
+            transform: scale(1.01);
+            border-color: #2563eb !important;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1) !important;
+          }
+
+          /* Table */
+          tr { transition: background-color 0.2s ease; }
+          tr:hover { background-color: #f8fafc !important; }
+        `}</style>
       </main>
     </div>
   );

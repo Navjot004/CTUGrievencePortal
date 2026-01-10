@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
 // ✅ IMPORT CHAT COMPONENT
 import ChatPopup from "../components/ChatPopup";
+import ctLogo from "../assets/ct-logo.png";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
@@ -16,6 +17,17 @@ const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString("en-US", options);
 };
 
+const schools = [
+  "School of Engineering and Technology",
+  "School of Management Studies",
+  "School of Law",
+  "School of Pharmaceutical Sciences",
+  "School of Hotel Management",
+  "School of Design and innovation",
+  "School of Allied Health Sciences",
+  "School of Social Sciences and Liberal Arts"
+];
+
 function AdminStaffDashboard() {
   const navigate = useNavigate();
   
@@ -25,7 +37,10 @@ function AdminStaffDashboard() {
   const myDepartment = localStorage.getItem("admin_department"); // From Login Response
   const isDeptAdmin = localStorage.getItem("is_dept_admin") === "true";
 
+  // UI State
+  const [activeTab, setActiveTab] = useState("assigned"); // "assigned" | "submit" | "mine"
   const [staffName, setStaffName] = useState("");
+  const [staffEmail, setStaffEmail] = useState("");
   const [grievances, setGrievances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState("");
@@ -43,6 +58,23 @@ function AdminStaffDashboard() {
 
   // ✅ State for "See More" Details Popup
   const [selectedGrievance, setSelectedGrievance] = useState(null);
+
+  // --- SUBMISSION STATE ---
+  const [formData, setFormData] = useState({
+    department: "",
+    message: "",
+  });
+  const [attachment, setAttachment] = useState(null);
+  const [errors, setErrors] = useState({});
+  const [myGrievances, setMyGrievances] = useState([]);
+  const [loadingMine, setLoadingMine] = useState(false);
+
+  // ✅ FILTER STATES
+  const [searchId, setSearchId] = useState(""); // Acts as Student ID or Staff ID based on tab
+  const [filterStatus, setFilterStatus] = useState("All");
+  const [filterDepartment, setFilterDepartment] = useState("All");
+  const [filterMonth, setFilterMonth] = useState("");
+
 
   // 1. Authorization Check
   useEffect(() => {
@@ -70,7 +102,10 @@ function AdminStaffDashboard() {
       try {
         const userRes = await fetch(`http://localhost:5000/api/auth/user/${staffId}`);
         const userData = await userRes.json();
-        if (userRes.ok) setStaffName(userData.fullName || staffId);
+        if (userRes.ok) {
+          setStaffName(userData.fullName || staffId);
+          setStaffEmail(userData.email || "");
+        }
       } catch (err) {
         console.error("Error fetching staff info:", err);
       }
@@ -214,10 +249,129 @@ function AdminStaffDashboard() {
     }
   };
 
+  // --- SUBMISSION HANDLERS ---
+  const handleFileChange = (e) => {
+    setAttachment(e.target.files[0]);
+  };
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.department || !formData.message) {
+      setMsg("Please fill all required fields.");
+      setStatusType("error");
+      return;
+    }
+
+    setMsg("Submitting your grievance...");
+    setStatusType("info");
+
+    // 1️⃣ Upload File
+    let attachmentUrl = "";
+    if (attachment) {
+      const fileData = new FormData();
+      fileData.append("file", attachment);
+      try {
+        const uploadRes = await fetch("http://localhost:5000/api/upload", { method: "POST", body: fileData });
+        if (!uploadRes.ok) throw new Error("File upload failed");
+        const uploadJson = await uploadRes.json();
+        attachmentUrl = uploadJson.filename;
+      } catch (err) {
+        setMsg(`❌ Upload Error: ${err.message}`); setStatusType("error"); return;
+      }
+    }
+
+    try {
+      const res = await fetch("http://localhost:5000/api/grievances/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: staffId,
+          name: staffName,
+          email: staffEmail,
+          phone: "", 
+          regid: staffId,
+          school: formData.department, // Selected School
+          category: formData.department, // Routes to School Admin
+          message: formData.message,
+          studentProgram: "Admin Staff", // Required by backend
+          attachment: attachmentUrl || "" 
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Submission failed");
+
+      setMsg("Grievance submitted successfully!");
+      setStatusType("success");
+      setFormData({ department: "", message: "" });
+      setAttachment(null);
+      if(document.getElementById("adminStaffFile")) document.getElementById("adminStaffFile").value = "";
+      
+      fetchMySubmissions(); // Refresh list
+    } catch (err) {
+      setMsg(`Error: ${err.message}`);
+      setStatusType("error");
+    }
+  };
+
+  const fetchMySubmissions = async () => {
+    if (!staffId) return;
+    setLoadingMine(true);
+    try {
+      const res = await fetch(`http://localhost:5000/api/grievances/user/${staffId}`);
+      const data = await res.json();
+      if (res.ok) setMyGrievances(data);
+    } catch (err) {
+      console.error("Error fetching my submissions:", err);
+    } finally {
+      setLoadingMine(false);
+    }
+  };
+
+  // Load my submissions when tab changes
+  useEffect(() => { if (activeTab === "mine") fetchMySubmissions(); }, [activeTab]);
+
   const handleLogout = () => {
     localStorage.clear();
     navigate("/");
   };
+
+  // ✅ FILTER LOGIC
+  const getFilteredData = (data, type) => {
+    return data.filter((g) => {
+      // 1. Search ID (Student ID for Assigned, Staff ID for Mine)
+      let matchId = true;
+      if (searchId) {
+        const q = searchId.toLowerCase();
+        if (type === "assigned") {
+          matchId = (g.userId || "").toLowerCase().includes(q) || (g.name || "").toLowerCase().includes(q);
+        } else {
+          matchId = (g.assignedTo || "").toLowerCase().includes(q);
+        }
+      }
+
+      // 2. Common Filters
+      const matchStatus = filterStatus === "All" || g.status === filterStatus;
+      const matchDept = filterDepartment === "All" || (g.category || g.school || "") === filterDepartment;
+
+      let matchMonth = true;
+      if (filterMonth) {
+        const gDate = new Date(g.createdAt);
+        const [year, month] = filterMonth.split("-");
+        matchMonth = gDate.getFullYear() === parseInt(year) && (gDate.getMonth() + 1) === parseInt(month);
+      }
+
+      return matchId && matchStatus && matchDept && matchMonth;
+    });
+  };
+
+  // ✅ Get Unique Departments for Dropdown
+  const currentList = activeTab === "assigned" ? grievances : myGrievances;
+  const uniqueDepartments = [...new Set(currentList.map(g => g.category || g.school).filter(Boolean))];
 
   return (
     <div className="dashboard-container">
@@ -230,43 +384,111 @@ function AdminStaffDashboard() {
       )}
 
       <header className="dashboard-header">
-        <div className="header-content">
-          <h1>Admin Staff Dashboard</h1>
-          <p>
-            Welcome, {staffName || staffId} 
-            {/* ✅ Badge for Team Member */}
-            <span className="status-badge status-assigned" style={{marginLeft: '10px', fontSize: '0.8rem'}}>
-              🛡️ Team: {myDepartment}
-            </span>
-          </p>
+        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+          <img src={ctLogo} alt="CT University" style={{ height: "50px" }} />
+          <div className="header-content">
+            <h1>Admin Staff Dashboard</h1>
+            <p>
+              Welcome, {staffName || staffId} 
+              {/* ✅ Badge for Team Member */}
+              <span className="status-badge status-assigned" style={{marginLeft: '10px', fontSize: '0.8rem'}}>
+                🛡️ Team: {myDepartment}
+              </span>
+            </p>
+          </div>
         </div>
         <button className="logout-btn-header" onClick={handleLogout}>
           Logout
         </button>
       </header>
 
-      <nav className="navbar">
-        <ul>
-          <li className="admin-nav-title">
-            <span>My Assigned Tasks</span>
+      {/* ✅ TABS NAVBAR */}
+      <nav className="navbar" style={{ padding: '0 20px', background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+        <ul style={{ display: 'flex', gap: '20px', listStyle: 'none', margin: 0, padding: 0 }}>
+          <li>
+            <button 
+              onClick={() => setActiveTab("assigned")} 
+              style={{ background: "none", border: "none", padding: "10px 15px", cursor: "pointer", fontSize: "1rem", fontWeight: activeTab === "assigned" ? "600" : "500", color: activeTab === "assigned" ? "#2563eb" : "#64748b", borderBottom: activeTab === "assigned" ? "2px solid #2563eb" : "2px solid transparent" }}
+            >
+              My Assigned Tasks
+            </button>
+          </li>
+          <li>
+            <button 
+              onClick={() => setActiveTab("submit")} 
+              style={{ background: "none", border: "none", padding: "10px 15px", cursor: "pointer", fontSize: "1rem", fontWeight: activeTab === "submit" ? "600" : "500", color: activeTab === "submit" ? "#2563eb" : "#64748b", borderBottom: activeTab === "submit" ? "2px solid #2563eb" : "2px solid transparent" }}
+            >
+              Submit Grievance
+            </button>
+          </li>
+          <li>
+            <button 
+              onClick={() => setActiveTab("mine")} 
+              style={{ background: "none", border: "none", padding: "10px 15px", cursor: "pointer", fontSize: "1rem", fontWeight: activeTab === "mine" ? "600" : "500", color: activeTab === "mine" ? "#2563eb" : "#64748b", borderBottom: activeTab === "mine" ? "2px solid #2563eb" : "2px solid transparent" }}
+            >
+              My Submissions
+            </button>
           </li>
         </ul>
       </nav>
 
       <main className="dashboard-body">
         <div className="card">
-          <h2>Assigned Grievances</h2>
-          <p style={{ marginBottom: "1rem", color: "#64748b" }}>
-            These grievances have been specifically assigned to you by your Department Admin.
-          </p>
-
           {msg && <div className={`alert-box ${statusType}`}>{msg}</div>}
+
+          {/* TAB 1: ASSIGNED TASKS */}
+          {activeTab === "assigned" && (
+          <>
+          <h2>Assigned Grievances</h2>
+          <p style={{ marginBottom: "1rem", color: "#64748b" }}>These grievances have been specifically assigned to you.</p>
+          
+          {/* ✅ FILTER BAR */}
+          <div style={{
+            display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "20px", 
+            padding: "15px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0"
+          }}>
+            <input 
+              type="text" placeholder="Search Student ID..." 
+              value={searchId} onChange={(e) => setSearchId(e.target.value)}
+              style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px" }}
+            />
+            <select 
+              value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+              style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 120px", cursor: "pointer" }}
+            >
+              <option value="All">All Status</option>
+              <option value="Pending">Pending</option>
+              <option value="Assigned">Assigned</option>
+              <option value="Resolved">Resolved</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+            <select 
+              value={filterDepartment} onChange={(e) => setFilterDepartment(e.target.value)}
+              style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
+            >
+              <option value="All">All Departments</option>
+              {uniqueDepartments.map(dept => <option key={dept} value={dept}>{dept}</option>)}
+            </select>
+            <input 
+              type="month" 
+              value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}
+              style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
+            />
+            <button 
+              onClick={() => {
+                setSearchId(""); setFilterStatus("All"); setFilterDepartment("All"); setFilterMonth("");
+              }}
+              style={{ padding: "10px 20px", borderRadius: "6px", border: "none", background: "#64748b", color: "white", cursor: "pointer", fontWeight: "600" }}
+            >
+              Reset
+            </button>
+          </div>
 
           {loading ? (
             <p>Loading grievances...</p>
-          ) : grievances.length === 0 ? (
+          ) : getFilteredData(grievances, "assigned").length === 0 ? (
             <div className="empty-state">
-              <p>No grievances found assigned to your ID.</p>
+              <p>{grievances.length === 0 ? "No grievances found assigned to your ID." : "No grievances match your filters."}</p>
             </div>
           ) : (
             <div className="table-container">
@@ -283,7 +505,7 @@ function AdminStaffDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {grievances.map((g) => (
+                  {getFilteredData(grievances, "assigned").map((g) => (
                     <tr key={g._id}>
                       <td>{g.name}</td>
                       <td>{g.email}</td>
@@ -291,7 +513,6 @@ function AdminStaffDashboard() {
 
                       {/* --- FIXED MESSAGE CELL (Max Width 150px + See More) --- */}
                       <td className="message-cell" style={{ maxWidth: '150px' }}>
-                        {g.attachment && <span style={{ marginRight: "5px", fontSize: "1.1rem" }} title="Has Attachment">📎</span>}
                         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '5px' }}>
                           <span style={{ wordBreak: 'break-all', lineHeight: '1.2' }}>
                             {g.message.substring(0, 20)}{g.message.length > 20 ? "..." : ""}
@@ -328,13 +549,23 @@ function AdminStaffDashboard() {
                       </td>
                       <td>
                         <div className="action-buttons">
-                          {g.status !== "Resolved" ? (
+                          {g.status !== "Resolved" && g.status !== "Rejected" ? (
+                            <>
                               <button
                               className="action-btn resolve-btn"
                               onClick={() => updateStatus(g._id, "Resolved")}
                               >
                               Mark Resolved
                               </button>
+                              <button
+                              className="action-btn reject-btn"
+                              onClick={() => {
+                                if(window.confirm("Are you sure you want to REJECT this grievance?")) updateStatus(g._id, "Rejected");
+                              }}
+                              >
+                              Reject
+                              </button>
+                            </>
                           ) : (
                             <span className="done-btn">Resolved</span>
                           )}
@@ -362,11 +593,149 @@ function AdminStaffDashboard() {
               </table>
             </div>
           )}
-        </div>
-      </main>
+          </>
+          )}
 
-      {/* --- DETAILS POPUP MODAL (Fixed for Long Text) --- */}
-      {selectedGrievance && (
+          {/* TAB 2: SUBMIT GRIEVANCE */}
+          {activeTab === "submit" && (
+            <>
+              <h2>Submit Staff Grievance</h2>
+              <p>Select the relevant School/Department. It will be routed to the Head of Department.</p>
+
+              <form onSubmit={handleSubmit}>
+                <div className="form-row">
+                  <div className="input-group">
+                    <label>Full Name</label>
+                    <input type="text" value={staffName} readOnly className="read-only-input" />
+                  </div>
+                  <div className="input-group">
+                    <label>Staff ID</label>
+                    <input type="text" value={staffId} readOnly className="read-only-input" />
+                  </div>
+                </div>
+
+                <div className="input-group">
+                  <label>Email</label>
+                  <input type="email" value={staffEmail} readOnly className="read-only-input" />
+                </div>
+
+                <div className="input-group">
+                  <label>Select School / Department</label>
+                  <select name="department" value={formData.department} onChange={handleChange} required>
+                    <option value="">-- Select School --</option>
+                    {schools.map((school) => <option key={school} value={school}>{school}</option>)}
+                  </select>
+                </div>
+
+                <div className="input-group">
+                  <label>Message</label>
+                  <textarea name="message" value={formData.message} onChange={handleChange} placeholder="Describe your issue..." rows="5" required></textarea>
+                </div>
+
+                <div className="input-group">
+                  <label>Attach Document (Optional)</label>
+                  <input id="adminStaffFile" type="file" onChange={handleFileChange} accept=".pdf,.jpg,.jpeg,.png" className="file-input" />
+                </div>
+
+                <button type="submit" className="submit-btn">Submit Grievance</button>
+              </form>
+            </>
+          )}
+
+          {/* TAB 3: MY SUBMISSIONS */}
+          {activeTab === "mine" && (
+            <>
+              <h2>My Submitted Grievances</h2>
+              
+              {/* ✅ FILTER BAR (For My Submissions) */}
+              <div style={{
+                display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "20px", 
+                padding: "15px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0"
+              }}>
+                <input 
+                  type="text" placeholder="Search Assigned Staff ID..." 
+                  value={searchId} onChange={(e) => setSearchId(e.target.value)}
+                  style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px" }}
+                />
+                <select 
+                  value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+                  style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 120px", cursor: "pointer" }}
+                >
+                  <option value="All">All Status</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Assigned">Assigned</option>
+                  <option value="Resolved">Resolved</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+                <select 
+                  value={filterDepartment} onChange={(e) => setFilterDepartment(e.target.value)}
+                  style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
+                >
+                  <option value="All">All Departments</option>
+                  {uniqueDepartments.map(dept => <option key={dept} value={dept}>{dept}</option>)}
+                </select>
+                <input 
+                  type="month" 
+                  value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}
+                  style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
+                />
+                <button 
+                  onClick={() => {
+                    setSearchId(""); setFilterStatus("All"); setFilterDepartment("All"); setFilterMonth("");
+                  }}
+                  style={{ padding: "10px 20px", borderRadius: "6px", border: "none", background: "#64748b", color: "white", cursor: "pointer", fontWeight: "600" }}
+                >
+                  Reset
+                </button>
+              </div>
+
+              {loadingMine ? <p>Loading...</p> : getFilteredData(myGrievances, "mine").length === 0 ? <p>No submissions match your filters.</p> : (
+                <div className="table-container">
+                  <table className="grievance-table">
+                    <thead>
+                      <tr>
+                        <th>Category</th>
+                        <th>Message</th>
+                        <th>Status</th>
+                        <th>Assigned To</th>
+                        <th>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getFilteredData(myGrievances, "mine").map((g) => (
+                        <tr key={g._id}>
+                          <td>{g.category}</td>
+                          <td className="message-cell" style={{ maxWidth: '150px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '5px' }}>
+                              <span style={{ wordBreak: 'break-all', lineHeight: '1.2' }}>
+                                {g.message.substring(0, 20)}{g.message.length > 20 ? "..." : ""}
+                              </span>
+                              <button 
+                                onClick={() => setSelectedGrievance(g)}
+                                style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', textDecoration: 'underline', padding: 0 }}
+                              >
+                                See more
+                              </button>
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`status-badge status-${g.status.toLowerCase()}`}>
+                              {g.status}
+                            </span>
+                          </td>
+                          <td>{g.assignedTo || "Not Assigned"}</td>
+                          <td>{formatDate(g.createdAt)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* --- DETAILS POPUP MODAL (Fixed for Long Text) --- */}
+          {selectedGrievance && (
         <div 
           onClick={() => setSelectedGrievance(null)}
           style={{
@@ -465,7 +834,9 @@ function AdminStaffDashboard() {
           </div>
         </div>
       )}
-      {/* --------------------------------------- */}
+          {/* --------------------------------------- */}
+        </div>
+      </main>
 
       {/* ✅ Chat Popup (Using Reusable Component) */}
       <ChatPopup 
@@ -475,6 +846,45 @@ function AdminStaffDashboard() {
         currentUserId={staffId}
         currentUserRole="staff"
       />
+
+      {/* ✅ SUPER SMOOTH INTERACTIONS (Makhan UI) */}
+      <style>{`
+        .dashboard-container { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Smooth Transitions */
+        .card, .navbar, input, select, textarea, button, .action-btn, .submit-btn, .logout-btn-header {
+          transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+        }
+
+        /* Hover Effects */
+        .card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important; }
+        
+        button:hover, .action-btn:hover, .submit-btn:hover, .logout-btn-header:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        button:active, .action-btn:active { transform: scale(0.95); }
+
+        /* Reject Button Style */
+        .reject-btn { background-color: #fef2f2; color: #dc2626; border: 1px solid #fee2e2; }
+        .reject-btn:hover {
+          background-color: #dc2626; color: white; border-color: #dc2626;
+          transform: translateY(-1px);
+          box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
+        }
+
+        /* Inputs */
+        input:focus, select:focus, textarea:focus {
+          transform: scale(1.01);
+          border-color: #2563eb !important;
+          box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1) !important;
+        }
+
+        /* Table */
+        tr { transition: background-color 0.2s ease; }
+        tr:hover { background-color: #f8fafc !important; }
+      `}</style>
     </div>
   );
 }

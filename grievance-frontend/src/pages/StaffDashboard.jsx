@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
+import ctLogo from "../assets/ct-logo.png";
 
 // Helper: format dates for tables
 const formatDate = (dateString) => {
@@ -58,6 +59,12 @@ function StaffDashboard() {
 
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [loadingMine, setLoadingMine] = useState(true);
+
+  // ✅ FILTER STATES
+  const [searchStaffId, setSearchStaffId] = useState("");
+  const [filterStatus, setFilterStatus] = useState("All");
+  const [filterDepartment, setFilterDepartment] = useState("All");
+  const [filterMonth, setFilterMonth] = useState("");
 
   // ✅ State for "See More" Details Popup
   const [selectedGrievance, setSelectedGrievance] = useState(null);
@@ -256,6 +263,25 @@ function StaffDashboard() {
     }
   };
 
+  // ✅ FILTER LOGIC
+  const filteredMyGrievances = myGrievances.filter((g) => {
+    const matchStaff = (g.assignedTo || "").toLowerCase().includes(searchStaffId.toLowerCase());
+    const matchStatus = filterStatus === "All" || g.status === filterStatus;
+    const matchDept = filterDepartment === "All" || (g.category || g.school || "") === filterDepartment;
+
+    let matchMonth = true;
+    if (filterMonth) {
+      const gDate = new Date(g.createdAt);
+      const [year, month] = filterMonth.split("-");
+      matchMonth = gDate.getFullYear() === parseInt(year) && (gDate.getMonth() + 1) === parseInt(month);
+    }
+
+    return matchStaff && matchStatus && matchDept && matchMonth;
+  });
+
+  // ✅ Unique Departments for Dropdown
+  const uniqueDepartments = [...new Set(myGrievances.map(g => g.category || g.school).filter(Boolean))];
+
   // ✅ Navbar Button Styles (For proper tabs)
   const navButtonStyle = (isActive) => ({
     background: "none",
@@ -272,13 +298,20 @@ function StaffDashboard() {
   return (
     <div className="dashboard-container">
       <header className="dashboard-header">
-        <div className="header-content">
-          <h1>Staff Dashboard</h1>
-          <p>
-            {loadingProfile
-              ? "Loading your profile..."
-              : `Welcome, ${staffName || userId}`}
-          </p>
+        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+          <img src={ctLogo} alt="CT University" style={{ height: "50px" }} />
+          <div className="header-content">
+            <h1>Staff Dashboard</h1>
+            <p>
+              {loadingProfile
+                ? "Loading your profile..."
+                : <>Welcome, <strong>{staffName || userId}</strong> {staffDept && (
+                    <span className="status-badge status-assigned" style={{marginLeft: '10px', fontSize: '0.8rem'}}>
+                      💼 {staffDept}
+                    </span>
+                  )}</>}
+            </p>
+          </div>
         </div>
         <button className="logout-btn-header" onClick={handleLogout}>
           Logout
@@ -375,10 +408,52 @@ function StaffDashboard() {
               <h2>My Submitted Grievances</h2>
               <p>These are grievances you have submitted as staff.</p>
 
+              {/* ✅ FILTER BAR */}
+              <div style={{
+                display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "20px", 
+                padding: "15px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0"
+              }}>
+                <input 
+                  type="text" placeholder="Search Assigned Staff ID..." 
+                  value={searchStaffId} onChange={(e) => setSearchStaffId(e.target.value)}
+                  style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px" }}
+                />
+                <select 
+                  value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+                  style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 120px", cursor: "pointer" }}
+                >
+                  <option value="All">All Status</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Assigned">Assigned</option>
+                  <option value="Resolved">Resolved</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+                <select 
+                  value={filterDepartment} onChange={(e) => setFilterDepartment(e.target.value)}
+                  style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
+                >
+                  <option value="All">All Departments</option>
+                  {uniqueDepartments.map(dept => <option key={dept} value={dept}>{dept}</option>)}
+                </select>
+                <input 
+                  type="month" 
+                  value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}
+                  style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
+                />
+                <button 
+                  onClick={() => {
+                    setSearchStaffId(""); setFilterStatus("All"); setFilterDepartment("All"); setFilterMonth("");
+                  }}
+                  style={{ padding: "10px 20px", borderRadius: "6px", border: "none", background: "#64748b", color: "white", cursor: "pointer", fontWeight: "600" }}
+                >
+                  Reset
+                </button>
+              </div>
+
               {loadingMine ? (
                 <p>Loading your grievances...</p>
-              ) : myGrievances.length === 0 ? (
-                <div className="empty-state"><p>You have not submitted any grievances yet.</p></div>
+              ) : filteredMyGrievances.length === 0 ? (
+                <div className="empty-state"><p>{myGrievances.length === 0 ? "You have not submitted any grievances yet." : "No grievances match your filters."}</p></div>
               ) : (
                 <div className="table-container">
                   <table className="grievance-table">
@@ -392,13 +467,12 @@ function StaffDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {myGrievances.map((g) => (
+                      {filteredMyGrievances.map((g) => (
                         <tr key={g._id}>
                           <td>{g.category}</td>
                           
                           {/* --- FIXED MESSAGE CELL (Max Width 150px + See More) --- */}
                           <td className="message-cell" style={{ maxWidth: '150px' }}>
-                            {g.attachment && <span style={{ marginRight: "5px", fontSize: "1.1rem" }} title="Has Attachment">📎</span>}
                             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '5px' }}>
                               <span style={{ wordBreak: 'break-all', lineHeight: '1.2' }}>
                                 {g.message.substring(0, 20)}{g.message.length > 20 ? "..." : ""}
@@ -523,6 +597,37 @@ function StaffDashboard() {
       <button className="logout-floating" onClick={handleLogout}>
         Logout
       </button>
+
+      {/* ✅ SUPER SMOOTH INTERACTIONS (Makhan UI) */}
+      <style>{`
+        .dashboard-container { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Smooth Transitions */
+        .card, .navbar, input, select, textarea, button, .action-btn, .submit-btn, .logout-btn-header, .logout-floating {
+          transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+        }
+
+        /* Hover Effects */
+        .card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important; }
+        
+        button:hover, .action-btn:hover, .submit-btn:hover, .logout-btn-header:hover, .logout-floating:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        button:active, .action-btn:active { transform: scale(0.95); }
+
+        /* Inputs */
+        input:focus, select:focus, textarea:focus {
+          transform: scale(1.01);
+          border-color: #2563eb !important;
+          box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1) !important;
+        }
+
+        /* Table */
+        tr { transition: background-color 0.2s ease; }
+        tr:hover { background-color: #f8fafc !important; }
+      `}</style>
     </div>
   );
 }

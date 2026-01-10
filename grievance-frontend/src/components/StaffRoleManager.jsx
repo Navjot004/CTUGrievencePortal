@@ -200,7 +200,7 @@ function StaffRoleManager() {
                           {staff.adminDepartment ? (
                             <button
                               className="action-btn"
-                              style={{ backgroundColor: "#ef4444", color: "white", border: "none" }}
+                              style={{ backgroundColor: "#ef4444", color: "white", border: "none", minWidth: "150px" }}
                               onClick={() => handleRoleChange(staff.id, "demote")}
                             >
                               {staff.isDeptAdmin ? "Remove Admin" : "Remove from Team"}
@@ -235,7 +235,7 @@ function StaffRoleManager() {
 
                               <button
                                 className="action-btn"
-                                style={{ backgroundColor: "#10b981", color: "white", border: "none" }}
+                                style={{ backgroundColor: "#10b981", color: "white", border: "none", minWidth: "150px" }}
                                 onClick={() => {
                                   const deptSelect = document.getElementById(`dept-${staff.id}`);
                                   handleRoleChange(staff.id, "promote", deptSelect.value);

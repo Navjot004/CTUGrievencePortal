@@ -101,6 +101,14 @@ export const assignToStaff = async (req, res) => {
     const { id } = req.params;
     const { staffId, adminId } = req.body;
 
+    // ✅ Prevent assigning to self (submitter)
+    const existingGrievance = await Grievance.findById(id);
+    if (!existingGrievance) return res.status(404).json({ message: "Grievance not found" });
+    
+    if (existingGrievance.userId === staffId) {
+        return res.status(400).json({ message: "❌ Cannot assign grievance to the staff member who submitted it." });
+    }
+
     const grievance = await Grievance.findByIdAndUpdate(
       id,
       {

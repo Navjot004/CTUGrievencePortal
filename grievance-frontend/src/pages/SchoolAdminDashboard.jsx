@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import "../styles/Dashboard.css"; // Existing CSS for table structure
 import AssignStaffPopup from "../components/AssignStaffPopup";
+import ctLogo from "../assets/ct-logo.png";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
@@ -23,6 +24,7 @@ function SchoolAdminDashboard() {
   const [searchId, setSearchId] = useState(""); 
   const [searchStaffId, setSearchStaffId] = useState(""); // Search by Staff ID
   const [statusFilter, setStatusFilter] = useState("All"); 
+  const [filterMonth, setFilterMonth] = useState(""); // ✅ Month Filter
 
   // ✅ Feedback States (Added to fix "not working" issue)
   const [msg, setMsg] = useState("");
@@ -107,7 +109,15 @@ function SchoolAdminDashboard() {
     const matchId = (g.userId || "").toLowerCase().includes(searchId.toLowerCase());
     const matchStaff = (g.assignedTo || "").toLowerCase().includes(searchStaffId.toLowerCase());
     const matchStatus = statusFilter === "All" || g.status === statusFilter;
-    return matchId && matchStaff && matchStatus;
+
+    let matchMonth = true;
+    if (filterMonth) {
+      const gDate = new Date(g.createdAt);
+      const [year, month] = filterMonth.split("-");
+      matchMonth = gDate.getFullYear() === parseInt(year) && (gDate.getMonth() + 1) === parseInt(month);
+    }
+
+    return matchId && matchStaff && matchStatus && matchMonth;
   });
 
   // ✅ INLINE STYLES FOR MODERN UI (No separate CSS needed)
@@ -176,9 +186,17 @@ function SchoolAdminDashboard() {
   return (
     <div className="dashboard-container">
       <header className="dashboard-header">
-        <div className="header-content">
-          <h1>{mySchoolName || "School"} Dashboard</h1>
-          <p>Admin: {userId}</p>
+        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+          <img src={ctLogo} alt="CT University" style={{ height: "50px" }} />
+          <div className="header-content">
+            <h1>{mySchoolName || "School"} Dashboard</h1>
+            <p>
+              Admin: <strong>{userId}</strong>
+              {mySchoolName && <span className="status-badge status-assigned" style={{marginLeft: '10px', fontSize: '0.8rem'}}>
+                🏫 {mySchoolName}
+              </span>}
+            </p>
+          </div>
         </div>
         <button className="logout-btn-header" onClick={handleLogout}>Logout</button>
       </header>
@@ -240,9 +258,19 @@ function SchoolAdminDashboard() {
                 <option value="Pending">🟡 Pending</option>
                 <option value="Assigned">🔵 Assigned</option>
                 <option value="Resolved">🟢 Resolved</option>
+                <option value="Rejected">🔴 Rejected</option>
               </select>
             </div>
 
+            {/* Month Picker */}
+            <div style={styles.selectWrapper}>
+              <input 
+                type="month" 
+                value={filterMonth} 
+                onChange={(e) => setFilterMonth(e.target.value)}
+                style={styles.input}
+              />
+            </div>
           </div>
 
           {/* TABLE */}
@@ -273,24 +301,21 @@ function SchoolAdminDashboard() {
                         <td style={{ fontWeight: "bold", color: "#333" }}>{g.userId}</td>
                         <td>{g.name}</td>
                         
-                        <td style={{ color: g.assignedTo ? "#0056b3" : "#999" }}>
+                        {/* ✅ ASSIGNED TO COLUMN (Standardized) */}
+                        <td>
                           {g.assignedTo ? (
-                            staffName ? (
-                              <div>
-                                <span style={{ fontWeight: "600" }}>{staffName}</span>
-                                <br />
-                                <span style={{ fontSize: "12px", color: "#666" }}>({g.assignedTo})</span>
-                              </div>
-                            ) : (
-                              <span>{g.assignedTo}</span> 
-                            )
+                            <div>
+                              <span style={{ fontWeight: "600", display: "block", color: "#1e293b" }}>
+                                {staffName || "Staff"}
+                              </span>
+                              <span style={{ fontSize: "0.85rem", color: "#64748b" }}>({g.assignedTo})</span>
+                            </div>
                           ) : (
-                            "-"
+                            <span style={{ color: "#94a3b8", fontStyle: "italic" }}>Not Assigned Yet</span>
                           )}
                         </td>
 
                         <td className="message-cell" style={{ maxWidth: '200px' }}>
-                          {g.attachment && <span style={{ marginRight: "5px", fontSize: "1.1rem" }} title="Has Attachment">📎</span>}
                           <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
                             <span style={{ wordBreak: 'break-word', lineHeight: '1.3' }}>
                               {g.message.substring(0, 30)}{g.message.length > 30 ? "..." : ""}
@@ -322,6 +347,14 @@ function SchoolAdminDashboard() {
                               style={{ opacity: g.status === "Resolved" ? 0.5 : 1, cursor: g.status === "Resolved" ? "not-allowed" : "pointer", marginLeft: "5px" }}
                             >
                               Resolve
+                            </button>
+                            <button 
+                              className="action-btn reject-btn" 
+                              onClick={() => { if(window.confirm("Reject this grievance?")) updateStatus(g._id, "Rejected"); }}
+                              disabled={g.status === "Resolved" || g.status === "Rejected"}
+                              style={{ opacity: (g.status === "Resolved" || g.status === "Rejected") ? 0.5 : 1, cursor: (g.status === "Resolved" || g.status === "Rejected") ? "not-allowed" : "pointer", marginLeft: "5px" }}
+                            >
+                              Reject
                             </button>
                           </div>
                         </td>
@@ -401,6 +434,44 @@ function SchoolAdminDashboard() {
 
       <AssignStaffPopup isOpen={isAssignPopupOpen} onClose={() => setIsAssignPopupOpen(false)} department={mySchoolName} grievanceId={assignGrievanceId} adminId={userId} onAssigned={(m, t) => { fetchMySchoolGrievances() }} />
 
+      {/* ✅ SUPER SMOOTH INTERACTIONS (Makhan UI) */}
+      <style>{`
+        .dashboard-container { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Smooth Transitions */
+        .card, .navbar, input, select, textarea, button, .action-btn, .submit-btn, .logout-btn-header {
+          transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+        }
+
+        /* Hover Effects */
+        .card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important; }
+        
+        button:hover, .action-btn:hover, .submit-btn:hover, .logout-btn-header:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        button:active, .action-btn:active { transform: scale(0.95); }
+
+        /* Reject Button Style */
+        .reject-btn { background-color: #fef2f2; color: #dc2626; border: 1px solid #fee2e2; }
+        .reject-btn:hover {
+          background-color: #dc2626; color: white; border-color: #dc2626;
+          transform: translateY(-1px);
+          box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
+        }
+
+        /* Inputs */
+        input:focus, select:focus, textarea:focus {
+          transform: scale(1.01);
+          border-color: #2563eb !important;
+          box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1) !important;
+        }
+
+        /* Table */
+        tr { transition: background-color 0.2s ease; }
+        tr:hover { background-color: #f8fafc !important; }
+      `}</style>
     </div>
   );
 }

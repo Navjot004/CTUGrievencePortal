@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import "../styles/Dashboard.css";
+import ctLogo from "../assets/ct-logo.png";
 
 function StudentWelfare() {
   const navigate = useNavigate();
@@ -132,9 +133,17 @@ const handleSubmit = async (e) => {
   return (
     <div className="dashboard-container">
       <header className="dashboard-header">
-        <div className="header-content">
-          <h1>Student Dashboard</h1>
-          <p>Welcome, {formData.name || userId}</p>
+        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+          <img src={ctLogo} alt="CT University" style={{ height: "50px" }} />
+          <div className="header-content">
+            <h1>Student Dashboard</h1>
+            <p>
+              Welcome, <strong>{formData.name || userId}</strong>
+              {formData.program && <span className="status-badge status-assigned" style={{marginLeft: '10px', fontSize: '0.8rem'}}>
+                🎓 {formData.program}
+              </span>}
+            </p>
+          </div>
         </div>
         <button className="logout-btn-header" onClick={handleLogout}>
           Logout

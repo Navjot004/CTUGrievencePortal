@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import "../styles/Dashboard.css"; 
 // ✅ ChatPopup Import
 import ChatPopup from "../components/ChatPopup"; 
+import ctLogo from "../assets/ct-logo.png";
 
 // ✅ HELPER FUNCTION
 const formatDate = (dateString) => {
@@ -26,10 +27,23 @@ function StudentDashboard() {
   // ✅ User Details State
   const [studentName, setStudentName] = useState("");
   const [studentDept, setStudentDept] = useState(""); // 🔥 Department State Added
+  const [staffMap, setStaffMap] = useState({}); // ✅ Store Staff Names for "Assigned To"
 
   // Chat State
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatGrievanceId, setChatGrievanceId] = useState(null);
+
+  // --- NOTIFICATION STATE ---
+  const [unreadMap, setUnreadMap] = useState({});
+  const [toast, setToast] = useState({ show: false, message: "" });
+  const lastMessageRef = useRef({}); 
+  const isFirstPoll = useRef(true); 
+
+  // ✅ FILTER STATES
+  const [searchStaffId, setSearchStaffId] = useState("");
+  const [filterStatus, setFilterStatus] = useState("All");
+  const [filterDepartment, setFilterDepartment] = useState("All");
+  const [filterMonth, setFilterMonth] = useState("");
 
   useEffect(() => {
     if (!role || role !== "student") navigate("/");
@@ -72,17 +86,115 @@ function StudentDashboard() {
     };
 
     if (userId) fetchData();
+    fetchStaffNames(); // ✅ Fetch staff list
   }, [userId]);
+
+  // ✅ Fetch Staff List to Map IDs to Names
+  const fetchStaffNames = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/admin-staff/all");
+      if (res.ok) {
+        const data = await res.json();
+        const map = {};
+        data.forEach((staff) => { map[staff.id] = staff.fullName; });
+        setStaffMap(map);
+      }
+    } catch (error) {
+      console.error("Error fetching staff list:", error);
+    }
+  };
+
+  // --- LIVE POLLING FOR NOTIFICATIONS ---
+  useEffect(() => {
+    if (!userId || history.length === 0) return;
+
+    const pollMessages = async () => {
+      const newUnreadMap = { ...unreadMap };
+      let newToastMsg = null;
+
+      await Promise.all(history.map(async (g) => {
+        try {
+          const res = await fetch(`http://localhost:5000/api/chat/${g._id}`);
+          if (res.ok) {
+            const msgs = await res.json();
+            
+            if (msgs.length > 0) {
+              const lastMsg = msgs[msgs.length - 1];
+              
+              // If sender is NOT student (so it is staff/admin), then it's unread for student
+              const isStaffSender = (lastMsg.senderRole !== "student" && lastMsg.senderId !== userId);
+
+              // A. Red Dot Logic
+              if (isChatOpen && chatGrievanceId === g._id) {
+                 newUnreadMap[g._id] = false;
+              } else {
+                 newUnreadMap[g._id] = isStaffSender;
+              }
+
+              // B. Toast Logic
+              if (lastMessageRef.current[g._id] !== lastMsg._id) {
+                if (!isFirstPoll.current && isStaffSender) {
+                   newToastMsg = `New message on grievance regarding ${g.category}`;
+                }
+                lastMessageRef.current[g._id] = lastMsg._id;
+              }
+            }
+          }
+        } catch (err) {
+          console.warn("Polling error for", g._id);
+        }
+      }));
+
+      setUnreadMap(newUnreadMap);
+      
+      if (newToastMsg) {
+        showToastNotification(newToastMsg);
+      }
+
+      isFirstPoll.current = false;
+    };
+
+    const intervalId = setInterval(pollMessages, 5000);
+    pollMessages(); // Run once immediately
+
+    return () => clearInterval(intervalId);
+  }, [history, userId, isChatOpen, chatGrievanceId]); 
+
+  const showToastNotification = (message) => {
+    setToast({ show: true, message });
+    setTimeout(() => setToast({ show: false, message: "" }), 3000);
+  };
 
   const openChat = (gId) => {
     setChatGrievanceId(gId);
     setIsChatOpen(true);
+    // Remove red dot immediately
+    setUnreadMap(prev => ({ ...prev, [gId]: false }));
   };
 
   const handleLogout = () => {
     localStorage.clear();
     navigate("/");
   };
+
+  // ✅ FILTER LOGIC
+  const filteredHistory = history.filter((g) => {
+    const matchStaff = (g.assignedTo || "").toLowerCase().includes(searchStaffId.toLowerCase());
+    const matchStatus = filterStatus === "All" || g.status === filterStatus;
+    const matchDept = filterDepartment === "All" || (g.category || g.school || "") === filterDepartment;
+
+    let matchMonth = true;
+    if (filterMonth) {
+      const gDate = new Date(g.createdAt);
+      const [year, month] = filterMonth.split("-");
+      matchMonth = gDate.getFullYear() === parseInt(year) && (gDate.getMonth() + 1) === parseInt(month);
+    }
+
+    return matchStaff && matchStatus && matchDept && matchMonth;
+  });
+
+  // ✅ Unique Departments for Dropdown
+  const uniqueDepartments = [...new Set(history.map(g => g.category || g.school).filter(Boolean))];
 
   // Graph Percentages
   const totalG = stats.total || 1; 
@@ -112,18 +224,29 @@ function StudentDashboard() {
   return (
     <div className="dashboard-container">
       
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="toast-notification">
+          <span>🔔</span>
+          {toast.message}
+        </div>
+      )}
+
       <header className="dashboard-header">
-        <div className="header-content">
-          <h1>Student Dashboard</h1>
-          <p>
-              Welcome back, <strong>{studentName || userId}</strong>
-              {/* ✅ Department Badge added here */}
-              {studentDept && (
-                  <span className="status-badge status-assigned" style={{marginLeft: '10px', fontSize: '0.8rem'}}>
-                    🎓 {studentDept}
-                  </span>
-              )}
-          </p>
+        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+          <img src={ctLogo} alt="CT University" style={{ height: "50px" }} />
+          <div className="header-content">
+            <h1>Student Dashboard</h1>
+            <p>
+                Welcome back, <strong>{studentName || userId}</strong>
+                {/* ✅ Department Badge added here */}
+                {studentDept && (
+                    <span className="status-badge status-assigned" style={{marginLeft: '10px', fontSize: '0.8rem'}}>
+                      🎓 {studentDept}
+                    </span>
+                )}
+            </p>
+          </div>
         </div>
         <button className="logout-btn-header" onClick={handleLogout}>Logout</button>
       </header>
@@ -207,18 +330,63 @@ function StudentDashboard() {
         {/* ✅ 3. RECENT ACTIVITY TABLE */}
         <div className="card">
           <h2>Recent Activity</h2>
+
+          {/* ✅ FILTER BAR */}
+          <div style={{
+            display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "20px", 
+            padding: "15px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0"
+          }}>
+            <input 
+              type="text" placeholder="Search Staff ID..." 
+              value={searchStaffId} onChange={(e) => setSearchStaffId(e.target.value)}
+              style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px" }}
+            />
+            <select 
+              value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+              style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 120px", cursor: "pointer" }}
+            >
+              <option value="All">All Status</option>
+              <option value="Pending">Pending</option>
+              <option value="Assigned">Assigned</option>
+              <option value="Resolved">Resolved</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+            <select 
+              value={filterDepartment} onChange={(e) => setFilterDepartment(e.target.value)}
+              style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
+            >
+              <option value="All">All Departments</option>
+              {uniqueDepartments.map(dept => <option key={dept} value={dept}>{dept}</option>)}
+            </select>
+            <input 
+              type="month" 
+              value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}
+              style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
+            />
+            <button 
+              onClick={() => {
+                setSearchStaffId(""); setFilterStatus("All"); setFilterDepartment("All"); setFilterMonth("");
+              }}
+              style={{ padding: "10px 20px", borderRadius: "6px", border: "none", background: "#64748b", color: "white", cursor: "pointer", fontWeight: "600" }}
+            >
+              Reset
+            </button>
+          </div>
+
           {loading ? (
             <p>Loading records...</p>
-          ) : history.length === 0 ? (
+          ) : filteredHistory.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px', border: '1px dashed #cbd5e1', borderRadius: '12px' }}>
               <h3>No grievances found</h3>
-              <p>You haven't submitted any grievances yet.</p>
-              <button 
+              <p>{history.length === 0 ? "You haven't submitted any grievances yet." : "No grievances match your filters."}</p>
+              {history.length === 0 && (
+                <button 
                 style={{marginTop: '15px', padding: '10px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600}} 
                 onClick={() => navigate('/student/welfare')}
               >
                 Submit a Grievance
               </button>
+              )}
             </div>
           ) : (
             <div className="table-container">
@@ -226,24 +394,21 @@ function StudentDashboard() {
                 <thead>
                   <tr>
                     <th>Date</th>
-                    <th>Category</th>
-                    <th>School</th>
+                    <th>Category / School</th>
                     <th>Message</th>
                     <th>Status</th>
-                    <th>Remarks</th>
+                    <th>Assigned To</th>
                     <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {history.map((g) => (
+                  {filteredHistory.map((g) => (
                     <tr key={g._id}>
                       <td>{formatDate(g.createdAt)}</td>
                       <td>{g.category || "General"}</td>
-                      <td>{g.school || "-"}</td>
 
                       {/* --- FIXED MESSAGE CELL (Max Width 150px) --- */}
                       <td className="message-cell" style={{ maxWidth: '150px' }}>
-                        {g.attachment && <span style={{ marginRight: "5px", fontSize: "1.1rem" }} title="Has Attachment">📎</span>}
                         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '5px' }}>
                           <span style={{ wordBreak: 'break-all', lineHeight: '1.2' }}>
                             {g.message.substring(0, 20)}{g.message.length > 20 ? "..." : ""}
@@ -273,15 +438,32 @@ function StudentDashboard() {
                           {g.status}
                         </span>
                       </td>
-                      <td>{g.resolutionRemarks || "-"}</td>
+                      
+                      {/* ✅ ASSIGNED TO COLUMN */}
                       <td>
-                        <button
-                          className="action-btn"
-                          style={{ backgroundColor: "#3b82f6", color: "white" }}
-                          onClick={() => openChat(g._id)}
-                        >
-                          Chat
-                        </button>
+                        {g.assignedTo ? (
+                          <span style={{ fontWeight: "500", color: "#1e293b" }}>
+                            {staffMap[g.assignedTo] || "Staff"} <span style={{fontSize:'0.85rem', color:'#64748b'}}>({g.assignedTo})</span>
+                          </span>
+                        ) : (
+                          <span style={{ color: "#94a3b8", fontStyle: "italic" }}>Yet to assign</span>
+                        )}
+                      </td>
+
+                      <td>
+                        <div className="chat-btn-wrapper">
+                          <button
+                            className="action-btn"
+                            style={{ backgroundColor: "#3b82f6", color: "white" }}
+                            onClick={() => openChat(g._id)}
+                          >
+                            Chat
+                          </button>
+                          {/* 🔴 RED DOT */}
+                          {unreadMap[g._id] && (
+                            <span className="notification-dot"></span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -367,6 +549,37 @@ function StudentDashboard() {
         currentUserId={userId}
         currentUserRole="student"
       />
+
+      {/* ✅ SUPER SMOOTH INTERACTIONS (Makhan UI) */}
+      <style>{`
+        .dashboard-container { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Smooth Transitions */
+        .card, .navbar, input, select, textarea, button, .action-btn, .submit-btn, .logout-btn-header {
+          transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+        }
+
+        /* Hover Effects */
+        .card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important; }
+        
+        button:hover, .action-btn:hover, .submit-btn:hover, .logout-btn-header:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        button:active, .action-btn:active { transform: scale(0.95); }
+
+        /* Inputs */
+        input:focus, select:focus, textarea:focus {
+          transform: scale(1.01);
+          border-color: #2563eb !important;
+          box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1) !important;
+        }
+
+        /* Table */
+        tr { transition: background-color 0.2s ease; }
+        tr:hover { background-color: #f8fafc !important; }
+      `}</style>
     </div>
   );
 }

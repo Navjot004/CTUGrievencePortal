@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import "../styles/Dashboard.css"; // Ensure this has basic modal styles
 
+// ✅ Advanced Icons
+const PaperclipIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>;
+const CameraIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>;
+
 function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRole }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -10,6 +14,13 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
   
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null); // ✅ NEW: Ref for hidden file input
+  const chatBodyRef = useRef(null); // ✅ NEW: Ref for scroll container
+  const hasScrolledRef = useRef(false); // ✅ NEW: Track initial scroll
+  const prevMessagesLength = useRef(0); // ✅ NEW: Track message count to detect new messages
+  
+  const [showCamera, setShowCamera] = useState(false); // ✅ Camera State
+  const videoRef = useRef(null); // ✅ Video Ref
+  const canvasRef = useRef(null); // ✅ Canvas Ref
 
   // Poll for messages every 3 seconds
   useEffect(() => {
@@ -26,6 +37,10 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
         console.error("Error fetching chat:", err);
       }
     };
+
+    // ✅ Reset scroll state when switching chats
+    hasScrolledRef.current = false;
+    prevMessagesLength.current = 0;
 
     fetchMessages();
     const interval = setInterval(fetchMessages, 3000);
@@ -52,10 +67,37 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
     fetchGrievanceDetails();
   }, [isOpen, grievanceId]);
 
-  // Scroll to bottom
+  // ✅ SMART SCROLL LOGIC (Fixes auto-scroll issue)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, selectedFile]); // Also scroll when file is selected
+    if (!messagesEndRef.current || !chatBodyRef.current) return;
+
+    const container = chatBodyRef.current;
+    const currentLength = messages.length;
+    const prevLength = prevMessagesLength.current;
+    const isNewMessage = currentLength > prevLength;
+
+    // Check if user is near bottom (within 100px)
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+    
+    const lastMsg = messages[currentLength - 1];
+    const isMyMessage = lastMsg?.senderId === currentUserId;
+
+    // 1. First load? Force scroll instantly
+    if (!hasScrolledRef.current && currentLength > 0) {
+      messagesEndRef.current.scrollIntoView({ behavior: "auto" });
+      hasScrolledRef.current = true;
+    } 
+    // 2. Only scroll if a NEW message arrived
+    else if (isNewMessage) {
+      // Scroll if I sent it OR if I was already reading at the bottom
+      if (isMyMessage || isNearBottom) {
+        messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+
+    // Update length ref
+    prevMessagesLength.current = currentLength;
+  }, [messages, currentUserId]);
 
   // ✅ Handle File Selection
   const handleFileChange = (e) => {
@@ -118,11 +160,82 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
     }
   };
 
+  // ✅ CAMERA LOGIC
+  useEffect(() => {
+    let stream = null;
+    if (showCamera) {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then((s) => {
+          stream = s;
+          if (videoRef.current) {
+            videoRef.current.srcObject = s;
+          }
+        })
+        .catch((err) => {
+          console.error("Camera Error:", err);
+          alert("Could not access camera. Please check permissions.");
+          setShowCamera(false);
+        });
+    }
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [showCamera]);
+
+  const handleCapture = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], `camera_capture_${Date.now()}.png`, { type: "image/png" });
+          setSelectedFile(file);
+          setShowCamera(false);
+        }
+      }, "image/png");
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="chat-modal-overlay">
-      <div className="chat-modal">
+      <div className="chat-modal" style={{ position: 'relative' }}>
+        
+        {/* ✅ CAMERA OVERLAY */}
+        {showCamera && (
+          <div style={{
+            position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+            backgroundColor: '#000', zIndex: 20, display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', borderRadius: '12px'
+          }}>
+            <video ref={videoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px' }} />
+            <canvas ref={canvasRef} style={{ display: 'none' }} />
+            
+            <div style={{ position: 'absolute', bottom: '20px', display: 'flex', gap: '15px', zIndex: 30 }}>
+              <button 
+                onClick={() => setShowCamera(false)}
+                style={{ padding: '10px 20px', borderRadius: '30px', border: 'none', background: 'rgba(255,255,255,0.2)', color: 'white', backdropFilter: 'blur(5px)', cursor: 'pointer', fontWeight: '600' }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleCapture}
+                style={{ padding: '10px 20px', borderRadius: '30px', border: 'none', background: '#ef4444', color: 'white', cursor: 'pointer', fontWeight: '600', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)' }}
+              >
+                Capture
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="chat-header">
           <div>
             {currentUserRole === "student" ? (
@@ -145,7 +258,7 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
           <button className="close-btn" onClick={onClose}>✕</button>
         </div>
         
-        <div className="chat-body">
+        <div className="chat-body" ref={chatBodyRef}>
           {messages.length === 0 ? (
             <p className="no-msg">No messages yet. Start the conversation!</p>
           ) : (
@@ -204,15 +317,16 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
             </div>
           )}
 
-          <form className="chat-footer" onSubmit={handleSend} style={{padding: '10px 15px', display: 'flex', gap: '10px'}}>
+          {/* ✅ Icons Row (Above Input) */}
+          <div style={{ display: 'flex', gap: '15px', padding: '10px 15px 0 15px' }}>
             {/* 📎 Attachment Button */}
             <button 
               type="button" 
               onClick={() => fileInputRef.current.click()}
-              style={{background: '#e2e8f0', color: '#475569', borderRadius: '50%', width: '35px', height: '35px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem'}}
+              style={{background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.2s'}}
               title="Attach File"
             >
-              📎
+              <PaperclipIcon />
             </button>
             <input 
               type="file" 
@@ -221,14 +335,27 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
               style={{display: "none"}} 
             />
 
+            {/* 📷 Camera Button */}
+            <button 
+              type="button" 
+              onClick={() => setShowCamera(true)}
+              style={{background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.2s'}}
+              title="Open Camera"
+            >
+              <CameraIcon />
+            </button>
+          </div>
+
+          <form className="chat-footer" onSubmit={handleSend} style={{padding: '5px 15px 15px 15px', display: 'flex', flexDirection: 'column', gap: '10px'}}>
             <input 
               type="text" 
               placeholder="Type a message..." 
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               disabled={isUploading}
+              style={{ width: '100%', boxSizing: 'border-box' }}
             />
-            <button type="submit" disabled={isUploading || (!newMessage.trim() && !selectedFile)}>
+            <button type="submit" disabled={isUploading || (!newMessage.trim() && !selectedFile)} style={{ width: '100%' }}>
               {isUploading ? "..." : "Send"}
             </button>
           </form>

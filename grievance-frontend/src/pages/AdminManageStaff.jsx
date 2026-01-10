@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css"; 
+import ctLogo from "../assets/ct-logo.png";
 
 const AdminManageStaff = () => {
   const navigate = useNavigate();
@@ -40,7 +41,11 @@ const AdminManageStaff = () => {
       // ✅ Correct URL matching your new server.js
       const res = await fetch("http://localhost:5000/api/admin-staff/all");
       const data = await res.json();
-      if (res.ok) setStaffList(data);
+      if (res.ok) {
+        // ✅ Filter: Show ONLY Staff and Admin-Staff (Team Members). Exclude Dept Admins & Students.
+        const onlyStaff = data.filter(user => user.role === "staff");
+        setStaffList(onlyStaff);
+      }
     } catch (err) {
       setMsg("Failed to load staff list.");
       setStatusType("error");
@@ -104,9 +109,19 @@ const AdminManageStaff = () => {
   return (
     <div className="dashboard-container">
       <header className="dashboard-header">
-        <div className="header-content">
-          <h1>Manage Department Staff</h1>
-          <p>Logged in as: <strong>{userId}</strong> {myDepartment ? `(${myDepartment})` : ""}</p>
+        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+          <img src={ctLogo} alt="CT University" style={{ height: "50px" }} />
+          <div className="header-content">
+            <h1>Manage Department Staff</h1>
+            <p>
+              Logged in as: <strong>{userId}</strong> 
+              {myDepartment ? (
+                <span className="status-badge status-assigned" style={{marginLeft: '10px', fontSize: '0.8rem'}}>🛡️ {myDepartment}</span>
+              ) : (
+                <span className="status-badge status-resolved" style={{marginLeft: '10px', fontSize: '0.8rem'}}>👑 Master Admin</span>
+              )}
+            </p>
+          </div>
         </div>
         <button className="logout-btn-header" onClick={handleLogout}>Logout</button>
       </header>
@@ -148,7 +163,6 @@ const AdminManageStaff = () => {
 
             <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} style={{ padding: '8px' }}>
               <option value="all">All</option>
-              <option value="admins">Admins (Dept Admin)</option>
               <option value="team">Admin Staff (Team Members)</option>
               <option value="general">General Staff</option>
             </select>
@@ -165,11 +179,8 @@ const AdminManageStaff = () => {
                     const q = searchQuery.trim().toLowerCase();
                     let list = staffList.slice();
 
-                    if (filterRole === 'admins') {
-                      list = list.filter(s => s.isDeptAdmin);
-                      if (!isMaster && myDepartment) list = list.filter(s => s.adminDepartment === myDepartment);
-                    } else if (filterRole === 'team') {
-                      list = list.filter(s => s.adminDepartment && !s.isDeptAdmin);
+                    if (filterRole === 'team') {
+                      list = list.filter(s => s.adminDepartment);
                       if (!isMaster && myDepartment) list = list.filter(s => s.adminDepartment === myDepartment);
                     } else if (filterRole === 'general') {
                       list = list.filter(s => !s.adminDepartment);

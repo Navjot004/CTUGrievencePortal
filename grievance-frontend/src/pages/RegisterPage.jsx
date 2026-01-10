@@ -9,6 +9,8 @@ const PhoneIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" heigh
 const MailIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>;
 const UsersIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>;
 const BookIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20v2H6.5A2.5 2.5 0 0 1 4 19.5z"></path><path d="M4 7v5h16V7H4z"></path><path d="M18 17H6.5C4 17 4 14.5 4 14.5V7a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v7.5c0 0 .1 2.5-2.5 2.5z"></path></svg>;
+const EyeIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>);
+const EyeOffIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>);
 
 const academicPrograms = {
   "School of Engineering and Technology": ["B.Tech - CSE", "B.Tech - AI", "B.Tech - Civil", "B.Tech - Mech", "BCA", "MCA"],
@@ -21,6 +23,9 @@ const academicPrograms = {
 
 function RegisterPage() {
   const [formData, setFormData] = useState({ id: "", role: "", studentType: "current", fullName: "", email: "", phone: "", password: "", program: "", });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState(""); // ✅ Confirm Password State
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState(1);
   const [msg, setMsg] = useState("");
@@ -45,6 +50,14 @@ function RegisterPage() {
   // STEP 1: Request OTP
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
+
+    // ✅ Password Match Validation
+    if (formData.password !== confirmPassword) {
+      setMsg("❌ Passwords do not match!");
+      setStatusType("error");
+      return;
+    }
+
     setMsg("Validating with University Records...");
     setStatusType("info");
 
@@ -143,12 +156,27 @@ function RegisterPage() {
               {formData.role === 'student' && (
                 <div className="input-group">
                   <label>Student Status</label>
-                  <div className="radio-group-container">
-                    <label className={`radio-option ${formData.studentType === 'current' ? 'active' : ''}`}>
-                      <input type="radio" name="studentType" value="current" checked={formData.studentType === 'current'} onChange={handleChange} /> Current Student
+                  {/* ✅ Styled Radio Group */}
+                  <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+                    <label style={{
+                      flex: 1, padding: '10px', borderRadius: '8px', cursor: 'pointer', textAlign: 'center', fontWeight: '500', transition: 'all 0.2s',
+                      border: formData.studentType === 'current' ? '2px solid #2563eb' : '1px solid #e2e8f0',
+                      backgroundColor: formData.studentType === 'current' ? '#eff6ff' : 'white',
+                      color: formData.studentType === 'current' ? '#2563eb' : '#64748b',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                    }}>
+                      <input type="radio" name="studentType" value="current" checked={formData.studentType === 'current'} onChange={handleChange} style={{ accentColor: '#2563eb' }} /> 
+                      Current Student
                     </label>
-                    <label className={`radio-option ${formData.studentType === 'alumni' ? 'active' : ''}`}>
-                      <input type="radio" name="studentType" value="alumni" checked={formData.studentType === 'alumni'} onChange={handleChange} /> Alumni
+                    <label style={{
+                      flex: 1, padding: '10px', borderRadius: '8px', cursor: 'pointer', textAlign: 'center', fontWeight: '500', transition: 'all 0.2s',
+                      border: formData.studentType === 'alumni' ? '2px solid #2563eb' : '1px solid #e2e8f0',
+                      backgroundColor: formData.studentType === 'alumni' ? '#eff6ff' : 'white',
+                      color: formData.studentType === 'alumni' ? '#2563eb' : '#64748b',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                    }}>
+                      <input type="radio" name="studentType" value="alumni" checked={formData.studentType === 'alumni'} onChange={handleChange} style={{ accentColor: '#2563eb' }} /> 
+                      Alumni
                     </label>
                   </div>
                 </div>
@@ -172,23 +200,53 @@ function RegisterPage() {
                 </div>
               </div>
 
+              <div className="input-group">
+                <label>Email</label>
+                <div className="input-wrapper">
+                  <span className="icon"><MailIcon /></span>
+                  <input name="email" type="email" placeholder="name@univ.com" value={formData.email} onChange={handleChange} required />
+                </div>
+              </div>
+
               <div className="two-col-row">
                 <div className="input-group">
-                  <label>Email</label>
-                  <div className="input-wrapper">
-                    <span className="icon"><MailIcon /></span>
-                    <input name="email" type="email" placeholder="name@univ.com" value={formData.email} onChange={handleChange} required />
-                  </div>
-                </div>
-
-                <div className="input-group">
                   <label>Password</label>
-                  <div className="input-wrapper">
+                  <div className="input-wrapper" style={{ position: 'relative' }}>
                     <span className="icon"><LockIcon /></span>
-                    <input name="password" type="password" placeholder="••••••••" value={formData.password} onChange={handleChange} required />
+                    <input name="password" type={showPassword ? "text" : "password"} placeholder="Create Password" value={formData.password} onChange={handleChange} style={{ paddingRight: '40px' }} required />
+                    <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center' }}
+                      >
+                        {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                    </button>
                   </div>
                 </div>
               </div>
+
+              {/* ✅ Confirm Password Field */}
+              <div className="input-group" style={{ marginBottom: '15px' }}>
+                <label>Confirm Password</label>
+                <div className="input-wrapper" style={{ position: 'relative' }}>
+                  <span className="icon"><LockIcon /></span>
+                  <input 
+                    type={showConfirmPassword ? "text" : "password"} 
+                    placeholder="Re-enter Password" 
+                    value={confirmPassword} 
+                    onChange={(e) => setConfirmPassword(e.target.value)} 
+                    style={{ paddingRight: '40px' }}
+                    required 
+                  />
+                  <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center' }}
+                    >
+                      {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                  </div>
+                </div>
 
               {formData.role === 'student' && (
                 <div className="input-group">

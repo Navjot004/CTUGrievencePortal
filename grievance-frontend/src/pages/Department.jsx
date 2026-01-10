@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import "../styles/Dashboard.css"; 
+import ctLogo from "../assets/ct-logo.png";
 
 // ✅ 1. DATA: Map Program -> School (Used for Dropdown)
 const academicPrograms = {
@@ -135,9 +136,17 @@ function Department() {
   return (
     <div className="dashboard-container">
       <header className="dashboard-header">
-        <div className="header-content">
-          <h1>Student Dashboard</h1>
-          <p>Welcome, {userId}</p>
+        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+          <img src={ctLogo} alt="CT University" style={{ height: "50px" }} />
+          <div className="header-content">
+            <h1>Student Dashboard</h1>
+            <p>
+              Welcome, <strong>{formData.name || userId}</strong>
+              {formData.studentProgram && <span className="status-badge status-assigned" style={{marginLeft: '10px', fontSize: '0.8rem'}}>
+                🎓 {formData.studentProgram}
+              </span>}
+            </p>
+          </div>
         </div>
         <button className="logout-btn-header" onClick={handleLogout}>Logout</button>
       </header>

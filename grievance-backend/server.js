@@ -301,7 +301,7 @@ app.get("/api/admin-staff/all", async (req, res) => {
     // 2. All admins (role = "admin")
     // 3. Exclude Master Admin (id = 10001)
     const staffList = await User.find({
-      id: { $ne: "10001" }, // Exclude master admin
+      id: { $ne: "10001" }, // Exclude Master Admin
       role: { $in: ["staff", "admin"] } // Include both staff and admin roles
     }).select("id fullName email isDeptAdmin adminDepartment role");
     
