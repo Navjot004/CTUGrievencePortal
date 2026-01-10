@@ -1,11 +1,13 @@
 const AdminStaffModel = require("../models/AdminStaffModel");
 const UserModel = require("../models/UserModel");
+const GrievanceModel = require("../models/GrievanceModel");
 
-// 1. Get All Staff (For Master Admin & Dept Admins to view list)
+/**
+ * 1️⃣ Get All Staff
+ * Used by Master Admin & Dept Admins
+ */
 exports.getAllStaff = async (req, res) => {
   try {
-    // Sirf 'staff' role wale users chahiye
-    // Ham 'AdminStaffModel' se data merge karke bhejenge taaki current status dikhe
     const users = await UserModel.find({ role: "staff" }).select("-password");
 
     const staffWithDetails = await Promise.all(
@@ -15,9 +17,7 @@ exports.getAllStaff = async (req, res) => {
           id: user.id,
           fullName: user.fullName,
           email: user.email,
-          department: user.department, // Original hiring department
-          
-          // Role details from AdminStaffModel
+          department: user.department,
           adminDepartment: adminRecord ? adminRecord.adminDepartment : "",
           isDeptAdmin: adminRecord ? adminRecord.isDeptAdmin : false,
         };
@@ -26,36 +26,41 @@ exports.getAllStaff = async (req, res) => {
 
     res.json(staffWithDetails);
   } catch (err) {
-    console.error(err);
+    console.error("Get All Staff Error:", err);
     res.status(500).json({ message: "Server Error" });
   }
 };
 
-// 2. Manage Role (Promote/Demote) - ✅ THE MAIN FIX IS HERE
+/**
+ * 2️⃣ Promote / Demote Staff
+ * FINAL, SAFE, PRODUCTION-READY
+ */
 exports.manageRole = async (req, res) => {
   const { requesterId, targetStaffId, action, department } = req.body;
 
   try {
-    // A. Validation: Check if Requester exists
-    // Master Admin (10001) is always allowed, even if not in DB explicitly yet
+    /* ================= AUTH CHECK ================= */
     let requester = null;
+
+    // Master Admin
     if (requesterId !== "10001") {
       requester = await AdminStaffModel.findOne({ id: requesterId });
-      // Agar requester Master nahi hai aur DeptAdmin bhi nahi hai, toh bhagao
       if (!requester || !requester.isDeptAdmin) {
-        return res.status(403).json({ message: "Access Denied: You cannot manage staff." });
+        return res
+          .status(403)
+          .json({ message: "Access Denied: You cannot manage staff." });
       }
     }
 
-    // B. Logic for Promotion/Demotion
+    /* ================= PROMOTE ================= */
     if (action === "promote") {
-      // Find or Create the staff record in AdminStaffModel
       let staffRecord = await AdminStaffModel.findOne({ id: targetStaffId });
-      
+
       if (!staffRecord) {
-        // Fetch name from User Model for reference
         const userDetails = await UserModel.findOne({ id: targetStaffId });
-        if (!userDetails) return res.status(404).json({ message: "User not found" });
+        if (!userDetails) {
+          return res.status(404).json({ message: "User not found" });
+        }
 
         staffRecord = new AdminStaffModel({
           id: targetStaffId,
@@ -63,77 +68,103 @@ exports.manageRole = async (req, res) => {
         });
       }
 
-      // --- 🛑 HIERARCHY LOGIC FIX 🛑 ---
-      
-      // 1. Assign the Department
       staffRecord.adminDepartment = department;
 
-      // 2. Decide Power Level
       if (requesterId === "10001") {
-        // CASE A: Master Admin kar raha hai -> To "BOSS" banao
-        staffRecord.isDeptAdmin = true;
+        staffRecord.isDeptAdmin = true; // Boss
       } else {
-        // CASE B: Dept Admin (Priya) kar rahi hai -> To sirf "TEAM MEMBER" banao
-        staffRecord.isDeptAdmin = false;
-        
-        // Security Check: Priya can only add to HER OWN department
         if (requester.adminDepartment !== department) {
-            return res.status(403).json({ message: "You can only assign staff to your own department." });
+          return res.status(403).json({
+            message: "You can only assign staff to your own department.",
+          });
         }
+        staffRecord.isDeptAdmin = false; // Team member
       }
 
       await staffRecord.save();
-      return res.json({ message: `Success: ${staffRecord.fullName} assigned to ${department}.` });
 
-    } else if (action === "demote") {
-      // Remove Admin Privileges
-      const staffRecord = await AdminStaffModel.findOne({ id: targetStaffId });
-      if (staffRecord) {
-        // Agar Master Admin remove kar raha hai, toh poora hata do
-        // Agar Dept Admin remove kar raha hai, toh bas team se hata do
-        staffRecord.isDeptAdmin = false;
-        staffRecord.adminDepartment = ""; 
-        await staffRecord.save();
-      }
-      return res.json({ message: "Staff removed from role." });
+      return res.json({
+        message: `Success: ${staffRecord.fullName} assigned to ${department}.`,
+      });
     }
 
-    res.status(400).json({ message: "Invalid action" });
+    /* ================= DEMOTE (🔥 FINAL FIX) ================= */
+    if (action === "demote") {
+      // 1️⃣ Find staff
+      const staffRecord = await AdminStaffModel.findOne({ id: targetStaffId });
 
+      // 2️⃣ Remove from department/admin
+      if (staffRecord) {
+        staffRecord.isDeptAdmin = false;
+        staffRecord.adminDepartment = "";
+        await staffRecord.save();
+      }
+
+      // 3️⃣ 🔥 FORCE RESET ALL ASSIGNED GRIEVANCES
+      const result = await GrievanceModel.updateMany(
+        {
+          $or: [
+            { assignedTo: targetStaffId },
+            { assignedTo: String(targetStaffId) },
+            { assignedTo: staffRecord?.fullName },
+          ],
+        },
+        {
+          $set: {
+            status: "Pending",
+            assignedTo: null,
+          },
+        }
+      );
+
+      console.log("Grievances reset:", result.modifiedCount);
+
+      return res.json({
+        message: `Staff removed. ${result.modifiedCount} grievances moved to Pending.`,
+      });
+    }
+
+    return res.status(400).json({ message: "Invalid action" });
   } catch (err) {
     console.error("Manage Role Error:", err);
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: "Server Error" });
   }
 };
 
-// 3. Check Admin Status (Used by Login Page & Protected Routes)
+/**
+ * 3️⃣ Check Admin Status
+ */
 exports.checkAdminStatus = async (req, res) => {
   const { id } = req.params;
+
   try {
+    // Master Admin
     if (id === "10001") {
-      return res.json({ 
-        isAdmin: true, 
-        isDeptAdmin: true, // Master is basically Super Admin
+      return res.json({
+        isAdmin: true,
+        isDeptAdmin: true,
         departments: ["All"],
-        adminDepartment: "All" 
+        adminDepartment: "All",
       });
     }
 
     const admin = await AdminStaffModel.findOne({ id });
     if (admin && admin.adminDepartment) {
-      // Return details
-      return res.json({ 
-        isAdmin: true, 
-        isDeptAdmin: admin.isDeptAdmin, // True for Priya, False for Rajesh
+      return res.json({
+        isAdmin: true,
+        isDeptAdmin: admin.isDeptAdmin,
         departments: [admin.adminDepartment],
-        adminDepartment: admin.adminDepartment
+        adminDepartment: admin.adminDepartment,
       });
     }
 
-    // Not an admin
-    res.json({ isAdmin: false, isDeptAdmin: false, departments: [] });
-
+    return res.json({
+      isAdmin: false,
+      isDeptAdmin: false,
+      departments: [],
+    });
   } catch (err) {
+    console.error("Check Admin Status Error:", err);
     res.status(500).json({ message: "Server Error" });
   }
 };
