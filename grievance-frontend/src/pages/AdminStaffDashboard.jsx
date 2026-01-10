@@ -19,10 +19,10 @@ const formatDate = (dateString) => {
 function AdminStaffDashboard() {
   const navigate = useNavigate();
   
-  // ✅ Get Details from LocalStorage
+  // ✅ Get Details from LocalStorage (Faster & Error Free)
   const role = localStorage.getItem("grievance_role")?.toLowerCase();
   const staffId = localStorage.getItem("grievance_id")?.toUpperCase();
-  const myDepartment = localStorage.getItem("admin_department"); 
+  const myDepartment = localStorage.getItem("admin_department"); // From Login Response
   const isDeptAdmin = localStorage.getItem("is_dept_admin") === "true";
 
   const [staffName, setStaffName] = useState("");
@@ -30,10 +30,6 @@ function AdminStaffDashboard() {
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState("");
   const [statusType, setStatusType] = useState("");
-
-  // ✅ SEARCH STATES (New)
-  const [searchId, setSearchId] = useState("");
-  const [searchMessage, setSearchMessage] = useState("");
 
   // --- CHAT STATE ---
   const [showChat, setShowChat] = useState(false);
@@ -50,14 +46,22 @@ function AdminStaffDashboard() {
 
   // 1. Authorization Check
   useEffect(() => {
+    // Must be Staff
     if (!role || role !== "staff") {
       navigate("/");
       return;
     }
+    
+    // Must belong to a department (Rajesh has dept, General Staff does not)
     if (!myDepartment) {
+        // Redirect General Staff back to General Dashboard
         navigate("/staff/general");
         return;
     }
+
+    // Optional: If Boss tries to access Worker View, redirect them to Boss View?
+    // For now, we allow Boss to see this view if they really want, but usually App.js handles it.
+
   }, [role, myDepartment, navigate]);
 
   // 2. Fetch User Name
@@ -82,7 +86,10 @@ function AdminStaffDashboard() {
       setLoading(true);
       setMsg("");
       try {
-        const res = await fetch(`http://localhost:5000/api/grievances/assigned/${staffId}`);
+        // ✅ Fetches grievances specifically assigned to THIS staff ID
+        const res = await fetch(
+          `http://localhost:5000/api/grievances/assigned/${staffId}`
+        );
         const data = await res.json();
         
         if (!res.ok) throw new Error(data.message || "Failed to fetch data");
@@ -118,16 +125,21 @@ function AdminStaffDashboard() {
           const res = await fetch(`http://localhost:5000/api/chat/${g._id}`);
           if (res.ok) {
             const msgs = await res.json();
+            
             if (msgs.length > 0) {
               const lastMsg = msgs[msgs.length - 1];
+              
+              // If sender is NOT staff, then it's student -> UNREAD
               const isStudentSender = (lastMsg.senderRole !== "staff" && lastMsg.senderId !== staffId);
 
+              // A. Red Dot Logic
               if (showChat && currentChatId === g._id) {
                  newUnreadMap[g._id] = false;
               } else {
                  newUnreadMap[g._id] = isStudentSender;
               }
 
+              // B. Toast Logic
               if (lastMessageRef.current[g._id] !== lastMsg._id) {
                 if (!isFirstPoll.current && isStudentSender) {
                    newToastMsg = `New message from ${g.name}`;
@@ -142,12 +154,17 @@ function AdminStaffDashboard() {
       }));
 
       setUnreadMap(newUnreadMap);
-      if (newToastMsg) showToastNotification(newToastMsg);
+      
+      if (newToastMsg) {
+        showToastNotification(newToastMsg);
+      }
+
       isFirstPoll.current = false;
     };
 
     const intervalId = setInterval(pollMessages, 5000);
-    pollMessages(); 
+    pollMessages(); // Run once immediately
+
     return () => clearInterval(intervalId);
   }, [grievances, staffId, showChat, currentChatId]); 
 
@@ -156,9 +173,11 @@ function AdminStaffDashboard() {
     setTimeout(() => setToast({ show: false, message: "" }), 3000);
   };
 
+  // --- CHAT FUNCTIONS ---
   const openChat = (grievanceId) => {
     setCurrentChatId(grievanceId);
     setShowChat(true);
+    // Remove red dot immediately
     setUnreadMap(prev => ({ ...prev, [grievanceId]: false }));
   };
 
@@ -200,49 +219,13 @@ function AdminStaffDashboard() {
     navigate("/");
   };
 
-  // ✅ FILTER LOGIC
-  const filteredGrievances = grievances.filter((g) => {
-    const matchId = (g.regid || "").toLowerCase().includes(searchId.toLowerCase());
-    const matchMsg = (g.message || "").toLowerCase().includes(searchMessage.toLowerCase());
-    return matchId && matchMsg;
-  });
-
-  // ✅ INLINE STYLES FOR SEARCH BAR
-  const styles = {
-    filterBar: {
-      display: "flex",
-      gap: "15px",
-      marginBottom: "20px",
-      flexWrap: "wrap",
-    },
-    inputWrapper: {
-      position: "relative",
-      flex: "1",
-      minWidth: "250px",
-    },
-    icon: {
-      position: "absolute",
-      left: "12px",
-      top: "50%",
-      transform: "translateY(-50%)",
-      fontSize: "16px",
-      color: "#888",
-    },
-    input: {
-      width: "100%",
-      padding: "12px 12px 12px 40px", // space for icon
-      border: "1px solid #d0d5dd",
-      borderRadius: "8px",
-      fontSize: "14px",
-      outline: "none",
-    }
-  };
-
   return (
     <div className="dashboard-container">
+      {/* Toast Notification */}
       {toast.show && (
         <div className="toast-notification">
-          <span>🔔</span> {toast.message}
+          <span>🔔</span>
+          {toast.message}
         </div>
       )}
 
@@ -251,17 +234,22 @@ function AdminStaffDashboard() {
           <h1>Admin Staff Dashboard</h1>
           <p>
             Welcome, {staffName || staffId} 
+            {/* ✅ Badge for Team Member */}
             <span className="status-badge status-assigned" style={{marginLeft: '10px', fontSize: '0.8rem'}}>
               🛡️ Team: {myDepartment}
             </span>
           </p>
         </div>
-        <button className="logout-btn-header" onClick={handleLogout}>Logout</button>
+        <button className="logout-btn-header" onClick={handleLogout}>
+          Logout
+        </button>
       </header>
 
       <nav className="navbar">
         <ul>
-          <li className="admin-nav-title"><span>My Assigned Tasks</span></li>
+          <li className="admin-nav-title">
+            <span>My Assigned Tasks</span>
+          </li>
         </ul>
       </nav>
 
@@ -272,41 +260,13 @@ function AdminStaffDashboard() {
             These grievances have been specifically assigned to you by your Department Admin.
           </p>
 
-          {/* ✅ NEW SEARCH BAR */}
-          <div style={styles.filterBar}>
-            {/* Student ID Search */}
-            <div style={styles.inputWrapper}>
-              <span style={styles.icon}>🔍</span>
-              <input 
-                type="text" 
-                placeholder="Search Student ID..." 
-                value={searchId}
-                onChange={(e) => setSearchId(e.target.value)}
-                style={styles.input}
-              />
-            </div>
-
-            {/* Message Content Search */}
-            <div style={styles.inputWrapper}>
-              <span style={styles.icon}>💬</span>
-              <input 
-                type="text" 
-                placeholder="Search Message Content..." 
-                value={searchMessage}
-                onChange={(e) => setSearchMessage(e.target.value)}
-                style={styles.input}
-              />
-            </div>
-          </div>
-          {/* ------------------- */}
-
           {msg && <div className={`alert-box ${statusType}`}>{msg}</div>}
 
           {loading ? (
             <p>Loading grievances...</p>
-          ) : filteredGrievances.length === 0 ? (
+          ) : grievances.length === 0 ? (
             <div className="empty-state">
-              <p>{grievances.length === 0 ? "No grievances currently assigned to you." : "No grievances found matching your search."}</p>
+              <p>No grievances found assigned to your ID.</p>
             </div>
           ) : (
             <div className="table-container">
@@ -323,48 +283,77 @@ function AdminStaffDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredGrievances.map((g) => (
+                  {grievances.map((g) => (
                     <tr key={g._id}>
                       <td>{g.name}</td>
                       <td>{g.email}</td>
                       <td>{g.regid || "-"}</td>
 
+                      {/* --- FIXED MESSAGE CELL (Max Width 150px + See More) --- */}
                       <td className="message-cell" style={{ maxWidth: '150px' }}>
-                        {g.message.length > 20 ? (
-                          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '5px' }}>
-                            <span style={{ wordBreak: 'break-all', lineHeight: '1.2' }}>
-                              {g.message.substring(0, 20)}...
-                            </span>
-                            <button 
-                              onClick={() => setSelectedGrievance(g)}
-                              style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', textDecoration: 'underline', padding: 0 }}
-                            >
-                              See more
-                            </button>
-                          </div>
-                        ) : (
-                          <span style={{ wordBreak: 'break-all' }}>{g.message}</span>
-                        )}
+                        {g.attachment && <span style={{ marginRight: "5px", fontSize: "1.1rem" }} title="Has Attachment">📎</span>}
+                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '5px' }}>
+                          <span style={{ wordBreak: 'break-all', lineHeight: '1.2' }}>
+                            {g.message.substring(0, 20)}{g.message.length > 20 ? "..." : ""}
+                          </span>
+                          <button 
+                            onClick={() => setSelectedGrievance(g)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#2563eb',
+                              cursor: 'pointer',
+                              fontSize: '0.75rem',
+                              fontWeight: '600',
+                              textDecoration: 'underline',
+                              padding: 0,
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            See more
+                          </button>
+                        </div>
                       </td>
+                      {/* ---------------------------------------------------- */}
 
                       <td>{formatDate(g.createdAt)}</td>
                       <td>
-                        <span className={`status-badge status-${g.status.toLowerCase().replace(" ", "")}`}>
+                        <span
+                          className={`status-badge status-${g.status
+                            .toLowerCase()
+                            .replace(" ", "")}`}
+                        >
                           {g.status}
                         </span>
                       </td>
                       <td>
                         <div className="action-buttons">
                           {g.status !== "Resolved" ? (
-                              <button className="action-btn resolve-btn" onClick={() => updateStatus(g._id, "Resolved")}>Mark Resolved</button>
+                              <button
+                              className="action-btn resolve-btn"
+                              onClick={() => updateStatus(g._id, "Resolved")}
+                              >
+                              Mark Resolved
+                              </button>
                           ) : (
                             <span className="done-btn">Resolved</span>
                           )}
 
+                          {/* Chat Button with Notification Wrapper */}
                           <div className="chat-btn-wrapper">
-                            <button className="action-btn" style={{ backgroundColor: "#2563eb", color: "white" }} onClick={() => openChat(g._id)}>Chat</button>
-                            {unreadMap[g._id] && <span className="notification-dot"></span>}
+                            <button 
+                                className="action-btn"
+                                style={{ backgroundColor: "#2563eb", color: "white" }} 
+                                onClick={() => openChat(g._id)}
+                            >
+                                Chat
+                            </button>
+                            {/* 🔴 RED DOT */}
+                            {unreadMap[g._id] && (
+                              <span className="notification-dot"></span>
+                            )}
                           </div>
+
                         </div>
                       </td>
                     </tr>
@@ -376,21 +365,47 @@ function AdminStaffDashboard() {
         </div>
       </main>
 
-      {/* --- DETAILS POPUP MODAL --- */}
+      {/* --- DETAILS POPUP MODAL (Fixed for Long Text) --- */}
       {selectedGrievance && (
         <div 
           onClick={() => setSelectedGrievance(null)}
-          style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000
+          }}
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            style={{ background: 'white', padding: '20px', borderRadius: '12px', width: '90%', maxWidth: '500px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}
+            style={{
+              background: 'white',
+              padding: '20px',
+              borderRadius: '12px',
+              width: '90%',
+              maxWidth: '500px',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+              position: 'relative'
+            }}
           >
+            {/* Modal Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '15px' }}>
               <h3 style={{ margin: 0 }}>Grievance Details</h3>
-              <button onClick={() => setSelectedGrievance(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>&times;</button>
+              <button 
+                onClick={() => setSelectedGrievance(null)}
+                style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}
+              >
+                &times;
+              </button>
             </div>
             
+            {/* Modal Body */}
             <div style={{ fontSize: '0.95rem', color: '#334155' }}>
               <p style={{ marginBottom: '8px' }}><strong>Student:</strong> {selectedGrievance.name} ({selectedGrievance.regid})</p>
               <p style={{ marginBottom: '8px' }}><strong>Email:</strong> {selectedGrievance.email}</p>
@@ -398,20 +413,61 @@ function AdminStaffDashboard() {
               
               <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '6px', margin: '15px 0', border: '1px solid #e2e8f0' }}>
                 <strong style={{ display: 'block', marginBottom: '5px', color: '#1e293b' }}>Full Message:</strong>
-                <p style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: '1.5', wordBreak: 'break-all', overflowWrap: 'anywhere' }}>{selectedGrievance.message}</p>
+                
+                {/* --- FIXED: Break-all added here --- */}
+                <p style={{ 
+                  margin: 0, 
+                  whiteSpace: 'pre-wrap', 
+                  lineHeight: '1.5',
+                  wordBreak: 'break-all',     
+                  overflowWrap: 'anywhere' 
+                }}>
+                  {selectedGrievance.message}
+                </p>
+                {/* ----------------------------------- */}
+
               </div>
+
+              {/* ✅ ATTACHMENT BUTTON */}
+              {selectedGrievance.attachment && (
+                <div style={{ marginTop: '15px' }}>
+                  <strong>Attachment: </strong>
+                  <a 
+                    href={`http://localhost:5000/api/file/${selectedGrievance.attachment}`} 
+                    target="_blank" rel="noopener noreferrer"
+                    style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: '600' }}
+                  >
+                    View Document 📎
+                  </a>
+                </div>
+              )}
 
               <p style={{ marginBottom: '8px' }}><strong>Status:</strong> {selectedGrievance.status}</p>
             </div>
 
+            {/* Modal Footer */}
             <div style={{ textAlign: 'right', marginTop: '15px' }}>
-              <button onClick={() => setSelectedGrievance(null)} style={{ padding: '8px 16px', backgroundColor: '#e2e8f0', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', color: '#475569' }}>Close</button>
+              <button 
+                onClick={() => setSelectedGrievance(null)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#e2e8f0',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  color: '#475569'
+                }}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
       )}
+      {/* --------------------------------------- */}
 
-      {/* ✅ Chat Popup */}
+      {/* ✅ Chat Popup (Using Reusable Component) */}
       <ChatPopup 
         isOpen={showChat} 
         onClose={closeChat} 

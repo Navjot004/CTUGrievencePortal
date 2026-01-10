@@ -38,7 +38,7 @@ const grievanceSchema = new mongoose.Schema(
 
     // ================= CONTENT =================
     message: { type: String, required: true },
-    attachment: { type: String, default: null },
+    attachment: { type: String, default: "" },
 
     // ================= ASSIGNMENT FLOW =================
     assignedTo: { type: String, default: null },

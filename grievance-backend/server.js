@@ -22,6 +22,7 @@ import grievanceRoutes from "./routes/grievanceRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import authRoutes from "./routes/authRoutes.js"; 
 import UniversityRecord from "./models/UniversityRecord.js"; // Validation Model
+import Grievance from "./models/GrievanceModel.js"; // ✅ Import Grievance Model
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -269,7 +270,18 @@ app.post("/api/admin-staff/role", async (req, res) => {
       targetMember.adminDepartment = "";
       targetMember.role = "staff"; // 🔥 Change role back to staff
       await targetMember.save();
-      res.json({ message: `✅ ${targetMember.fullName} removed from department role.` });
+
+      // 🔥 RESET ASSIGNED GRIEVANCES TO PENDING
+      const updateResult = await Grievance.updateMany(
+        { assignedTo: safeTargetId },
+        { 
+          $set: { status: "Pending", assignedTo: null, assignedRole: null, assignedBy: null } 
+        }
+      );
+
+      console.log(`🔄 Reset ${updateResult.modifiedCount} grievances for demoted staff ${safeTargetId}`);
+
+      res.json({ message: `✅ ${targetMember.fullName} removed from department role. ${updateResult.modifiedCount} grievances reset to Pending.` });
     } else {
       res.status(400).json({ message: "Invalid action" });
     }
@@ -489,9 +501,13 @@ app.get("/api/auth/user/:id", async (req, res) => {
 // ------------------ 8️⃣ FILE UPLOAD (Manual Stream) ------------------
 
 app.post("/api/upload", upload.single("file"), (req, res) => {
-  if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+  if (!req.file) {
+    console.error("❌ [UPLOAD] No file found in request body");
+    return res.status(400).json({ message: "No file uploaded" });
+  }
 
   const filename = `${Date.now()}-${req.file.originalname}`;
+
   const readableStream = new Readable();
   readableStream.push(req.file.buffer);
   readableStream.push(null);
@@ -499,7 +515,11 @@ app.post("/api/upload", upload.single("file"), (req, res) => {
   const uploadStream = gridfsBucket.openUploadStream(filename, { contentType: req.file.mimetype });
   readableStream.pipe(uploadStream);
 
-  uploadStream.on("error", (err) => res.status(500).json({ message: "Error uploading file" }));
+  uploadStream.on("error", (err) => {
+    console.error("❌ [UPLOAD] Stream Error:", err);
+    res.status(500).json({ message: "Error uploading file" });
+  });
+
   uploadStream.on("finish", () => {
     res.json({
       filename: filename,
@@ -512,12 +532,16 @@ app.post("/api/upload", upload.single("file"), (req, res) => {
 
 app.get("/api/file/:filename", async (req, res) => {
   try {
-    const file = await gfs.files.findOne({ filename: req.params.filename });
-    if (!file) return res.status(404).json({ err: "No file found" });
+    // 🔥 FIX: Use gridfsBucket (Native) instead of gfs (gridfs-stream) for reliability
+    const files = await gridfsBucket.find({ filename: req.params.filename }).toArray();
+    if (!files || files.length === 0) return res.status(404).json({ err: "No file found" });
+    
+    const file = files[0];
     res.set("Content-Type", file.contentType);
     const readstream = gridfsBucket.openDownloadStreamByName(file.filename);
     readstream.pipe(res);
   } catch (err) {
+    console.error("File download error:", err);
     res.status(500).json({ err: "Server Error" });
   }
 });

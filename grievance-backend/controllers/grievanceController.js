@@ -6,8 +6,6 @@ import Grievance from "../models/GrievanceModel.js";
 ===================================================== */
 export const submitGrievance = async (req, res) => {
   try {
-    const attachment = req.file ? req.file.path : null;
-
     const {
       userId,
       name,
@@ -17,6 +15,7 @@ export const submitGrievance = async (req, res) => {
       studentProgram,   // ✅ required
       category,         // ✅ ONLY routing key
       message,
+      attachment,       // ✅ Extract attachment from JSON body
     } = req.body;
 
     // 🔒 Safety validation
@@ -37,7 +36,7 @@ export const submitGrievance = async (req, res) => {
       category,
       message,
 
-      attachment,
+      attachment: attachment || "", // ✅ Save the filename string
 
       assignedTo: null,
       assignedRole: null,
@@ -226,4 +225,3 @@ export const getGrievanceDetail = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch grievance details" });
   }
 };
-

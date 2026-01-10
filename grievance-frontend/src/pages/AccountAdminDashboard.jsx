@@ -53,7 +53,7 @@ function AccountAdminDashboard() {
   const updateStatus = async (id, newStatus) => {
     setMsg("Updating...");
     try {
-      const res = await fetch(`http://localhost:5000/api/grievances/${id}`, {
+      const res = await fetch(`http://localhost:5000/api/grievances/update/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus, resolvedBy: userId }),
@@ -65,6 +65,16 @@ function AccountAdminDashboard() {
     } catch (err) {
       setMsg(err.message);
       setStatusType("error");
+    }
+  };
+
+  const confirmResolve = (g) => {
+    const confirmMsg = g.assignedTo 
+      ? `⚠️ Professional Action Required\n\nThis grievance is currently assigned to Staff ID: ${g.assignedTo}.\n\nMarking it as 'Resolved' will close the ticket and override the active assignment.\n\nAre you sure you want to proceed?`
+      : "Are you sure you want to mark this grievance as Resolved?";
+
+    if (window.confirm(confirmMsg)) {
+      updateStatus(g._id, "Resolved");
     }
   };
 
@@ -100,17 +110,39 @@ function AccountAdminDashboard() {
                 {grievances.map((g) => (
                   <tr key={g._id}>
                     <td>{g.name}</td>
-                    <td className="message-cell" onClick={() => setSelectedGrievance(g)} style={{cursor:'pointer', textDecoration:'underline'}}>{g.message.substring(0, 30)}...</td>
+                    <td className="message-cell" style={{ maxWidth: '200px' }}>
+                      {g.attachment && <span style={{ marginRight: "5px", fontSize: "1.1rem" }} title="Has Attachment">📎</span>}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                        <span style={{ wordBreak: 'break-word', lineHeight: '1.3' }}>
+                          {g.message.substring(0, 30)}{g.message.length > 30 ? "..." : ""}
+                        </span>
+                        <button 
+                          onClick={() => setSelectedGrievance(g)}
+                          style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', textDecoration: 'underline', padding: 0 }}
+                        >
+                          See more
+                        </button>
+                      </div>
+                    </td>
                     <td><span className={`status-badge status-${g.status.toLowerCase()}`}>{g.status}</span></td>
                     <td>
                        <div className="action-buttons">
-                         {g.status !== "Resolved" && (
-                           <>
-                             <button className="action-btn assign-btn" onClick={() => openAssignPopup(g._id)}>Assign</button>
-                             <button className="action-btn resolve-btn" onClick={() => updateStatus(g._id, "Resolved")}>Resolve</button>
-                           </>
-                         )}
-
+                         <button 
+                           className="action-btn assign-btn" 
+                           onClick={() => openAssignPopup(g._id)}
+                           disabled={g.status === "Resolved" || g.assignedTo}
+                           style={{ opacity: (g.status === "Resolved" || g.assignedTo) ? 0.5 : 1, cursor: (g.status === "Resolved" || g.assignedTo) ? "not-allowed" : "pointer" }}
+                         >
+                           Assign
+                         </button>
+                         <button 
+                           className="action-btn resolve-btn" 
+                           onClick={() => confirmResolve(g)}
+                           disabled={g.status === "Resolved"}
+                           style={{ opacity: g.status === "Resolved" ? 0.5 : 1, cursor: g.status === "Resolved" ? "not-allowed" : "pointer", marginLeft: "5px" }}
+                         >
+                           Resolve
+                         </button>
                        </div>
                     </td>
                   </tr>
@@ -123,12 +155,66 @@ function AccountAdminDashboard() {
 
       {/* Popups */}
       {selectedGrievance && (
-        <div className="chat-modal-overlay" onClick={() => setSelectedGrievance(null)}>
-           <div className="chat-modal" style={{height:'auto', padding:'20px'}}>
-              <h3>Details</h3>
-              <p>{selectedGrievance.message}</p>
-              <button className="close-btn" onClick={() => setSelectedGrievance(null)}>Close</button>
-           </div>
+        <div 
+          onClick={() => setSelectedGrievance(null)}
+          style={{
+            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'white', padding: '25px', borderRadius: '12px', width: '90%', maxWidth: '500px',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.2)', position: 'relative', display: 'flex', flexDirection: 'column', maxHeight: '85vh'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '15px', marginBottom: '15px' }}>
+              <h3 style={{ margin: 0, color: '#1e293b', fontSize: '1.25rem' }}>Grievance Details</h3>
+              <button onClick={() => setSelectedGrievance(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>&times;</button>
+            </div>
+            
+            <div style={{ overflowY: 'auto', paddingRight: '5px' }}>
+              <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Student:</strong> {selectedGrievance.name} <span style={{color:'#94a3b8'}}>({selectedGrievance.userId || selectedGrievance.regid || 'N/A'})</span></p>
+              <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
+              <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Status:</strong> <span className={`status-badge status-${selectedGrievance.status.toLowerCase()}`}>{selectedGrievance.status}</span></p>
+              
+              <div style={{ backgroundColor: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '10px' }}>
+                <strong style={{ display: 'block', marginBottom: '8px', color: '#334155' }}>Full Message:</strong>
+                <p style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: '1.6', color: '#1e293b', wordBreak: 'break-word' }}>
+                  {selectedGrievance.message}
+                </p>
+              </div>
+
+              {/* ✅ ATTACHMENT BUTTON */}
+              {selectedGrievance.attachment && (
+                <div style={{ marginTop: '15px' }}>
+                  <strong>Attachment: </strong>
+                  <a 
+                    href={`http://localhost:5000/api/file/${selectedGrievance.attachment}`} 
+                    target="_blank" rel="noopener noreferrer"
+                    style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: '600' }}
+                  >
+                    View Document 📎
+                  </a>
+                </div>
+              )}
+            </div>
+
+            <div style={{ textAlign: 'right', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #eee' }}>
+              <button 
+                onClick={() => setSelectedGrievance(null)}
+                style={{
+                  padding: '10px 20px', backgroundColor: '#e2e8f0', border: 'none', borderRadius: '6px',
+                  cursor: 'pointer', fontWeight: '600', color: '#475569', transition: 'background 0.2s'
+                }}
+                onMouseOver={(e) => e.target.style.backgroundColor = '#cbd5e1'}
+                onMouseOut={(e) => e.target.style.backgroundColor = '#e2e8f0'}
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
       

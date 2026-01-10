@@ -243,31 +243,28 @@ function StudentDashboard() {
 
                       {/* --- FIXED MESSAGE CELL (Max Width 150px) --- */}
                       <td className="message-cell" style={{ maxWidth: '150px' }}>
-                        {g.message.length > 20 ? (
-                          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '5px' }}>
-                            <span style={{ wordBreak: 'break-all', lineHeight: '1.2' }}>
-                              {g.message.substring(0, 20)}...
-                            </span>
-                            <button 
-                              onClick={() => setSelectedGrievance(g)}
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                color: '#2563eb',
-                                cursor: 'pointer',
-                                fontSize: '0.75rem',
-                                fontWeight: '600',
-                                textDecoration: 'underline',
-                                padding: 0,
-                                whiteSpace: 'nowrap'
-                              }}
-                            >
-                              See more
-                            </button>
-                          </div>
-                        ) : (
-                          <span style={{ wordBreak: 'break-all' }}>{g.message}</span>
-                        )}
+                        {g.attachment && <span style={{ marginRight: "5px", fontSize: "1.1rem" }} title="Has Attachment">📎</span>}
+                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '5px' }}>
+                          <span style={{ wordBreak: 'break-all', lineHeight: '1.2' }}>
+                            {g.message.substring(0, 20)}{g.message.length > 20 ? "..." : ""}
+                          </span>
+                          <button 
+                            onClick={() => setSelectedGrievance(g)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#2563eb',
+                              cursor: 'pointer',
+                              fontSize: '0.75rem',
+                              fontWeight: '600',
+                              textDecoration: 'underline',
+                              padding: 0,
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            See more
+                          </button>
+                        </div>
                       </td>
                       {/* ------------------------------------------- */}
 
@@ -307,23 +304,54 @@ function StudentDashboard() {
               <div 
                 onClick={(e) => e.stopPropagation()}
                 style={{
-                  background: 'white', padding: '20px', borderRadius: '12px',
-                  width: '90%', maxWidth: '500px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                  position: 'relative'
+                  background: 'white', padding: '25px', borderRadius: '12px', width: '90%', maxWidth: '500px',
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.2)', position: 'relative', display: 'flex', flexDirection: 'column', maxHeight: '85vh'
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
-                  <h3 style={{ margin: 0 }}>Grievance Details</h3>
-                  <button onClick={() => setSelectedGrievance(null)} style={{ border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>&times;</button>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '15px', marginBottom: '15px' }}>
+                  <h3 style={{ margin: 0, color: '#1e293b', fontSize: '1.25rem' }}>Grievance Details</h3>
+                  <button onClick={() => setSelectedGrievance(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>&times;</button>
                 </div>
                 
-                <p><strong>Message:</strong></p>
-                <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '6px', wordBreak: 'break-all' }}>
-                   {selectedGrievance.message}
+                <div style={{ overflowY: 'auto', paddingRight: '5px' }}>
+                  <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Category:</strong> {selectedGrievance.category || selectedGrievance.school || "General"}</p>
+                  <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
+                  <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Status:</strong> <span className={`status-badge status-${selectedGrievance.status.toLowerCase()}`}>{selectedGrievance.status}</span></p>
+                  
+                  <div style={{ backgroundColor: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '10px' }}>
+                    <strong style={{ display: 'block', marginBottom: '8px', color: '#334155' }}>Full Message:</strong>
+                    <p style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: '1.6', color: '#1e293b', wordBreak: 'break-word' }}>
+                      {selectedGrievance.message}
+                    </p>
+                  </div>
+
+                  {/* ✅ ATTACHMENT BUTTON */}
+                  {selectedGrievance.attachment && (
+                    <div style={{ marginTop: '15px' }}>
+                      <strong>Attachment: </strong>
+                      <a 
+                        href={`http://localhost:5000/api/file/${selectedGrievance.attachment}`} 
+                        target="_blank" rel="noopener noreferrer"
+                        style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: '600' }}
+                      >
+                        View Document 📎
+                      </a>
+                    </div>
+                  )}
                 </div>
                 
-                <div style={{ textAlign: 'right', marginTop: '15px' }}>
-                  <button onClick={() => setSelectedGrievance(null)} style={{ padding: '8px 16px', background: '#e2e8f0', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Close</button>
+                <div style={{ textAlign: 'right', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #eee' }}>
+                  <button 
+                    onClick={() => setSelectedGrievance(null)}
+                    style={{
+                      padding: '10px 20px', backgroundColor: '#e2e8f0', border: 'none', borderRadius: '6px',
+                      cursor: 'pointer', fontWeight: '600', color: '#475569', transition: 'background 0.2s'
+                    }}
+                    onMouseOver={(e) => e.target.style.backgroundColor = '#cbd5e1'}
+                    onMouseOut={(e) => e.target.style.backgroundColor = '#e2e8f0'}
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
             </div>

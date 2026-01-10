@@ -67,24 +67,40 @@ function StudentSection() {
     setMsg("Submitting...");
     setStatusType("info");
 
-    const data = new FormData();
-    data.append("userId", userId);
-    data.append("name", formData.name);
-    data.append("regid", formData.regid);
-    data.append("email", formData.email);
-    data.append("phone", formData.phone);
+    // 1️⃣ Upload File to MongoDB (GridFS) First
+    let attachmentUrl = "";
+    if (attachment) {
+      const fileData = new FormData();
+      fileData.append("file", attachment);
+      try {
+        const uploadRes = await fetch("http://localhost:5000/api/upload", { method: "POST", body: fileData });
+        if (!uploadRes.ok) throw new Error("File upload failed");
+        const uploadJson = await uploadRes.json();
+        attachmentUrl = uploadJson.filename;
+      } catch (err) {
+        setMsg(`❌ Upload Error: ${err.message}`); setStatusType("error"); return;
+      }
+    }
 
-    data.append("studentProgram", formData.school);
-    data.append("school", categoryTitle);
-    data.append("category", categoryTitle);
-
-    data.append("message", `${formData.issueType} - ${formData.message}`);
-    if (attachment) data.append("attachment", attachment);
+    // 2️⃣ Submit Grievance as JSON
+    const payload = {
+      userId,
+      name: formData.name,
+      regid: formData.regid,
+      email: formData.email,
+      phone: formData.phone,
+      studentProgram: formData.school,
+      school: categoryTitle,
+      category: categoryTitle,
+      message: `${formData.issueType} - ${formData.message}`,
+      attachment: attachmentUrl || ""
+    };
 
     try {
       const res = await fetch("http://localhost:5000/api/grievances/submit", {
         method: "POST",
-        body: data,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
       const responseData = await res.json();
       if (!res.ok) throw new Error(responseData.message || "Submit failed");

@@ -1,5 +1,4 @@
 import express from "express";
-import multer from "multer";
 import {
   submitGrievance,
   getAllGrievances,
@@ -13,18 +12,9 @@ import {
 
 const router = express.Router();
 
-/* ================= MULTER ================= */
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/"),
-  filename: (req, file, cb) =>
-    cb(null, `${Date.now()}-${file.originalname}`),
-});
-
-const upload = multer({ storage });
-
 /* ================= STUDENT ================= */
 // ✅ Student submits grievance (CATEGORY based)
-router.post("/submit", upload.single("attachment"), submitGrievance);
+router.post("/submit", submitGrievance);
 
 // ✅ Student grievance history
 router.get("/user/:userId", getUserGrievances);

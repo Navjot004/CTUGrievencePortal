@@ -72,26 +72,42 @@ const handleSubmit = async (e) => {
   setMsg("Submitting grievance...");
   setStatusType("info");
 
-  const payload = new FormData();
-  payload.append("userId", userId);
-  payload.append("name", formData.name);
-  payload.append("regid", formData.regid);
-  payload.append("email", formData.email);
-  payload.append("phone", formData.phone);
+  // 1️⃣ Upload File to MongoDB (GridFS) First
+  let attachmentUrl = "";
+  if (attachment) {
+    const fileData = new FormData();
+    fileData.append("file", attachment);
+    try {
+      const uploadRes = await fetch("http://localhost:5000/api/upload", { method: "POST", body: fileData });
+      if (!uploadRes.ok) throw new Error("File upload failed");
+      const uploadJson = await uploadRes.json();
+      attachmentUrl = uploadJson.filename;
+    } catch (err) {
+      console.error("❌ [FRONTEND] Upload Error:", err);
+      setMsg(`❌ Upload Error: ${err.message}`); setStatusType("error"); return;
+    }
+  }
 
-  // ✅ BACKEND FINAL FIELDS
-  payload.append("studentProgram", formData.program); // B.Sc Animation
-  payload.append("category", "Student Welfare");
-
-  payload.append("message", formData.message);
-  if (attachment) payload.append("attachment", attachment);
+  // 2️⃣ Submit Grievance as JSON (Fix for Backend)
+  const payload = {
+    userId,
+    name: formData.name,
+    regid: formData.regid,
+    email: formData.email,
+    phone: formData.phone,
+    studentProgram: formData.program,
+    category: "Student Welfare",
+    message: formData.message,
+    attachment: attachmentUrl || "" // Send filename string
+  };
 
   try {
     const res = await fetch(
       "http://localhost:5000/api/grievances/submit",
       {
         method: "POST",
-        body: payload,
+        headers: { "Content-Type": "application/json" }, // ✅ Important
+        body: JSON.stringify(payload),
       }
     );
 

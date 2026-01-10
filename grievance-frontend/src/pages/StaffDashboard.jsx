@@ -15,6 +15,17 @@ const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString("en-US", options);
 };
 
+const schools = [
+  "School of Engineering and Technology",
+  "School of Management Studies",
+  "School of Law",
+  "School of Pharmaceutical Sciences",
+  "School of Hotel Management",
+  "School of Design and innovation",
+  "School of Allied Health Sciences",
+  "School of Social Sciences and Liberal Arts"
+];
+
 function StaffDashboard() {
   const navigate = useNavigate();
   const role = localStorage.getItem("grievance_role");
@@ -22,7 +33,6 @@ function StaffDashboard() {
 
   // UI State
   const [activeTab, setActiveTab] = useState("submit"); // "submit" | "mine"
-  const [selectedCategory, setSelectedCategory] = useState("general");
 
   // Staff Info
   const [staffName, setStaffName] = useState("");
@@ -34,10 +44,11 @@ function StaffDashboard() {
     name: "",
     staffId: userId || "",
     email: "",
-    department: "",
+    department: "", // Stores selected School
     message: "",
   });
 
+  const [attachment, setAttachment] = useState(null); // ✅ Added Attachment State
   const [msg, setMsg] = useState("");
   const [statusType, setStatusType] = useState("");
   const [errors, setErrors] = useState({});
@@ -130,6 +141,10 @@ function StaffDashboard() {
     validateField(name, value);
   };
 
+  const handleFileChange = (e) => {
+    setAttachment(e.target.files[0]);
+  };
+
   const validateForm = () => {
     const newErrors = {};
     Object.keys(formData).forEach((key) => {
@@ -158,11 +173,20 @@ function StaffDashboard() {
     setMsg("Submitting your grievance...");
     setStatusType("info");
 
-    let categoryLabel = "";
-    if (selectedCategory === "general") categoryLabel = "General";
-    if (selectedCategory === "administration") categoryLabel = "Administration";
-    if (selectedCategory === "finance") categoryLabel = "Finance";
-    if (selectedCategory === "facilities") categoryLabel = "Facilities";
+    // 1️⃣ Upload File to MongoDB (GridFS) First
+    let attachmentUrl = "";
+    if (attachment) {
+      const fileData = new FormData();
+      fileData.append("file", attachment);
+      try {
+        const uploadRes = await fetch("http://localhost:5000/api/upload", { method: "POST", body: fileData });
+        if (!uploadRes.ok) throw new Error("File upload failed");
+        const uploadJson = await uploadRes.json();
+        attachmentUrl = uploadJson.filename;
+      } catch (err) {
+        setMsg(`❌ Upload Error: ${err.message}`); setStatusType("error"); return;
+      }
+    }
 
     try {
       const res = await fetch("http://localhost:5000/api/grievances/submit", {
@@ -174,9 +198,11 @@ function StaffDashboard() {
           email: formData.email,
           phone: "", 
           regid: formData.staffId,
-          school: formData.department || "Staff Department",
-          category: categoryLabel || "General",
+          school: formData.department, // Selected School
+          category: formData.department, // Routes to School Admin
           message: formData.message,
+          studentProgram: "Staff Member", // Required by backend
+          attachment: attachmentUrl || "" // ✅ Send filename
         }),
       });
 
@@ -191,6 +217,8 @@ function StaffDashboard() {
         message: "",
       }));
       setErrors({});
+      setAttachment(null);
+      if(document.getElementById("staffFileInput")) document.getElementById("staffFileInput").value = "";
 
       fetchMyGrievances();
     } catch (err) {
@@ -226,14 +254,6 @@ function StaffDashboard() {
       setMsg(`Error: ${err.message}`);
       setStatusType("error");
     }
-  };
-
-  const prettyCategoryTitle = (key) => {
-    if (key === "general") return "General";
-    if (key === "administration") return "Administration";
-    if (key === "finance") return "Finance";
-    if (key === "facilities") return "Facilities";
-    return key;
   };
 
   // ✅ Navbar Button Styles (For proper tabs)
@@ -295,31 +315,13 @@ function StaffDashboard() {
           {activeTab === "submit" && (
             <>
               <h2>Submit Staff Grievance</h2>
-              <p>Select a category and describe your issue. It will be routed to the appropriate department.</p>
-
-              <div className="dashboard-tabs" style={{ marginTop: "1rem" }}>
-                {["general", "administration", "finance", "facilities"].map((cat) => (
-                   <button
-                   key={cat}
-                   className={`tab-btn ${selectedCategory === cat ? "active" : ""}`}
-                   type="button"
-                   onClick={() => setSelectedCategory(cat)}
-                 >
-                   {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                 </button>
-                ))}
-              </div>
-
-              <p style={{ marginTop: "0.75rem", color: "#64748b" }}>
-                Current Category: <strong>{prettyCategoryTitle(selectedCategory)}</strong>
-              </p>
+              <p>Select the relevant School/Department and describe your issue. It will be routed to the Head of Department.</p>
 
               <form onSubmit={handleSubmit} noValidate>
                 <div className="form-row">
                   <div className="input-group">
                     <label>Full Name</label>
-                    <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Your Name" />
-                    {errors.name && <p className="error-text">{errors.name}</p>}
+                    <input type="text" name="name" value={formData.name} readOnly className="read-only-input" />
                   </div>
 
                   <div className="input-group">
@@ -332,20 +334,34 @@ function StaffDashboard() {
                   <div className="input-group">
                     <label>Email</label>
                     <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="you@college.edu" />
-                    {errors.email && <p className="error-text">{errors.email}</p>}
                   </div>
+                </div>
 
-                  <div className="input-group">
-                    <label>Department</label>
-                    <input type="text" name="department" value={formData.department} onChange={handleChange} placeholder="e.g. CSE" />
-                    {errors.department && <p className="error-text">{errors.department}</p>}
-                  </div>
+                {/* ✅ SCHOOL SELECTION DROPDOWN */}
+                <div className="input-group">
+                  <label>Select School / Department</label>
+                  <select name="department" value={formData.department} onChange={handleChange} required>
+                    <option value="">-- Select School --</option>
+                    {schools.map((school) => <option key={school} value={school}>{school}</option>)}
+                  </select>
+                  {errors.department && <p className="error-text">{errors.department}</p>}
                 </div>
 
                 <div className="input-group">
                   <label>Message / Query</label>
                   <textarea name="message" value={formData.message} onChange={handleChange} placeholder="Describe your issue..." rows="5"></textarea>
                   {errors.message && <p className="error-text">{errors.message}</p>}
+                </div>
+
+                <div className="input-group">
+                  <label>Attach Document (Optional)</label>
+                  <input 
+                    id="staffFileInput"
+                    type="file" 
+                    onChange={handleFileChange}
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    className="file-input"
+                  />
                 </div>
 
                 <button type="submit" className="submit-btn">Submit Grievance</button>
@@ -382,31 +398,28 @@ function StaffDashboard() {
                           
                           {/* --- FIXED MESSAGE CELL (Max Width 150px + See More) --- */}
                           <td className="message-cell" style={{ maxWidth: '150px' }}>
-                            {g.message.length > 20 ? (
-                              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '5px' }}>
-                                <span style={{ wordBreak: 'break-all', lineHeight: '1.2' }}>
-                                  {g.message.substring(0, 20)}...
-                                </span>
-                                <button 
-                                  onClick={() => setSelectedGrievance(g)}
-                                  style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    color: '#2563eb',
-                                    cursor: 'pointer',
-                                    fontSize: '0.75rem',
-                                    fontWeight: '600',
-                                    textDecoration: 'underline',
-                                    padding: 0,
-                                    whiteSpace: 'nowrap'
-                                  }}
-                                >
-                                  See more
-                                </button>
-                              </div>
-                            ) : (
-                              <span style={{ wordBreak: 'break-all' }}>{g.message}</span>
-                            )}
+                            {g.attachment && <span style={{ marginRight: "5px", fontSize: "1.1rem" }} title="Has Attachment">📎</span>}
+                            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '5px' }}>
+                              <span style={{ wordBreak: 'break-all', lineHeight: '1.2' }}>
+                                {g.message.substring(0, 20)}{g.message.length > 20 ? "..." : ""}
+                              </span>
+                              <button 
+                                onClick={() => setSelectedGrievance(g)}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: '#2563eb',
+                                  cursor: 'pointer',
+                                  fontSize: '0.75rem',
+                                  fontWeight: '600',
+                                  textDecoration: 'underline',
+                                  padding: 0,
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                See more
+                              </button>
+                            </div>
                           </td>
                           {/* ---------------------------------------------------- */}
 
@@ -448,62 +461,56 @@ function StaffDashboard() {
           <div 
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: 'white',
-              padding: '20px',
-              borderRadius: '12px',
-              width: '90%',
-              maxWidth: '500px',
-              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-              position: 'relative'
+              background: 'white', padding: '25px', borderRadius: '12px', width: '90%', maxWidth: '500px',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.2)', position: 'relative', display: 'flex', flexDirection: 'column', maxHeight: '85vh'
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '15px' }}>
-              <h3 style={{ margin: 0 }}>Grievance Details</h3>
-              <button 
-                onClick={() => setSelectedGrievance(null)}
-                style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}
-              >
-                &times;
-              </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '15px', marginBottom: '15px' }}>
+              <h3 style={{ margin: 0, color: '#1e293b', fontSize: '1.25rem' }}>Grievance Details</h3>
+              <button onClick={() => setSelectedGrievance(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>&times;</button>
             </div>
             
-            <div style={{ fontSize: '0.95rem', color: '#334155' }}>
-              <p style={{ marginBottom: '8px' }}><strong>Category:</strong> {selectedGrievance.category}</p>
+            <div style={{ overflowY: 'auto', paddingRight: '5px' }}>
+              <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Category:</strong> {selectedGrievance.category}</p>
               
               {selectedGrievance.name && (
-                <p style={{ marginBottom: '8px' }}><strong>Submitted By:</strong> {selectedGrievance.name}</p>
+                <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Submitted By:</strong> {selectedGrievance.name}</p>
               )}
               
-              <p style={{ marginBottom: '8px' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
+              <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
+              <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Status:</strong> <span className={`status-badge status-${selectedGrievance.status.toLowerCase()}`}>{selectedGrievance.status}</span></p>
               
-              <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '6px', margin: '15px 0', border: '1px solid #e2e8f0' }}>
-                <strong style={{ display: 'block', marginBottom: '5px', color: '#1e293b' }}>Full Message:</strong>
-                <p style={{ 
-                  margin: 0, 
-                  whiteSpace: 'pre-wrap', 
-                  lineHeight: '1.5',
-                  wordBreak: 'break-all',     
-                  overflowWrap: 'anywhere' 
-                }}>
+              <div style={{ backgroundColor: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '10px' }}>
+                <strong style={{ display: 'block', marginBottom: '8px', color: '#334155' }}>Full Message:</strong>
+                <p style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: '1.6', color: '#1e293b', wordBreak: 'break-word' }}>
                   {selectedGrievance.message}
                 </p>
               </div>
 
-              <p style={{ marginBottom: '8px' }}><strong>Status:</strong> {selectedGrievance.status}</p>
+              {/* ✅ ATTACHMENT BUTTON */}
+              {selectedGrievance.attachment && (
+                <div style={{ marginTop: '15px' }}>
+                  <strong>Attachment: </strong>
+                  <a 
+                    href={`http://localhost:5000/api/file/${selectedGrievance.attachment}`} 
+                    target="_blank" rel="noopener noreferrer"
+                    style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: '600' }}
+                  >
+                    View Document 📎
+                  </a>
+                </div>
+              )}
             </div>
 
-            <div style={{ textAlign: 'right', marginTop: '15px' }}>
+            <div style={{ textAlign: 'right', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #eee' }}>
               <button 
                 onClick={() => setSelectedGrievance(null)}
                 style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#e2e8f0',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                  color: '#475569'
+                  padding: '10px 20px', backgroundColor: '#e2e8f0', border: 'none', borderRadius: '6px',
+                  cursor: 'pointer', fontWeight: '600', color: '#475569', transition: 'background 0.2s'
                 }}
+                onMouseOver={(e) => e.target.style.backgroundColor = '#cbd5e1'}
+                onMouseOut={(e) => e.target.style.backgroundColor = '#e2e8f0'}
               >
                 Close
               </button>
