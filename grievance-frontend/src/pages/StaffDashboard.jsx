@@ -115,7 +115,10 @@ function StaffDashboard() {
       const res = await fetch(`http://localhost:5000/api/grievances/user/${userId}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to fetch my grievances");
+      // preserve scroll
+      const prevScrollY = window.scrollY || window.pageYOffset;
       setMyGrievances(data);
+      requestAnimationFrame(() => window.scrollTo(0, prevScrollY));
     } catch (err) {
       console.error("Error fetching my grievances:", err);
       setMsg("Failed to load your submitted grievances");

@@ -9,6 +9,13 @@ const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 };
 
+// Date-only formatter for deadlines (no time)
+const formatDateDateOnly = (dateString) => {
+  if (!dateString) return "-";
+  const options = { year: "numeric", month: "short", day: "numeric" };
+  return new Date(dateString).toLocaleDateString("en-US", options);
+};
+
 function SchoolAdminDashboard() {
   const navigate = useNavigate();
   const userId = localStorage.getItem("grievance_id")?.toUpperCase();
@@ -48,8 +55,13 @@ function SchoolAdminDashboard() {
     try {
       const category = encodeURIComponent(mySchoolName);
       const res = await fetch(`http://localhost:5000/api/grievances/category/${category}`);
-      if (res.ok) setGrievances(await res.json());
-      else console.error("Failed to fetch grievances");
+      if (res.ok) {
+        const data = await res.json();
+        console.log("Fetched grievances (category):", data.slice(0, 5));
+        const prevScrollY = window.scrollY || window.pageYOffset;
+        setGrievances(data);
+        requestAnimationFrame(() => window.scrollTo(0, prevScrollY));
+      } else console.error("Failed to fetch grievances");
     } catch (error) {
       console.error(error);
     }
@@ -288,6 +300,7 @@ function SchoolAdminDashboard() {
                     <th>Assigned To</th>
                     <th>Message</th>
                     <th>Date</th>
+                    <th>Deadline</th>
                     <th>Status</th>
                     <th>Action</th>
                   </tr>
@@ -329,8 +342,9 @@ function SchoolAdminDashboard() {
                           </div>
                         </td>
                         <td>{formatDate(g.createdAt)}</td>
+                        <td className="deadline-col">{(g.deadlineDate || g.deadline || g.deadline_date) ? formatDateDateOnly(g.deadlineDate || g.deadline || g.deadline_date) : "-"}</td>
                         <td><span className={`status-badge status-${g.status.toLowerCase()}`}>{g.status}</span></td>
-                        <td>
+                        <td className="action-cell">
                           <div className="action-buttons">
                             <button 
                               className="action-btn assign-btn" 

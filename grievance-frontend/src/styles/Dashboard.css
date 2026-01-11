@@ -134,7 +134,7 @@ body {
   align-items: center;
   padding: 2rem 1rem;
   width: 100%;
-  max-width: 1000px; /* Limits width on big screens */
+  max-width: 1200px; /* Increased width to reduce horizontal scroll on large tables */
   margin: 0 auto;
 }
 
@@ -284,16 +284,31 @@ form {
 /* ============ TABLE (Responsive) ============ */
 .table-container {
   width: 100%;
-  overflow-x: auto; /* Adds scrollbar for table on mobile */
+  overflow-x: hidden; /* Hide horizontal scrollbar and allow table to wrap instead */
+  overflow-y: auto;
   margin-top: 1rem;
   border: 1px solid var(--input-border);
   border-radius: 8px;
 }
 
+/* ============ SKELETON LOADER ============ */
+.skeleton {
+  background: #e6e9ee;
+  border-radius: 6px;
+  height: 12px;
+  display: inline-block;
+  animation: skeleton-loading 1.2s linear infinite;
+}
+.skeleton-text { height: 12px; }
+.skeleton-pill { width: 60px; height: 20px; border-radius: 20px; display:inline-block; }
+.skeleton-btn { width: 70px; height: 28px; border-radius: 6px; display:inline-block; }
+@keyframes skeleton-loading { 0% { opacity: 1 } 50% { opacity: .6 } 100% { opacity: 1 } }
+
 .grievance-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 600px; /* Forces scroll if screen is too small */
+  table-layout: fixed; /* Prevents overflow by making columns share width and allowing wrapping */
+  min-width: unset;
 }
 
 .grievance-table th, 
@@ -302,6 +317,14 @@ form {
   text-align: left;
   border-bottom: 1px solid var(--input-border);
   font-size: 0.9rem;
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* Limit message cell width so text wraps and table stays within container */
+.grievance-table td.message-cell {
+  max-width: 220px;
+  overflow-wrap: anywhere;
 }
 
 .grievance-table th {
@@ -520,8 +543,21 @@ form {
   display: flex;
   gap: 8px; /* Space between buttons */
   flex-wrap: wrap;
+  justify-content: flex-end; /* Align buttons to the right of the cell */
 }
 
+/* Make the Deadline column fixed-width and prevent wrapping */
+.grievance-table th.deadline-col,
+.grievance-table td.deadline-col {
+  width: 160px;
+  white-space: nowrap;
+}
+
+/* Action cell: reserve space and right-align content to avoid blank area */
+.grievance-table td.action-cell {
+  width: 220px;
+  text-align: right;
+}
 .action-btn {
   padding: 6px 12px;
   border-radius: 6px;

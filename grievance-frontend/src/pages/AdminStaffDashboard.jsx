@@ -17,6 +17,13 @@ const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString("en-US", options);
 };
 
+// Date-only formatter for deadlines (no time)
+const formatDateDateOnly = (dateString) => {
+  if (!dateString) return "-";
+  const options = { year: "numeric", month: "short", day: "numeric" };
+  return new Date(dateString).toLocaleDateString("en-US", options);
+};
+
 const schools = [
   "School of Engineering and Technology",
   "School of Management Studies",
@@ -113,39 +120,80 @@ function AdminStaffDashboard() {
     if (staffId) fetchStaffInfo();
   }, [staffId]);
 
-  // 3. Fetch Assigned Grievances
+  // 3. Fetch Assigned Grievances (optimized to avoid flicker)
+  // Track last user scroll time and keep a ref for current grievances to do cheap change detection
+  const lastUserScrollRef = useRef(0);
+  const grievancesRef = useRef(grievances);
+  const isFetchingRef = useRef(false);
+  useEffect(() => { grievancesRef.current = grievances; }, [grievances]);
+
+  useEffect(() => {
+    const onScroll = () => { lastUserScrollRef.current = Date.now(); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   useEffect(() => {
     if (!staffId) return;
 
-    const fetchMyAssignedGrievances = async () => {
+    let canceled = false;
+    let timerId = null;
+    const POLL_DELAY = 30000; // 30s
+
+    const pollOnce = async () => {
+      if (canceled) return;
+
+      // Avoid overlapping polls
+      if (isFetchingRef.current) {
+        timerId = setTimeout(pollOnce, 1000);
+        return;
+      }
+
+      // Set loading to true to show skeleton only for the very first attempts
       setLoading(true);
-      setMsg("");
+
+      // Skip if tab is hidden
+      if (document.hidden) {
+        setLoading(false);
+        timerId = setTimeout(pollOnce, POLL_DELAY);
+        return;
+      }
+
+      // Skip while user is interacting
+      if (selectedGrievance) { setLoading(false); timerId = setTimeout(pollOnce, POLL_DELAY); return; }
+      if (Date.now() - lastUserScrollRef.current < 2000) { setLoading(false); timerId = setTimeout(pollOnce, 2000); return; }
+
+      isFetchingRef.current = true;
       try {
-        // ✅ Fetches grievances specifically assigned to THIS staff ID
-        const res = await fetch(
-          `http://localhost:5000/api/grievances/assigned/${staffId}`
-        );
+        const res = await fetch(`http://localhost:5000/api/grievances/assigned/${staffId}`);
         const data = await res.json();
-        
         if (!res.ok) throw new Error(data.message || "Failed to fetch data");
-        
-        setGrievances(data);
-        
-        if (data.length === 0) {
-           setMsg("No grievances currently assigned to you.");
-           setStatusType("info");
+
+        // Cheap change detection: compare signatures (id + updatedAt/createdAt)
+        const oldSig = (grievancesRef.current || []).map(g => `${g._id}:${g.updatedAt || g.createdAt}`).join('|');
+        const newSig = (data || []).map(g => `${g._id}:${g.updatedAt || g.createdAt}`).join('|');
+        if (oldSig !== newSig) {
+          const prevScrollY = window.scrollY || window.pageYOffset;
+          setGrievances(data);
+          requestAnimationFrame(() => window.scrollTo(0, prevScrollY));
+          if (data.length === 0) { setMsg("No grievances currently assigned to you."); setStatusType("info"); }
         }
       } catch (err) {
-        console.error("Error fetching assigned grievances:", err);
+        console.error(new Date().toISOString(), "Error polling assigned grievances:", err);
         setMsg("Failed to load your assigned grievances.");
         setStatusType("error");
       } finally {
+        isFetchingRef.current = false;
         setLoading(false);
+        if (!canceled) timerId = setTimeout(pollOnce, POLL_DELAY);
       }
     };
 
-    fetchMyAssignedGrievances();
-  }, [staffId]);
+    // Start polling loop
+    pollOnce();
+
+    return () => { canceled = true; if (timerId) clearTimeout(timerId); };
+  }, [staffId, selectedGrievance]);
 
   // --- 4. LIVE POLLING FOR NOTIFICATIONS ONLY ---
   useEffect(() => {
@@ -485,7 +533,36 @@ function AdminStaffDashboard() {
           </div>
 
           {loading ? (
-            <p>Loading grievances...</p>
+            <div className="table-container">
+              <table className="grievance-table">
+                <thead>
+                  <tr>
+                    <th>Student Name</th>
+                    <th>Email</th>
+                    <th>Reg. ID</th>
+                    <th>Message</th>
+                    <th>Submitted At</th>
+                    <th className="deadline-col">Deadline</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[1,2,3,4].map(i => (
+                    <tr key={i} className="skeleton-row">
+                      <td><div className="skeleton skeleton-text" style={{ width: 80 }} /></td>
+                      <td><div className="skeleton skeleton-text" style={{ width: 120 }} /></td>
+                      <td><div className="skeleton skeleton-text" style={{ width: 80 }} /></td>
+                      <td className="message-cell"><div className="skeleton skeleton-text" style={{ width: 180 }} /></td>
+                      <td><div className="skeleton skeleton-text" style={{ width: 90 }} /></td>
+                      <td className="deadline-col"><div className="skeleton skeleton-text" style={{ width: 90 }} /></td>
+                      <td><div className="skeleton skeleton-pill" /></td>
+                      <td><div className="skeleton skeleton-btn" /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : getFilteredData(grievances, "assigned").length === 0 ? (
             <div className="empty-state">
               <p>{grievances.length === 0 ? "No grievances found assigned to your ID." : "No grievances match your filters."}</p>
@@ -499,8 +576,7 @@ function AdminStaffDashboard() {
                     <th>Email</th>
                     <th>Reg. ID</th>
                     <th>Message</th>
-                    <th>Submitted At</th>
-                    <th>Status</th>
+                    <th>Submitted At</th>                    <th className="deadline-col">Deadline</th>                    <th>Status</th>
                     <th>Action</th>
                   </tr>
                 </thead>
@@ -538,6 +614,7 @@ function AdminStaffDashboard() {
                       {/* ---------------------------------------------------- */}
 
                       <td>{formatDate(g.createdAt)}</td>
+                      <td className="deadline-col">{(g.deadlineDate || g.deadline || g.deadline_date) ? formatDateDateOnly(g.deadlineDate || g.deadline || g.deadline_date) : "-"}</td>
                       <td>
                         <span
                           className={`status-badge status-${g.status
@@ -547,7 +624,7 @@ function AdminStaffDashboard() {
                           {g.status}
                         </span>
                       </td>
-                      <td>
+                      <td className="action-cell">
                         <div className="action-buttons">
                           {g.status !== "Resolved" && g.status !== "Rejected" ? (
                             <>
@@ -779,6 +856,7 @@ function AdminStaffDashboard() {
               <p style={{ marginBottom: '8px' }}><strong>Student:</strong> {selectedGrievance.name} ({selectedGrievance.regid})</p>
               <p style={{ marginBottom: '8px' }}><strong>Email:</strong> {selectedGrievance.email}</p>
               <p style={{ marginBottom: '8px' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
+              <p style={{ marginBottom: '8px' }}><strong>Deadline:</strong> {(selectedGrievance.deadlineDate || selectedGrievance.deadline || selectedGrievance.deadline_date) ? formatDateDateOnly(selectedGrievance.deadlineDate || selectedGrievance.deadline || selectedGrievance.deadline_date) : "-"}</p>
               
               <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '6px', margin: '15px 0', border: '1px solid #e2e8f0' }}>
                 <strong style={{ display: 'block', marginBottom: '5px', color: '#1e293b' }}>Full Message:</strong>

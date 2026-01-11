@@ -99,7 +99,10 @@ export const getCategoryGrievances = async (req, res) => {
 export const assignToStaff = async (req, res) => {
   try {
     const { id } = req.params;
-    const { staffId, adminId } = req.body;
+    const { staffId, adminId, deadline } = req.body;
+
+    // Debug: log incoming assign payload
+    console.log(`Assign request for grievance ${id} -> staff: ${staffId}, admin: ${adminId}, deadline: ${deadline}`);
 
     // ✅ Prevent assigning to self (submitter)
     const existingGrievance = await Grievance.findById(id);
@@ -109,17 +112,43 @@ export const assignToStaff = async (req, res) => {
         return res.status(400).json({ message: "❌ Cannot assign grievance to the staff member who submitted it." });
     }
 
-    const grievance = await Grievance.findByIdAndUpdate(
-      id,
-      {
-        assignedTo: staffId,
-        assignedRole: "staff",
-        assignedBy: adminId,
-        status: "Assigned",
-        updatedAt: Date.now(),
-      },
-      { new: true }
-    );
+    // Validate deadline (if provided) must not be before grievance creation date.
+    // Compare only by calendar date (ignore time) so a deadline on the same day is allowed.
+    let deadlineDate = null;
+    if (deadline) {
+      const parsed = new Date(deadline);
+      if (isNaN(parsed.getTime())) {
+        return res.status(400).json({ message: "Invalid deadline date" });
+      }
+
+      // Compare date-only values to allow same-day deadlines.
+      const parsedDateOnly = new Date(parsed.toISOString().slice(0, 10));
+      const createdDateOnly = new Date(existingGrievance.createdAt.toISOString().slice(0, 10));
+
+      if (parsedDateOnly < createdDateOnly) {
+        return res.status(400).json({ message: "Deadline cannot be earlier than grievance creation date" });
+      }
+
+      // Keep the original parsed value (preserve any time if provided)
+      deadlineDate = parsed;
+    }
+
+    const update = {
+      assignedTo: staffId,
+      assignedRole: "staff",
+      assignedBy: adminId,
+      status: "Assigned",
+      updatedAt: Date.now(),
+    };
+
+    if (deadlineDate) update.deadlineDate = deadlineDate;
+
+    // Debug: log the update object that will be applied
+    console.log('Assign update object:', update);
+
+    const grievance = await Grievance.findByIdAndUpdate(id, update, { new: true });
+
+    console.log('Assign result (saved grievance):', grievance);
 
     res.json({
       message: "✅ Assigned to staff successfully",
@@ -139,10 +168,12 @@ export const getAssignedGrievances = async (req, res) => {
   try {
     const { staffId } = req.params;
 
-    const grievances = await Grievance.find({
-      assignedTo: staffId
-    }).sort({ createdAt: -1 });
+    // Return only fields required by the UI to reduce response size and speed the query
+    const grievances = await Grievance.find({ assignedTo: staffId })
+      .select('name email regid message createdAt deadlineDate status attachment _id assignedTo updatedAt')
+      .sort({ createdAt: -1 });
 
+    console.log(`getAssignedGrievances: returning ${grievances.length} grievances for staff ${staffId}`);
     res.json(grievances);
   } catch (err) {
     console.error("getAssignedGrievances ERROR:", err);
@@ -226,7 +257,9 @@ export const getGrievanceDetail = async (req, res) => {
       message: grievance.message,
       regid: grievance.regid,
       category: grievance.category,
-      assignedStaff: staffInfo
+      assignedStaff: staffInfo,
+      createdAt: grievance.createdAt,
+      deadlineDate: grievance.deadlineDate || null
     });
   } catch (err) {
     console.error("Error fetching grievance details:", err);

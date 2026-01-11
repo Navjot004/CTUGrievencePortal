@@ -58,10 +58,16 @@ const grievanceSchema = new mongoose.Schema(
       type: String,
       enum: ["Pending", "Assigned", "In Progress", "Resolved", "Rejected"],
       default: "Pending"
-    }
+    },
+
+    // ✅ Deadline for assigned staff
+    deadlineDate: { type: Date, default: null }
   },
   { timestamps: true }
 );
+
+// Index to speed lookups for staff-assigned grievances
+grievanceSchema.index({ assignedTo: 1, createdAt: -1 });
 
 const Grievance =
   mongoose.models.Grievance ||

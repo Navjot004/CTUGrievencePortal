@@ -15,35 +15,59 @@ function AssignStaffPopup({
   const [msg, setMsg] = useState("");
   const [statusType, setStatusType] = useState("");
 
+  // Deadline states
+  const [grievanceCreatedAt, setGrievanceCreatedAt] = useState(null);
+  const [deadline, setDeadline] = useState("");
+
+
   /* ================= FETCH STAFF ================= */
   useEffect(() => {
     if (!isOpen) return;
 
-    const fetchStaff = async () => {
+    const fetchStaffAndGrievance = async () => {
       try {
         setLoading(true);
         setMsg("");
 
-        const res = await fetch(
+        // Fetch staff list
+        const staffRes = await fetch(
           `http://localhost:5000/api/admin/staff/${encodeURIComponent(
             department
           )}`
         );
-        const data = await res.json();
+        const staffData = await staffRes.json();
+        if (!staffRes.ok) throw new Error(staffData.message || "Failed to load staff");
+        setStaffList(staffData);
 
-        if (!res.ok) throw new Error(data.message || "Failed to load staff");
+        // Fetch grievance detail to read createdAt and existing deadline
+        if (grievanceId) {
+          const gRes = await fetch(`http://localhost:5000/api/grievances/detail/${grievanceId}`);
+          const gData = await gRes.json();
+          if (gRes.ok) {
+            if (gData.createdAt) setGrievanceCreatedAt(new Date(gData.createdAt));
+            if (gData.deadlineDate) {
+              const d = new Date(gData.deadlineDate);
+              // Format for date input yyyy-mm-dd
+              const iso = d.toISOString().slice(0, 10);
+              setDeadline(iso);
+            } else if (gData.createdAt) {
+              // Default deadline = createdAt by default
+              const iso = new Date(gData.createdAt).toISOString().slice(0, 10);
+              setDeadline(iso);
+            }
+          }
+        }
 
-        setStaffList(data);
       } catch (err) {
-        setMsg("❌ Failed to load staff list");
+        setMsg("❌ Failed to load staff list or grievance data");
         setStatusType("error");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchStaff();
-  }, [isOpen, department]);
+    fetchStaffAndGrievance();
+  }, [isOpen, department, grievanceId]);
 
   if (!isOpen) return null;
 
@@ -68,18 +92,22 @@ function AssignStaffPopup({
           body: JSON.stringify({
             staffId: selectedStaffId, // ✅ correct field
             adminId: adminId,          // ✅ dept admin ID
+            deadline: deadline || null
           }),
         }
       );
 
       const data = await res.json();
+      console.log("Assign response:", data);
       if (!res.ok) throw new Error(data.message);
 
       if (onAssigned) {
-        onAssigned(`✅ Assigned to ${selectedStaffId}`, "success");
+        const msgText = deadline ? `✅ Assigned to ${selectedStaffId} (Deadline: ${deadline})` : `✅ Assigned to ${selectedStaffId}`;
+        onAssigned(msgText, "success");
       }
 
       setSelectedStaffId("");
+      setDeadline("");
       onClose();
     } catch (err) {
       setMsg(err.message);
@@ -113,19 +141,35 @@ function AssignStaffPopup({
             <p>No staff found for this department.</p>
           </div>
         ) : (
-          <div className="assign-staff-list">
-            {staffList.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                className={`staff-pill ${
-                  selectedStaffId === s.id ? "selected" : ""
-                }`}
-                onClick={() => setSelectedStaffId(s.id)}
-              >
-                {s.fullName} ({s.id})
-              </button>
-            ))}
+          <div>
+            <div className="assign-staff-list">
+              {staffList.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={`staff-pill ${
+                    selectedStaffId === s.id ? "selected" : ""
+                  }`}
+                  onClick={() => setSelectedStaffId(s.id)}
+                >
+                  {s.fullName} ({s.id})
+                </button>
+              ))}
+            </div>
+
+            <div style={{ marginTop: 12 }}>
+              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>Deadline</label>
+              <input
+                type="date"
+                value={deadline}
+                min={grievanceCreatedAt ? grievanceCreatedAt.toISOString().slice(0,10) : undefined}
+                onChange={(e) => setDeadline(e.target.value)}
+                style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d0d5dd' }}
+              />
+              <div style={{ fontSize: '12px', color: '#64748b', marginTop: 6 }}>
+                Select a deadline on or after the grievance creation date {grievanceCreatedAt ? `(${grievanceCreatedAt.toLocaleDateString()})` : ''}.
+              </div>
+            </div>
           </div>
         )}
 
