@@ -197,7 +197,7 @@ app.post("/api/admin-staff/role", async (req, res) => {
       if (isMaster) {
         // Master promoting someone to Admin -> Check if dept already has an admin
         const existingAdmin = await User.findOne({
-          role: "staff",
+          // role: "staff", // ❌ REMOVED: Existing admins have role="admin", so this was failing
           adminDepartment: department,
           isDeptAdmin: true,
           id: { $ne: safeTargetId } // Exclude current target
@@ -207,8 +207,38 @@ app.post("/api/admin-staff/role", async (req, res) => {
           // Remove the old admin
           existingAdmin.isDeptAdmin = false;
           existingAdmin.adminDepartment = "";
+          existingAdmin.role = "staff"; // ✅ Reset role to staff
           await existingAdmin.save();
           console.log(`🔄 Removed ${existingAdmin.fullName} from Admin role for ${department}`);
+
+          // ✅ SEND DEMOTION EMAIL TO DISPLACED ADMIN
+          const demotionDate = new Date().toLocaleString("en-IN", {
+            day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata"
+          });
+
+          const demotionEmailBody = `
+            <h2 style="color: #64748b;">Role Update Notification</h2>
+            <p>Dear ${existingAdmin.fullName},</p>
+            <p>This is to respectfully inform you that your administrative responsibilities for <strong>${department}</strong> have been concluded as a new Admin has been appointed.</p>
+            <p>You have been reassigned as a <strong>General Staff</strong> member.</p>
+            <p><strong>Date & Time:</strong> ${demotionDate}</p>
+            <p>We sincerely appreciate your contributions and leadership during your tenure.</p>
+            <div style="background: #fef3c7; padding: 15px; border-radius: 8px; border: 1px solid #f59e0b; color: #92400e; margin-top: 10px;">
+              <strong>ℹ️ Note:</strong> Please use the <strong>'Staff'</strong> option to login from now on.
+            </div>
+          `;
+
+          try {
+            await transporter.sendMail({
+              from: process.env.EMAIL_USER,
+              to: existingAdmin.email,
+              subject: `Role Update - ${department} (Ref: ${Date.now().toString().slice(-4)})`,
+              html: demotionEmailBody
+            });
+            console.log(`✅ Demotion email sent to displaced admin ${existingAdmin.email}`);
+          } catch (emailErr) {
+            console.error("⚠️ Email sending failed:", emailErr);
+          }
         }
       }
 
@@ -239,15 +269,21 @@ app.post("/api/admin-staff/role", async (req, res) => {
       });
 
       const newRole = targetMember.isDeptAdmin ? "Department Admin" : "Admin Staff";
+      
+      // ✅ Login Instruction for Admins
+      const loginInstruction = targetMember.isDeptAdmin 
+        ? "<br><br><strong>👉 Please select 'Admin' option while logging in.</strong>" 
+        : "";
+
       const emailBody = `
         <h2 style="color: #2563eb;">Congratulations!</h2>
         <p>Dear ${targetMember.fullName},</p>
         <p>You have been promoted to <strong>${newRole}</strong> for <strong>${department}</strong>.</p>
         <p><strong>Date & Time:</strong> ${promotionDate}</p>
         <p><strong>Staff ID:</strong> ${targetMember.id}</p>
-        <p style="background: #fef3c7; padding: 10px; border-radius: 5px; border-left: 4px solid #f59e0b; color: #92400e;">
-          <strong>⚠️ Important:</strong> Please logout and login again to see your new dashboard.
-        </p>
+        <div style="background: #fef3c7; padding: 15px; border-radius: 8px; border: 1px solid #f59e0b; color: #92400e; margin-top: 10px;">
+          <strong>⚠️ Important:</strong> Please logout and login again to see your new dashboard.${loginInstruction}
+        </div>
       `;
 
       try {
@@ -266,6 +302,7 @@ app.post("/api/admin-staff/role", async (req, res) => {
       res.json({ message: `✅ ${targetMember.fullName} is now ${title} of ${department}` });
 
     } else if (action === "demote") {
+      const oldDept = targetMember.adminDepartment || "your department"; // Capture dept name
       targetMember.isDeptAdmin = false;
       targetMember.adminDepartment = "";
       targetMember.role = "staff"; // 🔥 Change role back to staff
@@ -280,6 +317,35 @@ app.post("/api/admin-staff/role", async (req, res) => {
       );
 
       console.log(`🔄 Reset ${updateResult.modifiedCount} grievances for demoted staff ${safeTargetId}`);
+
+      // ✅ SEND DEMOTION EMAIL
+      const demotionDate = new Date().toLocaleString("en-IN", {
+        day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata"
+      });
+
+      const demotionEmailBody = `
+        <h2 style="color: #64748b;">Role Update Notification</h2>
+        <p>Dear ${targetMember.fullName},</p>
+        <p>This is to respectfully inform you that your administrative responsibilities for <strong>${oldDept}</strong> have been concluded.</p>
+        <p>You have been reassigned as a <strong>General Staff</strong> member.</p>
+        <p><strong>Date & Time:</strong> ${demotionDate}</p>
+        <p>We sincerely appreciate your contributions and leadership during your tenure.</p>
+        <div style="background: #fef3c7; padding: 15px; border-radius: 8px; border: 1px solid #f59e0b; color: #92400e; margin-top: 10px;">
+          <strong>ℹ️ Note:</strong> Please use the <strong>'Staff'</strong> option to login from now on.
+        </div>
+      `;
+
+      try {
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: targetMember.email,
+          subject: `Role Update - ${oldDept} (Ref: ${Date.now().toString().slice(-4)})`,
+          html: demotionEmailBody
+        });
+        console.log(`✅ Demotion email sent to ${targetMember.email}`);
+      } catch (emailErr) {
+        console.error("⚠️ Email sending failed:", emailErr);
+      }
 
       res.json({ message: `✅ ${targetMember.fullName} removed from department role. ${updateResult.modifiedCount} grievances reset to Pending.` });
     } else {
