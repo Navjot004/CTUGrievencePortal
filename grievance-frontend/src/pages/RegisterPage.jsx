@@ -126,7 +126,7 @@ function RegisterPage() {
               <div className="two-col-row">
                 <div className="input-group">
                   <label>Role</label>
-                  <div className="input-wrapper">
+                  <div className="input-wrapper role-field">
                     <span className="icon"><UsersIcon /></span>
                     <select name="role" value={formData.role} onChange={handleChange} required>
                       <option value="">Select Role</option>
@@ -139,7 +139,7 @@ function RegisterPage() {
 
                 <div className="input-group">
                   <label>University ID</label>
-                  <div className="input-wrapper">
+                  <div className="input-wrapper id-field">
                     <span className="icon"><UserIcon /></span>
                     {/* ✅ UPDATED PLACEHOLDER */}
                     <input name="id" placeholder="e.g. 72212871" value={formData.id} onChange={handleChange} required />
@@ -187,7 +187,7 @@ function RegisterPage() {
 
                 <div className="input-group">
                   <label>Phone</label>
-                  <div className="input-wrapper">
+                  <div className="input-wrapper phone-field">
                     <span className="icon"><PhoneIcon /></span>
                     <input name="phone" type="tel" placeholder="9876543210" value={formData.phone} onChange={handleChange} pattern="[0-9]{10}" required />
                   </div>
@@ -196,22 +196,34 @@ function RegisterPage() {
 
               <div className="input-group">
                 <label>Email</label>
-                <div className="input-wrapper">
+                <div className="input-wrapper email-field">
                   <span className="icon"><MailIcon /></span>
-                  <input name="email" type="email" placeholder="name@univ.com" value={formData.email} onChange={handleChange} required />
+                  <input
+                    name="email"
+                    type="email"
+                    placeholder={"e.g. name@univ.com or personal@mail.com"}
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                  />
                 </div>
+
+                {formData.role === 'student' && (
+                  <div className="field-hint info"><em>NOTE:- You may use your university or personal email. We'll send a verification code (OTP) to this address.</em></div>
+                )}
               </div>
 
               <div className="two-col-row">
                 <div className="input-group">
                   <label>Password</label>
-                  <div className="input-wrapper" style={{ position: 'relative' }}>
+                  <div className="input-wrapper password">
                     <span className="icon"><LockIcon /></span>
-                    <input name="password" type={showPassword ? "text" : "password"} placeholder="Create Password" value={formData.password} onChange={handleChange} style={{ paddingRight: '40px' }} required />
+                    <input name="password" type={showPassword ? "text" : "password"} placeholder="Create Password" value={formData.password} onChange={handleChange} required />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center' }}
+                      className="password-toggle"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                     </button>
@@ -222,20 +234,20 @@ function RegisterPage() {
               {/* ✅ Confirm Password Field */}
               <div className="input-group" style={{ marginBottom: '15px' }}>
                 <label>Confirm Password</label>
-                <div className="input-wrapper" style={{ position: 'relative' }}>
+                <div className="input-wrapper password" >
                   <span className="icon"><LockIcon /></span>
                   <input
                     type={showConfirmPassword ? "text" : "password"}
                     placeholder="Re-enter Password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    style={{ paddingRight: '40px' }}
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center' }}
+                    className="password-toggle"
+                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                   >
                     {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
                   </button>
@@ -245,7 +257,7 @@ function RegisterPage() {
               {formData.role === 'student' && (
                 <div className="input-group">
                   <label>Program & Domain</label>
-                  <div className="input-wrapper">
+                  <div className="input-wrapper program-field">
                     <span className="icon"><BookIcon /></span>
                     <select name="program" value={formData.program} onChange={handleChange} required>
                       <option value="">Select Your Program</option>
@@ -266,7 +278,7 @@ function RegisterPage() {
             <form onSubmit={handleVerifyOtp}>
               <div className="input-group">
                 <label>Verification Code</label>
-                <div className="input-wrapper">
+                <div className="input-wrapper otp-field">
                   <span className="icon"><LockIcon /></span>
                   <input
                     style={extraStyles.otpInput}

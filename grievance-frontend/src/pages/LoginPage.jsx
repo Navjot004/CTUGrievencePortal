@@ -189,7 +189,7 @@ function LoginPage() {
                 <form onSubmit={handleSendOTP} className="animated-form">
                   <div className="input-group">
                     <label>{selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)} ID</label>
-                    <div className="input-wrapper">
+                    <div className="input-wrapper id-field">
                       <span className="icon"><UserIcon /></span>
                       {/* ✅ UPDATED PLACEHOLDER to show Numeric Examples */}
                       <input
@@ -208,20 +208,20 @@ function LoginPage() {
 
                   <div className="input-group">
                     <label>Password</label>
-                    <div className="input-wrapper" style={{ position: 'relative' }}>
+                    <div className="input-wrapper password">
                       <span className="icon"><LockIcon /></span>
                       <input
                         type={showPassword ? "text" : "password"}
                         placeholder="••••••••"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        style={{ paddingRight: '40px' }}
                         required
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center' }}
+                        className="password-toggle"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
                       >
                         {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                       </button>
@@ -230,7 +230,7 @@ function LoginPage() {
 
                   <div className="input-group">
                     <label>Registered Phone</label>
-                    <div className="input-wrapper">
+                    <div className="input-wrapper phone-field">
                       <span className="icon"><PhoneIcon /></span>
                       <input
                         type="tel"
@@ -253,7 +253,7 @@ function LoginPage() {
 
                   <div className="input-group">
                     <label>One Time Password</label>
-                    <div className="input-wrapper">
+                    <div className="input-wrapper otp-field">
                       <span className="icon"><KeyIcon /></span>
                       <input
                         type="text"
