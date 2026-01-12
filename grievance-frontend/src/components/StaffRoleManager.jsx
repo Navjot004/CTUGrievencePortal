@@ -12,11 +12,12 @@ function StaffRoleManager() {
   // Current logged-in user details
   const requesterId = localStorage.getItem("grievance_id");
   const myDept = localStorage.getItem("admin_department"); // e.g. "Student Welfare"
-  const isMasterAdmin = requesterId === "10001"; // TODO: This check might be outdated with dynamic master, using response role is safer but UI relies on this for now.
+  const isMasterAdmin = localStorage.getItem("is_master_admin") === "true"; // ✅ Dynamic Master Check
   const token = localStorage.getItem("grievance_token");
 
   // 🔥 Toggle for Danger Zone
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [processingId, setProcessingId] = useState(null); // Tracks which staff ID is being updated
 
 
 
@@ -26,7 +27,7 @@ function StaffRoleManager() {
   const fetchStaffList = useCallback(async () => {
     try {
       const res = await fetch("http://localhost:5000/api/admin-staff/all", {
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: { "Authorization": `Bearer ${localStorage.getItem("grievance_token")}` }
       });
       if (res.ok) {
         const data = await res.json();
@@ -64,12 +65,14 @@ function StaffRoleManager() {
       }
     }
 
+    setProcessingId(targetStaffId); // ⏳ START LOADING
+
     try {
       const res = await fetch("http://localhost:5000/api/admin-staff/role", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          "Authorization": `Bearer ${localStorage.getItem("grievance_token")}`
         },
         body: JSON.stringify({
           targetStaffId,
@@ -87,6 +90,8 @@ function StaffRoleManager() {
       }
     } catch (err) {
       setMsg("❌ Network Error");
+    } finally {
+      setProcessingId(null); // ✅ STOP LOADING
     }
   };
 
@@ -98,7 +103,7 @@ function StaffRoleManager() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          "Authorization": `Bearer ${localStorage.getItem("grievance_token")}`
         },
         body: JSON.stringify({ newMasterId })
       });
@@ -163,16 +168,20 @@ function StaffRoleManager() {
 
         {/* 🔥 NEW: Advanced Toggle */}
         {isMasterAdmin && (
-          <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', userSelect: 'none', marginLeft: '10px' }}>
-            <input
-              type="checkbox"
-              checked={showAdvanced}
-              onChange={(e) => setShowAdvanced(e.target.checked)}
-            />
-            <span style={{ fontSize: '0.9rem', color: showAdvanced ? '#dc2626' : '#64748b', fontWeight: showAdvanced ? 'bold' : 'normal', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              {showAdvanced ? <><AlertCircleIcon width="16" height="16" /> Advanced Mode ON</> : "Advanced Mode"}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', marginLeft: 'auto' }}>
+            <span style={{ fontSize: '0.75rem', color: showAdvanced ? '#ef4444' : '#64748b', fontWeight: '600', transition: 'color 0.3s' }}>
+              Advanced Mode
             </span>
-          </label>
+            <label className="toggle-switch-label">
+              <input
+                type="checkbox"
+                className="toggle-switch-input"
+                checked={showAdvanced}
+                onChange={(e) => setShowAdvanced(e.target.checked)}
+              />
+              <span className="toggle-slider"></span>
+            </label>
+          </div>
         )}
       </div>
 
@@ -242,72 +251,76 @@ function StaffRoleManager() {
                     </td>
 
                     <td>
-                      {!canEdit(staff) ? (
-                        <span style={{ color: '#94a3b8', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                          <LockIcon width="14" height="14" /> Locked
-                        </span>
+                      {processingId === staff.id ? (
+                        <div className="modern-loadbar"></div>
                       ) : (
-                        <>
-                          {staff.adminDepartment ? (
-                            <button
-                              className="action-btn"
-                              style={{ backgroundColor: "#ef4444", color: "white", border: "none", minWidth: "150px" }}
-                              onClick={() => handleRoleChange(staff.id, "demote")}
-                            >
-                              {staff.isDeptAdmin ? "Remove Admin" : "Remove from Team"}
-                            </button>
-                          ) : (
-                            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                              <select
-                                id={`dept-${staff.id}`}
-                                className="assign-select"
-                                disabled={!isMasterAdmin}
-                                defaultValue={isMasterAdmin ? "" : myDept}
-                              >
-                                <option value="" disabled>Select Dept...</option>
-                                {[
-                                  "Accounts",
-                                  "Student Welfare",
-                                  "Student Section",
-                                  "Admission",
-                                  "Examination",
-                                  "School of Engineering and Technology",
-                                  "School of Management Studies",
-                                  "School of Law",
-                                  "School of Pharmaceutical Sciences",
-                                  "School of Hotel Management",
-                                  "School of Design and innovation",
-                                  "School of Allied Health Sciences",
-                                  "School of Social Sciences and Liberal Arts",
-                                ].map(d => (
-                                  <option key={d} value={d}>{d}</option>
-                                ))}
-                              </select>
-
+                        !canEdit(staff) ? (
+                          <span style={{ color: '#94a3b8', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                            <LockIcon width="14" height="14" /> Locked
+                          </span>
+                        ) : (
+                          <>
+                            {staff.adminDepartment ? (
                               <button
-                                className="action-btn"
-                                style={{ backgroundColor: "#10b981", color: "white", border: "none", minWidth: "150px" }}
-                                onClick={() => {
-                                  const deptSelect = document.getElementById(`dept-${staff.id}`);
-                                  handleRoleChange(staff.id, "promote", deptSelect.value);
-                                }}
+                                className="btn-modern btn-danger-glass"
+                                style={{ minWidth: "150px" }}
+                                onClick={() => handleRoleChange(staff.id, "demote")}
                               >
-                                {isMasterAdmin ? "Make Admin" : "Add to Team"}
+                                <XIcon width="16" height="16" /> {staff.isDeptAdmin ? "Remove Admin" : "Remove from Team"}
                               </button>
-                            </div>
-                          )}
-                          {/* 🔥 HIDDEN BY DEFAULT: Transfer Ownership Button */}
-                          {isMasterAdmin && showAdvanced && (
-                            <button
-                              className="action-btn"
-                              style={{ backgroundColor: "#7c3aed", color: "white", marginLeft: "10px", minWidth: "120px", display: 'inline-flex', alignItems: 'center', gap: '5px', justifyContent: 'center' }}
-                              onClick={() => handleTransferOwnership(staff.id)}
-                              title="Transfer your Master Admin role to this user"
-                            >
-                              <UserIcon width="16" height="16" /> Transfer Owner
-                            </button>
-                          )}
-                        </>
+                            ) : (
+                              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                                <select
+                                  id={`dept-${staff.id}`}
+                                  className="assign-select"
+                                  disabled={!isMasterAdmin}
+                                  defaultValue={isMasterAdmin ? "" : myDept}
+                                >
+                                  <option value="" disabled>Select Dept...</option>
+                                  {[
+                                    "Accounts",
+                                    "Student Welfare",
+                                    "Student Section",
+                                    "Admission",
+                                    "Examination",
+                                    "School of Engineering and Technology",
+                                    "School of Management Studies",
+                                    "School of Law",
+                                    "School of Pharmaceutical Sciences",
+                                    "School of Hotel Management",
+                                    "School of Design and innovation",
+                                    "School of Allied Health Sciences",
+                                    "School of Social Sciences and Liberal Arts",
+                                  ].map(d => (
+                                    <option key={d} value={d}>{d}</option>
+                                  ))}
+                                </select>
+
+                                <button
+                                  className="btn-modern btn-primary-glass"
+                                  style={{ minWidth: "150px" }}
+                                  onClick={() => {
+                                    const deptSelect = document.getElementById(`dept-${staff.id}`);
+                                    handleRoleChange(staff.id, "promote", deptSelect.value);
+                                  }}
+                                >
+                                  {isMasterAdmin ? "Make Admin" : "Add to Team"}
+                                </button>
+                              </div>
+                            )}
+                            {/* 🔥 HIDDEN BY DEFAULT: Transfer Ownership Button */}
+                            {isMasterAdmin && showAdvanced && (
+                              <button
+                                className="btn-modern btn-purple-glass"
+                                style={{ marginLeft: "10px", minWidth: "140px" }}
+                                onClick={() => handleTransferOwnership(staff.id)}
+                                title="Transfer your Master Admin role to this user"
+                              >
+                                <UserIcon width="16" height="16" /> Transfer Owner
+                              </button>
+                            )}
+                          </>
+                        )
                       )}
                     </td>
                   </tr>

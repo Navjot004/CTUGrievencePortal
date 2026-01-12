@@ -1,0 +1,14 @@
+The following dashboards have been updated with Grievance ID in the "See More" popup:
+
+✅ StudentDashboard.jsx
+✅ StaffDashboard.jsx  
+✅ AdminDashboard.jsx
+✅ SchoolAdminDashboard.jsx
+
+Still need to update:
+- AccountAdminDashboard.jsx
+- AdmissionAdminDashboard.jsx
+- ExaminationAdminDashboard.jsx
+- StudentWelfareAdminDashboard.jsx
+- StudentSectionAdminDashboard.jsx
+- AdminStaffDashboard.jsx

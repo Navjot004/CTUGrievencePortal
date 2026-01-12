@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import "../styles/Dashboard.css";
 // ✅ ChatPopup Import
 import ChatPopup from "../components/ChatPopup";
+import Verifications from "../components/Verifications";
 import ctLogo from "../assets/ct-logo.png";
 import {
   BellIcon, GraduationCapIcon, ChartBarIcon, ClockIcon, CheckCircleIcon,
@@ -46,8 +47,12 @@ function StudentDashboard() {
   // ✅ FILTER STATES
   const [searchStaffId, setSearchStaffId] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
+  const [isVerificationPopupOpen, setIsVerificationPopupOpen] = useState(false);
   const [filterDepartment, setFilterDepartment] = useState("All");
+
   const [filterMonth, setFilterMonth] = useState("");
+
+  const [activeTab, setActiveTab] = useState("activity"); // 'activity' | 'verifications'
 
   useEffect(() => {
     if (!role || role !== "student") navigate("/");
@@ -331,139 +336,168 @@ function StudentDashboard() {
           </div>
         )}
 
-        {/* ✅ 3. RECENT ACTIVITY TABLE */}
-        <div className="card">
-          <h2>Recent Activity</h2>
+        {/* ✅ TAB SWITCHER (Makhan UI) */}
+        <div className="dashboard-tabs">
+          <button
+            onClick={() => setActiveTab('activity')}
+            className={`tab-btn ${activeTab === 'activity' ? 'active' : ''}`}
+          >
+            Recent Activity
+          </button>
 
-          {/* ✅ FILTER BAR */}
-          <div style={{
-            display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "20px",
-            padding: "15px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0"
-          }}>
-            <input
-              type="text" placeholder="Search Staff ID..."
-              value={searchStaffId} onChange={(e) => setSearchStaffId(e.target.value)}
-              style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px" }}
-            />
-            <select
-              value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-              style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 120px", cursor: "pointer" }}
-            >
-              <option value="All">All Status</option>
-              <option value="Pending">Pending</option>
-              <option value="Assigned">Assigned</option>
-              <option value="Resolved">Resolved</option>
-              <option value="Rejected">Rejected</option>
-            </select>
-            <select
-              value={filterDepartment} onChange={(e) => setFilterDepartment(e.target.value)}
-              style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
-            >
-              <option value="All">All Departments</option>
-              {uniqueDepartments.map(dept => <option key={dept} value={dept}>{dept}</option>)}
-            </select>
-            <input
-              type="month"
-              value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}
-              style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
-            />
-            <button
-              onClick={() => {
-                setSearchStaffId(""); setFilterStatus("All"); setFilterDepartment("All"); setFilterMonth("");
-              }}
-              style={{ padding: "10px 20px", borderRadius: "6px", border: "none", background: "#64748b", color: "white", cursor: "pointer", fontWeight: "600" }}
-            >
-              Reset
-            </button>
-          </div>
-
-          {loading ? (
-            <p>Loading records...</p>
-          ) : filteredHistory.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px', border: '1px dashed #cbd5e1', borderRadius: '12px' }}>
-              <h3>No grievances found</h3>
-              <p>{history.length === 0 ? "You haven't submitted any grievances yet." : "No grievances match your filters."}</p>
-              {history.length === 0 && (
-                <button
-                  style={{ marginTop: '15px', padding: '10px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
-                  onClick={() => navigate('/student/welfare')}
-                >
-                  Submit a Grievance
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="table-container">
-              <table className="grievance-table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Category / School</th>
-                    <th>Message</th>
-                    <th>Status</th>
-                    <th>Assigned To</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredHistory.map((g) => (
-                    <tr key={g._id} onClick={() => setSelectedGrievance(g)} style={{ cursor: "pointer" }}>
-                      <td>{formatDate(g.createdAt)}</td>
-                      <td>{g.category || "General"}</td>
-
-                      {/* --- FIXED MESSAGE CELL (Max Width 150px) --- */}
-                      <td className="message-cell" style={{ maxWidth: '150px' }}>
-                        <div
-                          style={{ padding: "4px", borderRadius: "4px", transition: "background 0.22s" }}
-                          onMouseEnter={(e) => e.currentTarget.style.background = "#f1f5f9"}
-                          onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-                        >
-                          <span style={{ wordBreak: 'break-all', lineHeight: '1.2', color: "#334155", fontWeight: "500" }}>
-                            {g.message.substring(0, 30)}{g.message.length > 30 ? "..." : ""}
-                          </span>
-                        </div>
-                      </td>
-                      {/* ------------------------------------------- */}
-
-                      <td>
-                        <span className={`status-badge status-${g.status.toLowerCase().replace(" ", "")}`}>
-                          {g.status}
-                        </span>
-                      </td>
-
-                      {/* ✅ ASSIGNED TO COLUMN */}
-                      <td>
-                        {g.assignedTo ? (
-                          <span style={{ fontWeight: "500", color: "#1e293b" }}>
-                            {staffMap[g.assignedTo] || "Staff"} <span style={{ fontSize: '0.85rem', color: '#64748b' }}>({g.assignedTo})</span>
-                          </span>
-                        ) : (
-                          <span style={{ color: "#94a3b8", fontStyle: "italic" }}>Yet to assign</span>
-                        )}
-                      </td>
-
-                      <td>
-                        <div className="chat-btn-wrapper">
-                          <button
-                            className="action-btn"
-                            style={{ backgroundColor: "#3b82f6", color: "white" }}
-                            onClick={(e) => { e.stopPropagation(); openChat(g._id); }}
-                          >
-                            Chat
-                          </button>
-                          {/* 🔴 RED DOT */}
-                          {unreadMap[g._id] && (
-                            <span className="notification-dot"></span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <button
+            onClick={() => setActiveTab('verifications')}
+            className={`tab-btn tab-verifications ${activeTab === 'verifications' ? 'active' : ''}`}
+          >
+            Verifications
+            {history.filter(g => g.status === 'Verification').length > 0 && (
+              <span className="badge-count">
+                {history.filter(g => g.status === 'Verification').length}
+              </span>
+            )}
+          </button>
         </div>
+
+        {/* ✅ TAB CONTENT */}
+        {activeTab === 'verifications' ? (
+          <Verifications
+            history={history}
+            onOpenModal={(g) => { setSelectedGrievance(g); setIsVerificationPopupOpen(true); }}
+          />
+        ) : (
+          <div className="card">
+            <h2>Recent Activity</h2>
+
+            {/* ✅ FILTER BAR */}
+            <div style={{
+              display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "20px",
+              padding: "15px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0"
+            }}>
+              <input
+                type="text" placeholder="Search Staff ID..."
+                value={searchStaffId} onChange={(e) => setSearchStaffId(e.target.value)}
+                style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px" }}
+              />
+              <select
+                value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+                style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 120px", cursor: "pointer" }}
+              >
+                <option value="All">All Status</option>
+                <option value="Pending">Pending</option>
+                <option value="Assigned">Assigned</option>
+                <option value="Resolved">Resolved</option>
+                <option value="Rejected">Rejected</option>
+              </select>
+              <select
+                value={filterDepartment} onChange={(e) => setFilterDepartment(e.target.value)}
+                style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
+              >
+                <option value="All">All Departments</option>
+                {uniqueDepartments.map(dept => <option key={dept} value={dept}>{dept}</option>)}
+              </select>
+              <input
+                type="month"
+                value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}
+                style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
+              />
+              <button
+                onClick={() => {
+                  setSearchStaffId(""); setFilterStatus("All"); setFilterDepartment("All"); setFilterMonth("");
+                }}
+                style={{ padding: "10px 20px", borderRadius: "6px", border: "none", background: "#64748b", color: "white", cursor: "pointer", fontWeight: "600" }}
+              >
+                Reset
+              </button>
+            </div>
+
+            {loading ? (
+              <p>Loading records...</p>
+            ) : filteredHistory.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', border: '1px dashed #cbd5e1', borderRadius: '12px' }}>
+                <h3>No grievances found</h3>
+                <p>{history.length === 0 ? "You haven't submitted any grievances yet." : "No grievances match your filters."}</p>
+                {history.length === 0 && (
+                  <button
+                    style={{ marginTop: '15px', padding: '10px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
+                    onClick={() => navigate('/student/welfare')}
+                  >
+                    Submit a Grievance
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="table-container">
+                <table className="grievance-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Category / School</th>
+                      <th>Message</th>
+                      <th>Status</th>
+                      <th>Assigned To</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredHistory.map((g) => (
+                      <tr key={g._id} onClick={() => setSelectedGrievance(g)} style={{ cursor: "pointer" }}>
+                        <td>{formatDate(g.createdAt)}</td>
+                        <td>{g.category || "General"}</td>
+
+                        {/* --- FIXED MESSAGE CELL (Max Width 150px) --- */}
+                        <td className="message-cell" style={{ maxWidth: '150px' }}>
+                          <div
+                            style={{ padding: "4px", borderRadius: "4px", transition: "background 0.22s" }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = "#f1f5f9"}
+                            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                          >
+                            <span style={{ wordBreak: 'break-all', lineHeight: '1.2', color: "#334155", fontWeight: "500" }}>
+                              {g.message.substring(0, 30)}{g.message.length > 30 ? "..." : ""}
+                            </span>
+                          </div>
+                        </td>
+                        {/* ------------------------------------------- */}
+
+                        <td>
+                          <span className={`status-badge status-${g.status.toLowerCase().replace(" ", "")}`}>
+                            {g.status}
+                          </span>
+                        </td>
+
+                        {/* ✅ ASSIGNED TO COLUMN */}
+                        <td>
+                          {g.assignedTo ? (
+                            <span style={{ fontWeight: "500", color: "#1e293b" }}>
+                              {staffMap[g.assignedTo] || "Staff"} <span style={{ fontSize: '0.85rem', color: '#64748b' }}>({g.assignedTo})</span>
+                            </span>
+                          ) : (
+                            <span style={{ color: "#94a3b8", fontStyle: "italic" }}>Yet to assign</span>
+                          )}
+                        </td>
+
+                        <td>
+                          <div className="chat-btn-wrapper">
+                            <button
+                              className="action-btn"
+                              style={{ backgroundColor: "#3b82f6", color: "white" }}
+                              onClick={(e) => { e.stopPropagation(); openChat(g._id); }}
+                            >
+                              Chat
+                            </button>
+                            {/* 🔴 RED DOT */}
+                            {unreadMap[g._id] && (
+                              <span className="notification-dot"></span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* --- DETAILS POPUP MODAL --- */}
         {selectedGrievance && (
@@ -488,6 +522,7 @@ function StudentDashboard() {
               </div>
 
               <div style={{ overflowY: 'auto', paddingRight: '5px' }}>
+                <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Grievance ID:</strong> {selectedGrievance._id}</p>
                 <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Category:</strong> {selectedGrievance.category || selectedGrievance.school || "General"}</p>
                 <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
                 <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Status:</strong> <span className={`status-badge status-${selectedGrievance.status.toLowerCase()}`}>{selectedGrievance.status}</span></p>
@@ -542,6 +577,42 @@ function StudentDashboard() {
         currentUserRole="student"
       />
 
+      {/* 🔥 VERIFICATION POPUP (Glassmorphism) */}
+      {isVerificationPopupOpen && (selectedGrievance || history.some(g => g.status === "Verification")) && (
+        <VerificationModal
+          grievance={selectedGrievance || history.find(g => g.status === "Verification")}
+          onClose={() => setIsVerificationPopupOpen(false)}
+          onVerify={async (id, action, feedback) => {
+            try {
+              const res = await fetch(`http://localhost:5000/api/grievances/verify-resolution/${id}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action, feedback })
+              });
+              if (res.ok) {
+                // Refresh data
+                const updatedHistory = [...history];
+                const idx = updatedHistory.findIndex(g => g._id === id);
+                if (idx !== -1) {
+                  updatedHistory[idx].status = action === "accept" ? "Resolved" : "Pending";
+                }
+                setHistory(updatedHistory);
+                // Also update stats manually or re-fetch
+                if (action === "accept") {
+                  setStats(prev => ({ ...prev, resolved: prev.resolved + 1, pending: prev.pending - 1 }));
+                } else {
+                  setStats(prev => ({ ...prev, pending: prev.pending + 1 }));
+                }
+                setIsVerificationPopupOpen(false);
+                alert(action === "accept" ? "Grievance Closed! Thank you." : "Grievance Reopened. Staff will be notified.");
+              }
+            } catch (err) {
+              alert("Error verifying grievance.");
+            }
+          }}
+        />
+      )}
+
       {/* ✅ SUPER SMOOTH INTERACTIONS (Makhan UI) */}
       <style>{`
         .dashboard-container { animation: fadeIn 0.4s ease-out; }
@@ -572,6 +643,125 @@ function StudentDashboard() {
         tr { transition: background-color 0.2s ease; }
         tr:hover { background-color: #f8fafc !important; }
       `}</style>
+    </div>
+  );
+}
+
+// ✅ VERIFICATION MODAL COMPONENT (Internal)
+function VerificationModal({ grievance, onVerify, onClose }) {
+  const [feedback, setFeedback] = useState("");
+  const [showRejectInput, setShowRejectInput] = useState(false);
+
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+      background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)',
+      display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999,
+      animation: 'fadeIn 0.3s ease-out'
+    }}>
+      <div style={{
+        background: 'white', padding: '30px', borderRadius: '24px',
+        width: '90%', maxwidth: '450px',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+        textAlign: 'center', position: 'relative', border: '1px solid rgba(255,255,255,0.8)',
+        animation: 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
+      }}>
+        {/* ❌ CLOSE BUTTON */}
+        <button
+          onClick={onClose}
+          style={{ position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#94a3b8' }}
+        >
+          &times;
+        </button>
+        {/* Header Icon */}
+        <div style={{
+          width: '60px', height: '60px', background: '#ecfdf5', color: '#10b981',
+          borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          margin: '0 auto 20px auto', fontSize: '2rem'
+        }}>
+          <CheckCircleIcon width="32" height="32" />
+        </div>
+
+        <h2 style={{ margin: '0 0 10px', color: '#1e293b' }}>Resolution Verified?</h2>
+        <p style={{ color: '#64748b', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '20px' }}>
+          The staff has marked your grievance regarding <strong>{grievance.category}</strong> as resolved.
+          <br />Are you satisfied with the solution?
+        </p>
+
+        {/* Staff Remarks Preview */}
+        {grievance.resolutionRemarks && (
+          <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '12px', fontSize: '0.9rem', color: '#334155', marginBottom: '25px', textAlign: 'left', border: '1px solid #e2e8f0' }}>
+            <strong>Staff Remarks:</strong>
+            <p style={{ margin: '5px 0 0', fontStyle: 'italic' }}>"{grievance.resolutionRemarks}"</p>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        {!showRejectInput ? (
+          <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
+            <button
+              onClick={() => setShowRejectInput(true)}
+              style={{
+                padding: '12px 24px', borderRadius: '12px', border: 'none',
+                background: '#fee2e2', color: '#ef4444', fontWeight: '600', cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onMouseOver={(e) => { e.target.style.background = '#fecaca'; }}
+              onMouseOut={(e) => { e.target.style.background = '#fee2e2'; }}
+            >
+              No, I'm not
+            </button>
+            <button
+              onClick={() => onVerify(grievance._id, 'accept', '')}
+              style={{
+                padding: '12px 24px', borderRadius: '12px', border: 'none',
+                background: '#10b981', color: 'white', fontWeight: '600', cursor: 'pointer',
+                boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.4)',
+                transition: 'all 0.2s'
+              }}
+              onMouseOver={(e) => { e.target.style.transform = 'translateY(-2px)'; }}
+              onMouseOut={(e) => { e.target.style.transform = 'translateY(0)'; }}
+            >
+              Yes, Close It
+            </button>
+          </div>
+        ) : (
+          <div style={{ animation: 'fadeIn 0.3s' }}>
+            <textarea
+              placeholder="Please tell us why you are not satisfied..."
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value)}
+              style={{
+                width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #cbd5e1',
+                marginBottom: '15px', minHeight: '80px', fontSize: '0.9rem', outline: 'none'
+              }}
+              autoFocus
+            />
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <button
+                onClick={() => setShowRejectInput(false)}
+                style={{
+                  padding: '10px 20px', borderRadius: '8px', border: '1px solid #e2e8f0',
+                  background: 'white', color: '#64748b', fontWeight: '600', cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => onVerify(grievance._id, 'reject', feedback)}
+                disabled={!feedback.trim()}
+                style={{
+                  padding: '10px 20px', borderRadius: '8px', border: 'none',
+                  background: '#ef4444', color: 'white', fontWeight: '600', cursor: 'pointer',
+                  opacity: feedback.trim() ? 1 : 0.6
+                }}
+              >
+                Reopen Grievance
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

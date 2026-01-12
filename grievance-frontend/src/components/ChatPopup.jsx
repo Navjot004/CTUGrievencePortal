@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import "../styles/Dashboard.css"; // Ensure this has basic modal styles
 
 // ✅ Advanced Icons
-import { PaperclipIcon, CameraIcon, SendIcon, FileIcon, XIcon as CloseIcon } from "./Icons";
+import { PaperclipIcon, CameraIcon, FileIcon, XIcon as CloseIcon } from "./Icons";
 
 function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRole }) {
   const [messages, setMessages] = useState([]);
@@ -66,7 +66,7 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
     fetchGrievanceDetails();
   }, [isOpen, grievanceId]);
 
-  // ✅ SMART SCROLL LOGIC (Fixes auto-scroll issue)
+  // ✅ SMART SCROLL LOGIC
   useEffect(() => {
     if (!messagesEndRef.current || !chatBodyRef.current) return;
 
@@ -125,7 +125,7 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
         });
 
         if (!uploadRes.ok) throw new Error("File upload failed");
-        uploadedFileData = await uploadRes.json(); // Returns filename, fileId, contentType...
+        uploadedFileData = await uploadRes.json();
       }
 
       // ✅ Step 2: Send Message with File Data
@@ -133,9 +133,9 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
         grievanceId,
         senderId: currentUserId,
         senderRole: currentUserRole,
-        sender: currentUserRole === "student" ? "Student" : "Staff", // Fallback name
+        sender: currentUserRole === "student" ? "Student" : "Staff",
         message: newMessage,
-        fileData: uploadedFileData // Pass file metadata if exists
+        fileData: uploadedFileData
       };
 
       const res = await fetch("http://localhost:5000/api/chat/send", {
@@ -205,16 +205,8 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
   if (!isOpen) return null;
 
   return (
-    <div className="chat-modal-overlay" style={{
-      position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-      backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(5px)',
-      display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999
-    }}>
-      <div className="chat-modal" style={{
-        position: 'relative', width: '100%', maxWidth: '450px', height: '85vh', maxHeight: '700px',
-        backgroundColor: '#ffffff', borderRadius: '24px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
-        display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: 'scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
-      }}>
+    <div className="chat-modal-overlay">
+      <div className="chat-modal">
 
         {/* ✅ CAMERA OVERLAY */}
         {showCamera && (
@@ -241,32 +233,27 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
         )}
 
         {/* ✅ HEADER */}
-        <div style={{
-          padding: '16px 20px', background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(10px)',
-          borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 10
-        }}>
+        <div className="chat-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1, #a855f7)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem' }}>
+            <div className="chat-avatar">
               {currentUserRole === "student" ? grievanceData?.assignedStaff?.name?.[0] || "S" : grievanceData?.name?.[0] || "U"}
             </div>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '600', color: '#1e293b' }}>
+            <div className="chat-header-info">
+              <h3>
                 {currentUserRole === "student" ? (grievanceData?.assignedStaff?.name || 'Support Team') : (grievanceData?.name || 'Student')}
               </h3>
-              <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>
+              <p>
                 {currentUserRole === "student" ? (grievanceData?.assignedStaff ? grievanceData.assignedStaff.department : 'Support') : (grievanceData?.userId || 'Online')}
               </p>
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '8px', borderRadius: '50%', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#f1f5f9'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-            <CloseIcon />
+          <button onClick={onClose} className="chat-close-btn">
+            <CloseIcon width="20" height="20" />
           </button>
         </div>
 
         {/* ✅ CHAT BODY */}
-        <div className="chat-body" ref={chatBodyRef} style={{
-          flex: 1, overflowY: 'auto', padding: '20px', background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '12px'
-        }}>
+        <div className="chat-body" ref={chatBodyRef}>
           {messages.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8', textAlign: 'center' }}>
               <div style={{ fontSize: '3rem', marginBottom: '10px' }}>💬</div>
@@ -278,28 +265,19 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
               const showAvatar = !isMine && (index === 0 || messages[index - 1].senderId !== msg.senderId);
 
               return (
-                <div key={msg._id} style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start', alignItems: 'flex-end', gap: '8px' }}>
-
+                <div key={msg._id} className={`chat-message-row ${isMine ? 'sent' : 'received'}`}>
                   {/* Avatar for received messages */}
                   {!isMine && (
-                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#cbd5e1', flexShrink: 0, opacity: showAvatar ? 1 : 0 }}>
-                      {showAvatar && <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', color: 'white', fontWeight: 'bold' }}>{msg.sender?.[0]}</div>}
+                    <div style={{ width: '28px', height: '28px', flexShrink: 0 }}>
+                      {showAvatar && (
+                        <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: '#cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', color: 'white', fontWeight: 'bold' }}>
+                          {msg.sender?.[0]}
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  <div style={{
-                    maxWidth: '75%',
-                    padding: '10px 14px',
-                    borderRadius: '18px',
-                    borderBottomRightRadius: isMine ? '4px' : '18px',
-                    borderBottomLeftRadius: isMine ? '18px' : '4px',
-                    background: isMine ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : '#ffffff',
-                    color: isMine ? 'white' : '#1e293b',
-                    boxShadow: isMine ? '0 4px 12px rgba(99, 102, 241, 0.2)' : '0 2px 4px rgba(0,0,0,0.05)',
-                    fontSize: '0.95rem',
-                    lineHeight: '1.4',
-                    position: 'relative'
-                  }}>
+                  <div className={`chat-bubble ${isMine ? 'sent' : 'received'}`}>
                     {/* ✅ DISPLAY FILE */}
                     {msg.fileData && (
                       <div style={{ marginBottom: msg.message ? '8px' : '0' }}>
@@ -321,7 +299,7 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
                               borderRadius: "10px", textDecoration: "none", color: 'inherit', fontWeight: '500'
                             }}
                           >
-                            <FileIcon />
+                            <FileIcon width="16" height="16" />
                             <span style={{ fontSize: '0.85rem' }}>Download File</span>
                           </a>
                         )}
@@ -332,10 +310,7 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
                     {msg.message}
 
                     {/* TIME */}
-                    <div style={{
-                      fontSize: '0.65rem', marginTop: '4px', textAlign: 'right',
-                      opacity: 0.7, color: isMine ? 'rgba(255,255,255,0.8)' : '#94a3b8'
-                    }}>
+                    <div className="chat-timestamp">
                       {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
@@ -347,8 +322,7 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
         </div>
 
         {/* ✅ FOOTER INPUT AREA */}
-        <div style={{ padding: '16px', background: 'white', borderTop: '1px solid #f1f5f9' }}>
-
+        <div className="chat-footer">
           {/* File Preview */}
           {selectedFile && (
             <div style={{
@@ -366,66 +340,54 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
             </div>
           )}
 
-          <form onSubmit={handleSend} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f1f5f9', padding: '6px 8px', borderRadius: '30px' }}>
+          <form onSubmit={handleSend}>
+            <div className="chat-input-wrapper">
+              {/* Icons container (Left) */}
+              <button
+                type="button"
+                className="chat-icon-btn"
+                onClick={() => fileInputRef.current.click()}
+                title="Attach File"
+              >
+                <PaperclipIcon width="20" height="20" />
+              </button>
+              <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: "none" }} />
 
-            {/* Attachment Button */}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current.click()}
-              style={{ width: '36px', height: '36px', borderRadius: '50%', border: 'none', background: 'white', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', transition: 'transform 0.2s' }}
-              title="Attach File"
-            >
-              <PaperclipIcon />
-            </button>
-            <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: "none" }} />
+              <button
+                type="button"
+                className="chat-icon-btn"
+                onClick={() => setShowCamera(true)}
+                title="Camera"
+              >
+                <CameraIcon width="20" height="20" />
+              </button>
 
-            {/* Camera Button */}
-            <button
-              type="button"
-              onClick={() => setShowCamera(true)}
-              style={{ width: '36px', height: '36px', borderRadius: '50%', border: 'none', background: 'white', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', transition: 'transform 0.2s' }}
-              title="Camera"
-            >
-              <CameraIcon />
-            </button>
+              {/* Text Input (Middle) */}
+              <input
+                type="text"
+                className="chat-input-field"
+                placeholder="Message..."
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                disabled={isUploading}
+              />
 
-            {/* Text Input */}
-            <input
-              type="text"
-              placeholder="Message..."
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              disabled={isUploading}
-              style={{ flex: 1, border: 'none', background: 'transparent', padding: '8px 4px', fontSize: '0.95rem', outline: 'none', color: '#1e293b' }}
-            />
-
-            {/* Send Button */}
-            <button
-              type="submit"
-              disabled={isUploading || (!newMessage.trim() && !selectedFile)}
-              style={{
-                width: '40px', height: '40px', borderRadius: '50%', border: 'none',
-                background: (newMessage.trim() || selectedFile) ? '#6366f1' : '#cbd5e1',
-                color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: (newMessage.trim() || selectedFile) ? 'pointer' : 'default',
-                transition: 'background 0.2s, transform 0.2s',
-                transform: (newMessage.trim() || selectedFile) ? 'scale(1)' : 'scale(0.95)'
-              }}
-            >
-              <SendIcon />
-            </button>
+              {/* Send Button (Right) */}
+              {(newMessage.trim() || selectedFile) && (
+                <button
+                  type="submit"
+                  disabled={isUploading}
+                  className="chat-send-btn"
+                >
+                  Send
+                </button>
+              )}
+            </div>
           </form>
         </div>
       </div>
-      <style>{`
-        @keyframes scaleUp {
-          from { opacity: 0; transform: scale(0.95); }
-          to { opacity: 1; transform: scale(1); }
-        }
-      `}</style>
     </div>
   );
-
 }
 
 export default ChatPopup;

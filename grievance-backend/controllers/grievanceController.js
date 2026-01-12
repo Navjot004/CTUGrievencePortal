@@ -104,7 +104,7 @@ export const assignToStaff = async (req, res) => {
     const { staffId, adminId, deadline } = req.body;
 
     // Debug: log incoming assign payload
-    console.log(`Assign request for grievance ${id} -> staff: ${staffId}, admin: ${adminId}, deadline: ${deadline}`);
+    // console.log(`Assign request for grievance ${id} -> staff: ${staffId}, admin: ${adminId}, deadline: ${deadline}`);
 
     // ✅ Prevent assigning to self (submitter)
     const existingGrievance = await Grievance.findById(id);
@@ -147,11 +147,11 @@ export const assignToStaff = async (req, res) => {
     if (deadlineDate) update.deadlineDate = deadlineDate;
 
     // Debug: log the update object that will be applied
-    console.log('Assign update object:', update);
+    // console.log('Assign update object:', update);
 
     const grievance = await Grievance.findByIdAndUpdate(id, update, { new: true });
 
-    console.log('Assign result (saved grievance):', grievance);
+    // console.log('Assign result (saved grievance):', grievance);
 
     res.json({
       message: "✅ Assigned to staff successfully",
@@ -176,7 +176,7 @@ export const getAssignedGrievances = async (req, res) => {
       .select('name email regid message createdAt deadlineDate extensionRequest status attachment _id assignedTo updatedAt')
       .sort({ createdAt: -1 });
 
-    console.log(`getAssignedGrievances: returning ${grievances.length} grievances for staff ${staffId}`);
+    // console.log(`getAssignedGrievances: returning ${grievances.length} grievances for staff ${staffId}`);
     res.json(grievances);
   } catch (err) {
     console.error("getAssignedGrievances ERROR:", err);
@@ -202,33 +202,158 @@ export const getUserGrievances = async (req, res) => {
 };
 
 
-/* =====================================================
-   7️⃣ STAFF / ADMIN → UPDATE STATUS
-===================================================== */
+// ✅ 7️⃣ STAFF / ADMIN → UPDATE STATUS (With Verification Logic)
 export const updateGrievanceStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status, resolutionRemarks, resolvedBy } = req.body;
 
-    const grievance = await Grievance.findByIdAndUpdate(
-      id,
-      {
-        status,
-        resolutionRemarks,
-        resolvedBy,
-        updatedAt: Date.now(),
-      },
-      { new: true }
-    );
+    // 🔥 If status is "Resolved", switch to "Verification"
+    let finalStatus = status;
+    let resolutionTime = null;
+
+    if (status === "Resolved") {
+      finalStatus = "Verification";
+      resolutionTime = Date.now();
+    }
+
+    const updateData = {
+      status: finalStatus,
+      resolutionRemarks,
+      resolvedBy,
+      updatedAt: Date.now(),
+    };
+
+    if (resolutionTime) {
+      updateData.resolutionProposedAt = resolutionTime;
+    }
+
+    const grievance = await Grievance.findByIdAndUpdate(id, updateData, { new: true });
+
+    // 📧 SEND EMAIL IF STATUS IS VERIFICATION
+    if (finalStatus === "Verification") {
+      try {
+        const transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+          },
+        });
+
+        const html = `
+          <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e2e8f0; max-width: 600px;">
+            <h2 style="color: #fca5a5;">Action Required: Verify Resolution</h2>
+            <p>Dear <strong>${grievance.name}</strong>,</p>
+            <p>The staff has proposed a resolution for your grievance related to <strong>${grievance.category}</strong>.</p>
+            <div style="background: #fff1f2; padding: 15px; border-left: 4px solid #f43f5e; margin: 20px 0;">
+              <strong>Staff Remarks:</strong> ${resolutionRemarks}
+            </div>
+            <p>Please login to your dashboard to <strong>Accept</strong> or <strong>Reject</strong> this resolution within <strong>36 hours</strong>.</p>
+            <p style="color: #64748b; font-size: 0.9rem;">If no action is taken, it will be automatically marked as Resolved.</p>
+          </div>
+        `;
+
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: grievance.email,
+          subject: "Action Required: Verify Grievance Resolution",
+          html
+        });
+        console.log(`✅ Verification email sent to student ${grievance.email}`);
+      } catch (err) {
+        console.error("⚠️ Email failed:", err);
+      }
+    }
 
     res.json({
-      message: "✅ Grievance updated successfully",
+      message: status === "Resolved" ? "✅ Resolution submitted for verification" : "✅ Status updated",
       grievance,
     });
   } catch (err) {
     res.status(500).json({ message: "Update failed" });
   }
 };
+
+
+// 🆕 ✅ VERIFY RESOLUTION (Student Action)
+export const verifyResolution = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action, feedback } = req.body; // 'accept' | 'reject'
+
+    const grievance = await Grievance.findById(id);
+    if (!grievance) return res.status(404).json({ message: "Grievance not found" });
+
+    let newStatus = "";
+    let emailSubject = "";
+    let emailBody = "";
+    let notifyEmails = [];
+
+    // Find assigned staff email
+    let staffEmail = null;
+    let deptAdminEmail = null;
+
+    if (grievance.assignedTo) {
+      const staff = await User.findOne({ id: grievance.assignedTo });
+      if (staff) staffEmail = staff.email;
+    }
+
+    // If Rejected, we also need Dept Admin email (Assigned By usually is Admin)
+    if (action === "reject" && grievance.assignedBy) {
+      const admin = await User.findOne({ id: grievance.assignedBy });
+      if (admin) deptAdminEmail = admin.email;
+    }
+
+    if (action === "accept") {
+      newStatus = "Resolved";
+      emailSubject = "Resolution Accepted ✅";
+      emailBody = `The student has <strong>ACCEPTED</strong> the resolution for grievance #${id}. Great job!`;
+      if (staffEmail) notifyEmails.push(staffEmail);
+    } else {
+      newStatus = "Pending"; // Reopen
+      emailSubject = "Resolution Rejected ❌";
+      emailBody = `The student has <strong>REJECTED</strong> the resolution for grievance #${id}.<br><br><strong>Student Feedback:</strong> ${feedback}<br><br>Please review and take necessary action immediately.`;
+      if (staffEmail) notifyEmails.push(staffEmail);
+      if (deptAdminEmail && deptAdminEmail !== staffEmail) notifyEmails.push(deptAdminEmail);
+    }
+
+    // Update Status
+    grievance.status = newStatus;
+    // grievance.resolutionRemarks += `\n[Student Verified: ${action.toUpperCase()} - ${feedback || "No feedback"}]`; 
+    // Optional: Append feedback to internal remarks if desired, keeping simple for now.
+
+    await grievance.save();
+
+    // 📧 SEND EMAILS
+    if (notifyEmails.length > 0) {
+      try {
+        const transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+        });
+
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: notifyEmails, // Array of emails
+          subject: `${emailSubject} - Grievance #${id}`,
+          html: `<p>${emailBody}</p>`
+        });
+        console.log(`✅ Verification outcome email sent to: ${notifyEmails.join(", ")}`);
+      } catch (err) {
+        console.error("⚠️ Failed to send verification outcome email:", err);
+      }
+    }
+
+    res.json({ message: `Grievance marked as ${newStatus}`, grievance });
+
+  } catch (err) {
+    console.error("Verification Error:", err);
+    res.status(500).json({ message: "Verification failed" });
+  }
+};
+
+// ... (Existing Routes Below) //
 
 // ✅ Request Extension (Staff)
 export const requestExtension = async (req, res) => {

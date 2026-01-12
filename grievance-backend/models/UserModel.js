@@ -15,8 +15,10 @@ const userSchema = new mongoose.Schema({
 
   // OTP & Verification
   isVerified: { type: Boolean, default: false },
-  otp: { type: String },
+  otp: { type: String }, // Email OTP
   otpExpires: { type: Number },
+  phoneOtp: { type: String }, // 🔥 Phone OTP
+  phoneOtpExpires: { type: Number },
 
   // Student Info
   program: String,

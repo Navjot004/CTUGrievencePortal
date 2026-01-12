@@ -3,8 +3,7 @@ import { Link } from "react-router-dom";
 import "../styles/LoginPage.css";
 
 // Icons
-// Icons
-import { UserIcon, LockIcon, PhoneIcon, MailIcon, UsersIcon, BookIcon, EyeIcon, EyeOffIcon } from "../components/Icons";
+import { UserIcon, LockIcon, PhoneIcon, MailIcon, UsersIcon, BookIcon, EyeIcon, EyeOffIcon, KeyIcon } from "../components/Icons";
 
 const academicPrograms = {
   "School of Engineering and Technology": ["B.Tech - CSE", "B.Tech - AI", "B.Tech - Civil", "B.Tech - Mech", "BCA", "MCA"],
@@ -19,20 +18,15 @@ function RegisterPage() {
   const [formData, setFormData] = useState({ id: "", role: "", studentType: "current", fullName: "", email: "", phone: "", password: "", program: "", });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [confirmPassword, setConfirmPassword] = useState(""); // ✅ Confirm Password State
-  const [otp, setOtp] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  // 🔐 Dual OTP State
+  const [otpEmail, setOtpEmail] = useState("");
+  const [otpPhone, setOtpPhone] = useState("");
+
   const [step, setStep] = useState(1);
   const [msg, setMsg] = useState("");
   const [statusType, setStatusType] = useState("");
-
-  const extraStyles = {
-    alertBox: { padding: '12px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px', textAlign: 'center', fontWeight: '500' },
-    success: { backgroundColor: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' },
-    error: { backgroundColor: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' },
-    info: { backgroundColor: '#e0f2fe', color: '#075985', border: '1px solid #bae6fd' },
-    otpInput: { letterSpacing: '8px', fontSize: '24px', textAlign: 'center', fontWeight: 'bold' },
-    backBtn: { background: 'none', border: 'none', color: '#4f46e5', cursor: 'pointer', textDecoration: 'underline', marginTop: '10px', fontSize: '14px' }
-  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -41,7 +35,7 @@ function RegisterPage() {
     setFormData({ ...formData, [name]: processedValue });
   };
 
-  // STEP 1: Request OTP
+  // STEP 1: Request Dual OTP
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
 
@@ -52,10 +46,11 @@ function RegisterPage() {
       return;
     }
 
-    setMsg("Validating with University Records...");
+    setMsg("Validating details & Sending Verification Codes...");
     setStatusType("info");
 
     try {
+      // 🔥 Update Endpoint
       const res = await fetch("http://localhost:5000/api/auth/register-request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -65,38 +60,40 @@ function RegisterPage() {
       if (!res.ok) throw new Error(data.message);
 
       setStep(2);
-      setMsg("ID Verified! OTP sent to your email.");
+      setMsg("Verification Codes sent to Email & Phone!");
       setStatusType("success");
     } catch (err) {
-      setMsg(err.message || "Failed to send OTP.");
+      setMsg(err.message || "Failed to send OTPs.");
       setStatusType("error");
     }
   };
 
-  // STEP 2: Verify OTP
+  // STEP 2: Verify Dual OTPs
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     setMsg("Finalizing registration...");
     setStatusType("info");
 
     try {
-      const res = await fetch("http://localhost:5000/api/auth/verify-otp", {
+      // 🔥 Update Endpoint & Payload
+      const res = await fetch("http://localhost:5000/api/auth/verify-registration", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: formData.email,
-          otp: otp,
+          otpEmail: otpEmail,
+          otpPhone: otpPhone,
           formData: formData
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
 
-      setMsg("Registration successful! Redirecting...");
+      setMsg("Registration successful! Redirecting to Login...");
       setStatusType("success");
       setTimeout(() => window.location.href = "/", 2000);
     } catch (err) {
-      setMsg(err.message || "Invalid OTP.");
+      setMsg(err.message || "Invalid OTPs.");
       setStatusType("error");
     }
   };
@@ -105,20 +102,20 @@ function RegisterPage() {
     <div className="login-container">
       <div className="login-brand-section">
         <div className="brand-content">
-          <h1>{step === 1 ? "Create an Account" : "Verify Your Identity"}</h1>
-          <p>{step === 1 ? "Join the portal to submit grievances and track their resolution." : "Check your email for the 6-digit verification code."}</p>
+          <h1>{step === 1 ? "Join the Portal" : "Double Verification"}</h1>
+          <p>{step === 1 ? "Create your account to access university services." : "We've sent codes to your Email and Phone to ensure account security."}</p>
           <div className="brand-footer">© 2025 University Administration</div>
         </div>
       </div>
 
       <div className="login-form-section">
-        <div className="form-wrapper">
+        <div className="form-wrapper animated-form">
           <div className="form-header">
-            <h2>{step === 1 ? "Register" : "Enter OTP"}</h2>
-            <p>{step === 1 ? "Enter details exactly as per University Records." : `Sent to ${formData.email}`}</p>
+            <h2>{step === 1 ? "Register" : "Verify It's You"}</h2>
+            <p>{step === 1 ? "Enter details exactly as per University Records." : `Check ${formData.email} and ${formData.phone}`}</p>
           </div>
 
-          {msg && <div style={{ ...extraStyles.alertBox, ...extraStyles[statusType] }}>{msg}</div>}
+          {msg && <div className={`alert-box ${statusType}`}>{msg}</div>}
 
           {step === 1 ? (
             /* REGISTRATION FORM */
@@ -132,7 +129,7 @@ function RegisterPage() {
                       <option value="">Select Role</option>
                       <option value="student">Student</option>
                       <option value="staff">Staff</option>
-                      <option value="admin">Admin</option>
+                      {/* 🚫 Admin Role Removed */}
                     </select>
                   </div>
                 </div>
@@ -141,7 +138,6 @@ function RegisterPage() {
                   <label>University ID</label>
                   <div className="input-wrapper id-field">
                     <span className="icon"><UserIcon /></span>
-                    {/* ✅ UPDATED PLACEHOLDER */}
                     <input name="id" placeholder="e.g. 72212871" value={formData.id} onChange={handleChange} required />
                   </div>
                 </div>
@@ -150,7 +146,6 @@ function RegisterPage() {
               {formData.role === 'student' && (
                 <div className="input-group">
                   <label>Student Status</label>
-                  {/* ✅ Styled Radio Group */}
                   <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
                     <label style={{
                       flex: 1, padding: '10px', borderRadius: '8px', cursor: 'pointer', textAlign: 'center', fontWeight: '500', transition: 'all 0.2s',
@@ -207,10 +202,7 @@ function RegisterPage() {
                     required
                   />
                 </div>
-
-                {formData.role === 'student' && (
-                  <div className="field-hint info"><em>NOTE:- You may use your university or personal email. We'll send a verification code (OTP) to this address.</em></div>
-                )}
+                <div className="field-hint info"><em>We will verify both Email and Phone number.</em></div>
               </div>
 
               <div className="two-col-row">
@@ -231,7 +223,6 @@ function RegisterPage() {
                 </div>
               </div>
 
-              {/* ✅ Confirm Password Field */}
               <div className="input-group" style={{ marginBottom: '15px' }}>
                 <label>Confirm Password</label>
                 <div className="input-wrapper password" >
@@ -271,28 +262,49 @@ function RegisterPage() {
                 </div>
               )}
 
-              <button className="btn-primary" type="submit">Verify Email with OTP</button>
+              <button className="btn-primary" type="submit">Verify & Register</button>
             </form>
           ) : (
-            /* OTP FORM */
-            <form onSubmit={handleVerifyOtp}>
+            /* DUAL OTP FORM */
+            <form onSubmit={handleVerifyOtp} className="animated-form">
+
+              {/* Email OTP */}
               <div className="input-group">
-                <label>Verification Code</label>
+                <label>Email Code (Sent to {formData.email})</label>
                 <div className="input-wrapper otp-field">
-                  <span className="icon"><LockIcon /></span>
+                  <span className="icon"><MailIcon /></span>
                   <input
-                    style={extraStyles.otpInput}
-                    placeholder="000000"
+                    style={{ letterSpacing: '4px', textAlign: 'center', fontWeight: 'bold' }}
+                    placeholder="E-Mail Code"
                     maxLength="6"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
+                    value={otpEmail}
+                    onChange={(e) => setOtpEmail(e.target.value)}
                     required
                   />
                 </div>
               </div>
-              <button className="btn-primary" type="submit">Complete Registration</button>
+
+              {/* Phone OTP */}
+              <div className="input-group">
+                <label>SMS Code (Sent to {formData.phone})</label>
+                <div className="input-wrapper otp-field">
+                  <span className="icon"><PhoneIcon /></span>
+                  <input
+                    style={{ letterSpacing: '4px', textAlign: 'center', fontWeight: 'bold' }}
+                    placeholder="SMS Code"
+                    maxLength="6"
+                    value={otpPhone}
+                    onChange={(e) => setOtpPhone(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <button className="btn-primary" type="submit">Verify Both & Finish</button>
               <center>
-                <button type="button" onClick={() => setStep(1)} style={extraStyles.backBtn}>Back to edit details</button>
+                <button type="button" onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: '#4f46e5', cursor: 'pointer', textDecoration: 'underline', marginTop: '10px', fontSize: '14px' }}>
+                  Back to edit details
+                </button>
               </center>
             </form>
           )}

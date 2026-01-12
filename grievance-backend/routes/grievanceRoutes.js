@@ -9,7 +9,8 @@ import {
   assignToStaff,
   getGrievanceDetail,
   requestExtension,
-  resolveExtension
+  resolveExtension,
+  verifyResolution
 } from "../controllers/grievanceController.js";
 
 const router = express.Router();
@@ -23,6 +24,9 @@ router.get("/user/:userId", getUserGrievances);
 
 // ✅ Get grievance details by ID (for chat header) - with assigned staff info
 router.get("/detail/:grievanceId", getGrievanceDetail);
+
+// ✅ Student verifies resolution
+router.post("/verify-resolution/:id", verifyResolution);
 
 /* ================= MASTER ADMIN ================= */
 // ✅ Master Admin sees ALL grievances

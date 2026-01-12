@@ -24,7 +24,7 @@ function AdminDashboard() {
   const userId = localStorage.getItem("grievance_id")?.toUpperCase();
   const isDeptAdmin = localStorage.getItem("is_dept_admin") === "true";
 
-  const isMasterAdmin = userId === "10001";
+  const isMasterAdmin = localStorage.getItem("is_master_admin") === "true"; // 🔥 Dynamic Check
   const canManageStaff = isMasterAdmin || isDeptAdmin;
 
   const [activeTab, setActiveTab] = useState("triage");
@@ -307,8 +307,7 @@ function AdminDashboard() {
                 <button onClick={() => setSelectedGrievance(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>&times;</button>
               </div>
 
-              <div style={{ overflowY: 'auto', paddingRight: '5px' }}>
-                <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Category:</strong> {selectedGrievance.category || selectedGrievance.school || "N/A"}</p>
+              <div style={{ overflowY: 'auto', paddingRight: '5px' }}>                <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Grievance ID:</strong> {selectedGrievance._id}</p>                <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Category:</strong> {selectedGrievance.category || selectedGrievance.school || "N/A"}</p>
                 <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
                 <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Status:</strong> <span className={`status-badge status-${(selectedGrievance.status || "").toLowerCase()}`}>{selectedGrievance.status}</span></p>
 

@@ -9,7 +9,7 @@ const AdminManageStaff = () => {
   const userId = localStorage.getItem("grievance_id")?.toUpperCase();
   const role = localStorage.getItem("grievance_role")?.toLowerCase();
 
-  const isMaster = userId === "10001";
+  const isMaster = localStorage.getItem("is_master_admin") === "true";
   const myDepartment = localStorage.getItem("admin_department") || "";
   const isDeptAdmin = localStorage.getItem("is_dept_admin") === "true";
 
@@ -42,8 +42,9 @@ const AdminManageStaff = () => {
     try {
       setLoading(true);
       // ✅ Correct URL matching your new server.js
+      const currentToken = localStorage.getItem("grievance_token");
       const res = await fetch("http://localhost:5000/api/admin-staff/all", {
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: { "Authorization": `Bearer ${currentToken}` }
       });
       const data = await res.json();
       if (res.ok) {
@@ -84,7 +85,8 @@ const AdminManageStaff = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` // ✅ Added Token
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("grievance_token")}` // ✅ Added Token
         },
         body: JSON.stringify({ targetStaffId, action, department: selectedDept }),
       });
@@ -112,7 +114,7 @@ const AdminManageStaff = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          "Authorization": `Bearer ${localStorage.getItem("grievance_token")}`
         },
         body: JSON.stringify({ newMasterId })
       });

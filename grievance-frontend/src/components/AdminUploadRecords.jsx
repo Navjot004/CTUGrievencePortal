@@ -1,10 +1,39 @@
-import React, { useState } from "react";
-import "../styles/Dashboard.css"; // Uses styles from Dashboard.css
+import React, { useState, useEffect } from "react";
+import "../styles/Dashboard.css";
+import { DownloadIcon, EyeIcon, FileIcon, UploadIcon, UsersIcon } from "./Icons";
 
 const AdminUploadRecords = () => {
   const [file, setFile] = useState(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [loadingFiles, setLoadingFiles] = useState(true);
+  const [exportingUsers, setExportingUsers] = useState(false);
+
+  const token = localStorage.getItem("grievance_token");
+
+  // Fetch list of uploaded files
+  const fetchUploadedFiles = async () => {
+    try {
+      setLoadingFiles(true);
+      const res = await fetch("http://localhost:5000/api/admin/uploaded-files", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setUploadedFiles(data.files || []);
+      }
+    } catch (err) {
+      console.error("Error fetching files:", err);
+    } finally {
+      setLoadingFiles(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUploadedFiles();
+  }, []);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -19,7 +48,6 @@ const AdminUploadRecords = () => {
       return;
     }
 
-    // Basic frontend validation to check extension
     const validExtensions = ['.xlsx', '.xls', '.csv'];
     const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
 
@@ -31,14 +59,11 @@ const AdminUploadRecords = () => {
     setLoading(true);
     const formData = new FormData();
     formData.append("file", file);
-    const token = localStorage.getItem("grievance_token");
 
     try {
       const res = await fetch("http://localhost:5000/api/admin/upload-records", {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        },
+        headers: { "Authorization": `Bearer ${token}` },
         body: formData,
       });
 
@@ -46,8 +71,9 @@ const AdminUploadRecords = () => {
 
       if (res.ok) {
         setMessage(data.message || "✅ Upload Successful!");
-        // Optional: Clear file input after success
-        // setFile(null); 
+        setFile(null);
+        document.getElementById("fileInput").value = "";
+        fetchUploadedFiles(); // Refresh file list
       } else {
         setMessage(`❌ Error: ${data.message}`);
       }
@@ -59,42 +85,220 @@ const AdminUploadRecords = () => {
     }
   };
 
+  const handleDownloadFile = (filename) => {
+    window.open(`http://localhost:5000/api/admin/download-file/${filename}`, '_blank');
+  };
+
+  const handlePreviewFile = (filename) => {
+    window.open(`http://localhost:5000/api/admin/preview-file/${filename}`, '_blank');
+  };
+
+  const handleExportUsers = async () => {
+    setExportingUsers(true);
+    try {
+      const res = await fetch("http://localhost:5000/api/admin/export-users", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `users_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        setMessage("✅ Users exported successfully!");
+      } else {
+        setMessage("❌ Failed to export users");
+      }
+    } catch (err) {
+      console.error("Export Error:", err);
+      setMessage("❌ Export failed");
+    } finally {
+      setExportingUsers(false);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  };
+
+  const formatFileSize = (bytes) => {
+    if (!bytes) return "N/A";
+    const kb = bytes / 1024;
+    if (kb < 1024) return `${kb.toFixed(2)} KB`;
+    return `${(kb / 1024).toFixed(2)} MB`;
+  };
+
   return (
-    <div className="upload-container">
-      <h3 className="upload-heading">Upload University Records (Excel)</h3>
-      <p className="upload-info">
-        Upload <strong>.xlsx, .csv</strong> file with columns: <em>ID, Name, Email, Role, Department, Program</em>
-      </p>
+    <div className="upload-container" style={{ maxWidth: '1200px', margin: '0 auto' }}>
+      <h2 style={{ marginBottom: '10px', color: '#1e293b' }}>📂 University Records Management</h2>
+      <p style={{ color: '#64748b', marginBottom: '30px' }}>Upload and manage university records, export user data</p>
 
-      <div className="upload-box">
-        {/* ✅ Updated ACCEPT Attribute for better compatibility */}
-        <input
-          type="file"
-          accept=".xlsx, .xls, .csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
-          onChange={handleFileChange}
-          className="upload-input"
-        />
+      {/* Upload Section */}
+      <div className="card" style={{ marginBottom: '30px' }}>
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
+          <UploadIcon width="24" height="24" />
+          Upload New Records
+        </h3>
+        <p style={{ color: '#64748b', marginBottom: '20px', fontSize: '0.9rem' }}>
+          Upload <strong>.xlsx, .xls, .csv</strong> file with columns: <em>ID, Name, Email, Role, Department, Program</em>
+        </p>
 
+        <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            id="fileInput"
+            type="file"
+            accept=".xlsx, .xls, .csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+            onChange={handleFileChange}
+            style={{
+              flex: '1',
+              padding: '12px',
+              border: '2px dashed #cbd5e1',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              background: '#f8fafc'
+            }}
+          />
+
+          <button
+            onClick={handleUpload}
+            disabled={loading || !file}
+            className="submit-btn"
+            style={{
+              minWidth: '150px',
+              opacity: loading || !file ? 0.6 : 1,
+              cursor: loading || !file ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {loading ? "Uploading..." : "Upload Records"}
+          </button>
+        </div>
+
+        {file && (
+          <div style={{ marginTop: '15px', padding: '10px', background: '#eff6ff', borderRadius: '6px', fontSize: '0.9rem' }}>
+            <strong>Selected:</strong> {file.name} ({formatFileSize(file.size)})
+          </div>
+        )}
+
+        {message && (
+          <div
+            style={{
+              marginTop: '15px',
+              padding: '12px',
+              borderRadius: '8px',
+              color: message.startsWith("❌") ? "#dc2626" : "#16a34a",
+              backgroundColor: message.startsWith("❌") ? "#fef2f2" : "#f0fdf4",
+              border: `1px solid ${message.startsWith("❌") ? "#fecaca" : "#bbf7d0"}`
+            }}
+          >
+            {message}
+          </div>
+        )}
+      </div>
+
+      {/* Export Users Section */}
+      <div className="card" style={{ marginBottom: '30px' }}>
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
+          <UsersIcon width="24" height="24" />
+          Export Users Database
+        </h3>
+        <p style={{ color: '#64748b', marginBottom: '15px', fontSize: '0.9rem' }}>
+          Download all registered users as an Excel file
+        </p>
         <button
-          onClick={handleUpload}
-          disabled={loading}
-          className="upload-btn"
+          onClick={handleExportUsers}
+          disabled={exportingUsers}
+          className="action-btn"
+          style={{
+            background: '#10b981',
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            opacity: exportingUsers ? 0.6 : 1
+          }}
         >
-          {loading ? "Uploading..." : "Upload Records"}
+          <DownloadIcon width="18" height="18" />
+          {exportingUsers ? "Exporting..." : "Export All Users"}
         </button>
       </div>
 
-      {message && (
-        <div
-          className="upload-message"
-          style={{
-            color: message.startsWith("❌") ? "#dc2626" : "#16a34a",
-            backgroundColor: message.startsWith("❌") ? "#fef2f2" : "#f0fdf4"
-          }}
-        >
-          {message}
-        </div>
-      )}
+      {/* Uploaded Files List */}
+      <div className="card">
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
+          <FileIcon width="24" height="24" />
+          Uploaded Files
+        </h3>
+
+        {loadingFiles ? (
+          <p style={{ color: '#64748b' }}>Loading files...</p>
+        ) : uploadedFiles.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+            <FileIcon width="48" height="48" style={{ margin: '0 auto 15px', opacity: 0.3 }} />
+            <p>No files uploaded yet</p>
+          </div>
+        ) : (
+          <div className="table-container">
+            <table className="grievance-table">
+              <thead>
+                <tr>
+                  <th>File Name</th>
+                  <th>Upload Date</th>
+                  <th>Size</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {uploadedFiles.map((file, index) => (
+                  <tr key={index}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <FileIcon width="18" height="18" />
+                        <strong>{file.filename}</strong>
+                      </div>
+                    </td>
+                    <td>{formatDate(file.uploadDate)}</td>
+                    <td>{formatFileSize(file.size)}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={() => handlePreviewFile(file.filename)}
+                          className="action-btn view-btn"
+                          style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+                          title="Preview File"
+                        >
+                          <EyeIcon width="16" height="16" />
+                          Preview
+                        </button>
+                        <button
+                          onClick={() => handleDownloadFile(file.filename)}
+                          className="action-btn"
+                          style={{ background: '#10b981', color: 'white', display: 'flex', alignItems: 'center', gap: '5px' }}
+                          title="Download File"
+                        >
+                          <DownloadIcon width="16" height="16" />
+                          Download
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

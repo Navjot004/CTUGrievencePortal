@@ -56,9 +56,12 @@ const grievanceSchema = new mongoose.Schema(
     // ================= STATUS =================
     status: {
       type: String,
-      enum: ["Pending", "Assigned", "In Progress", "Resolved", "Rejected"],
+      enum: ["Pending", "Assigned", "In Progress", "Verification", "Resolved", "Rejected"],
       default: "Pending"
     },
+
+    // ✅ Verification Logic
+    resolutionProposedAt: { type: Date, default: null }, // Start of 36h timer
 
     // ✅ Deadline for assigned staff
     deadlineDate: { type: Date, default: null },

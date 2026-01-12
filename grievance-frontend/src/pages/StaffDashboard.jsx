@@ -286,18 +286,7 @@ function StaffDashboard() {
   // ✅ Unique Departments for Dropdown
   const uniqueDepartments = [...new Set(myGrievances.map(g => g.category || g.school).filter(Boolean))];
 
-  // ✅ Navbar Button Styles (For proper tabs)
-  const navButtonStyle = (isActive) => ({
-    background: "none",
-    border: "none",
-    padding: "10px 15px", // Spacing badha di
-    cursor: "pointer",
-    fontSize: "1rem",
-    fontWeight: isActive ? "600" : "500",
-    color: isActive ? "#2563eb" : "#64748b",
-    borderBottom: isActive ? "2px solid #2563eb" : "2px solid transparent",
-    transition: "all 0.2s ease"
-  });
+
 
   return (
     <div className="dashboard-container">
@@ -322,21 +311,21 @@ function StaffDashboard() {
         </button>
       </header>
 
-      {/* ✅ FIXED NAVBAR TABS */}
-      <nav className="navbar" style={{ padding: '0 20px', background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-        <ul style={{ display: 'flex', gap: '20px', listStyle: 'none', margin: 0, padding: 0 }}>
-          <li>
+      {/* ✅ FIXED NAVBAR TABS (Glass Pill Style) */}
+      <nav className="navbar">
+        <ul>
+          <li className={activeTab === "submit" ? "active" : ""}>
             <button
+              className="tab-link-button"
               onClick={() => setActiveTab("submit")}
-              style={navButtonStyle(activeTab === "submit")}
             >
               Submit Grievance
             </button>
           </li>
-          <li>
+          <li className={activeTab === "mine" ? "active" : ""}>
             <button
+              className="tab-link-button"
               onClick={() => setActiveTab("mine")}
-              style={navButtonStyle(activeTab === "mine")}
             >
               My Submissions
             </button>
@@ -536,8 +525,7 @@ function StaffDashboard() {
               <button onClick={() => setSelectedGrievance(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>&times;</button>
             </div>
 
-            <div style={{ overflowY: 'auto', paddingRight: '5px' }}>
-              <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Category:</strong> {selectedGrievance.category}</p>
+            <div style={{ overflowY: 'auto', paddingRight: '5px' }}>`r`n                <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Grievance ID:</strong> {selectedGrievance._id}</p>`r`n                <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Category:</strong> {selectedGrievance.category}</p>
 
               {selectedGrievance.name && (
                 <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Submitted By:</strong> {selectedGrievance.name}</p>

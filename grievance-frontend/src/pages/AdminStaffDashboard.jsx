@@ -492,30 +492,21 @@ function AdminStaffDashboard() {
         </button>
       </header>
 
-      {/* ✅ TABS NAVBAR */}
-      <nav className="navbar" style={{ padding: '0 20px', background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-        <ul style={{ display: 'flex', gap: '20px', listStyle: 'none', margin: 0, padding: 0 }}>
-          <li>
-            <button
-              onClick={() => setActiveTab("assigned")}
-              style={{ background: "none", border: "none", padding: "10px 15px", cursor: "pointer", fontSize: "1rem", fontWeight: activeTab === "assigned" ? "600" : "500", color: activeTab === "assigned" ? "#2563eb" : "#64748b", borderBottom: activeTab === "assigned" ? "2px solid #2563eb" : "2px solid transparent" }}
-            >
+      {/* ✅ TABS NAVBAR (Pill Style) */}
+      <nav className="navbar">
+        <ul>
+          <li className={activeTab === "assigned" ? "active" : ""}>
+            <button onClick={() => setActiveTab("assigned")} className="tab-link-button">
               My Assigned Tasks
             </button>
           </li>
-          <li>
-            <button
-              onClick={() => setActiveTab("submit")}
-              style={{ background: "none", border: "none", padding: "10px 15px", cursor: "pointer", fontSize: "1rem", fontWeight: activeTab === "submit" ? "600" : "500", color: activeTab === "submit" ? "#2563eb" : "#64748b", borderBottom: activeTab === "submit" ? "2px solid #2563eb" : "2px solid transparent" }}
-            >
+          <li className={activeTab === "submit" ? "active" : ""}>
+            <button onClick={() => setActiveTab("submit")} className="tab-link-button">
               Submit Grievance
             </button>
           </li>
-          <li>
-            <button
-              onClick={() => setActiveTab("mine")}
-              style={{ background: "none", border: "none", padding: "10px 15px", cursor: "pointer", fontSize: "1rem", fontWeight: activeTab === "mine" ? "600" : "500", color: activeTab === "mine" ? "#2563eb" : "#64748b", borderBottom: activeTab === "mine" ? "2px solid #2563eb" : "2px solid transparent" }}
-            >
+          <li className={activeTab === "mine" ? "active" : ""}>
+            <button onClick={() => setActiveTab("mine")} className="tab-link-button">
               My Submissions
             </button>
           </li>
@@ -899,11 +890,13 @@ function AdminStaffDashboard() {
                 </div>
 
                 {/* Modal Body */}
-                <div style={{ fontSize: '0.95rem', color: '#334155' }}>
-                  <p style={{ marginBottom: '8px' }}><strong>Student:</strong> {selectedGrievance.name} ({selectedGrievance.regid})</p>
-                  <p style={{ marginBottom: '8px' }}><strong>Email:</strong> {selectedGrievance.email}</p>
-                  <p style={{ marginBottom: '8px' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
-                  <p style={{ marginBottom: '8px' }}><strong>Deadline:</strong> {(selectedGrievance.deadlineDate || selectedGrievance.deadline || selectedGrievance.deadline_date) ? formatDateDateOnly(selectedGrievance.deadlineDate || selectedGrievance.deadline || selectedGrievance.deadline_date) : "-"}</p>
+                <div style={{ overflowY: 'auto', paddingRight: '5px' }}>
+                  <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Grievance ID:</strong> {selectedGrievance._id}</p>
+                  <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Student:</strong> {selectedGrievance.name || 'N/A'} <span style={{ color: '#94a3b8' }}>({selectedGrievance.userId || selectedGrievance.regid || 'N/A'})</span></p>
+                  <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Category:</strong> {selectedGrievance.category || selectedGrievance.school || "N/A"}</p>
+                  <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
+                  <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Status:</strong> <span className={`status-badge status-${selectedGrievance.status.toLowerCase()}`}>{selectedGrievance.status}</span></p>
+                  <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Deadline:</strong> {(selectedGrievance.deadlineDate || selectedGrievance.deadline || selectedGrievance.deadline_date) ? formatDateDateOnly(selectedGrievance.deadlineDate || selectedGrievance.deadline || selectedGrievance.deadline_date) : "-"}</p>
 
                   <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '6px', margin: '15px 0', border: '1px solid #e2e8f0' }}>
                     <strong style={{ display: 'block', marginBottom: '5px', color: '#1e293b' }}>Full Message:</strong>

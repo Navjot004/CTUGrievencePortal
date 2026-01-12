@@ -8,6 +8,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import path from "path";
 import { fileURLToPath } from "url";
+import fs from "fs";
 import nodemailer from "nodemailer";
 import { Readable } from "stream";
 import xlsx from "xlsx";
@@ -98,7 +99,7 @@ const verifyToken = (req, res, next) => {
 
   try {
     const tokenBody = token.replace("Bearer ", "");
-    const verified = jwt.verify(tokenBody, "mock_secret"); // TODO: Move secret to .env
+    const verified = jwt.verify(tokenBody, process.env.JWT_SECRET || "fallback_secret_key_123");
     req.user = verified;
     next();
   } catch (err) {
@@ -106,8 +107,21 @@ const verifyToken = (req, res, next) => {
   }
 };
 
-// ✅ STORAGE ENGINE (Memory Storage)
-const storage = multer.memoryStorage();
+// ✅ STORAGE ENGINE (Disk Storage for file management)
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadsDir = path.join(__dirname, 'uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const timestamp = Date.now();
+    const originalName = file.originalname;
+    cb(null, `${timestamp}_${originalName}`);
+  }
+});
 const upload = multer({ storage });
 
 // ------------------ 3️⃣ Email & Twilio Config ------------------
@@ -159,7 +173,8 @@ app.post("/api/admin/upload-records", verifyToken, upload.single("file"), async 
   try {
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
-    const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+    // Read from disk instead of buffer
+    const workbook = xlsx.readFile(req.file.path);
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
     const data = xlsx.utils.sheet_to_json(sheet);
@@ -189,6 +204,96 @@ app.post("/api/admin/upload-records", verifyToken, upload.single("file"), async 
   } catch (err) {
     console.error("Excel Upload Error:", err);
     res.status(500).json({ message: "Error processing Excel file" });
+  }
+});
+
+// A1. Get list of uploaded files (placeholder - needs file tracking implementation)
+app.get("/api/admin/uploaded-files", verifyToken, async (req, res) => {
+  try {
+    const uploadsDir = path.join(__dirname, 'uploads');
+
+    // Create uploads directory if it doesn't exist
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const files = fs.readdirSync(uploadsDir).map(filename => {
+      const stats = fs.statSync(path.join(uploadsDir, filename));
+      return {
+        filename,
+        uploadDate: stats.mtime,
+        size: stats.size
+      };
+    });
+
+    res.json({ files });
+  } catch (err) {
+    console.error("Error fetching files:", err);
+    res.status(500).json({ message: "Error fetching files" });
+  }
+});
+
+// A2. Download uploaded file
+app.get("/api/admin/download-file/:filename", verifyToken, (req, res) => {
+  try {
+    const { filename } = req.params;
+    const filePath = path.join(__dirname, 'uploads', filename);
+
+    if (fs.existsSync(filePath)) {
+      res.download(filePath);
+    } else {
+      res.status(404).json({ message: "File not found" });
+    }
+  } catch (err) {
+    console.error("Download error:", err);
+    res.status(500).json({ message: "Error downloading file" });
+  }
+});
+
+// A3. Preview file
+app.get("/api/admin/preview-file/:filename", verifyToken, (req, res) => {
+  try {
+    const { filename } = req.params;
+    const filePath = path.join(__dirname, 'uploads', filename);
+
+    if (fs.existsSync(filePath)) {
+      res.sendFile(filePath);
+    } else {
+      res.status(404).json({ message: "File not found" });
+    }
+  } catch (err) {
+    console.error("Preview error:", err);
+    res.status(500).json({ message: "Error previewing file" });
+  }
+});
+
+// A4. Export all users to Excel
+app.get("/api/admin/export-users", verifyToken, async (req, res) => {
+  try {
+    const users = await User.find({}).select('id fullName email role department program isDeptAdmin adminDepartment');
+
+    const data = users.map(user => ({
+      ID: user.id,
+      Name: user.fullName,
+      Email: user.email,
+      Role: user.role,
+      Department: user.department || user.adminDepartment || '',
+      Program: user.program || '',
+      'Is Dept Admin': user.isDeptAdmin ? 'Yes' : 'No'
+    }));
+
+    const worksheet = xlsx.utils.json_to_sheet(data);
+    const workbook = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(workbook, worksheet, 'Users');
+
+    const buffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+    res.setHeader('Content-Disposition', 'attachment; filename=users_export.xlsx');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buffer);
+  } catch (err) {
+    console.error("Export error:", err);
+    res.status(500).json({ message: "Error exporting users" });
   }
 });
 
@@ -483,152 +588,8 @@ app.post("/api/admin/transfer-ownership", verifyToken, async (req, res) => {
   }
 });
 
-// ------------------ 6️⃣ REGISTRATION ROUTES ------------------
+// ⬇️ REGISTRATION & LOGIN ROUTES MOVED TO: routes/authRoutes.js + controllers/authController.js
 
-app.post("/api/auth/register-request", async (req, res) => {
-  try {
-    const { id, email, role } = req.body;
-    const upperId = id.toString().trim().toUpperCase();
-    const validRecord = await UniversityRecord.findOne({ id: upperId });
-
-    if (!validRecord) return res.status(403).json({ message: "ID not found in Records." });
-
-    // Generate OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // ✅ YE LINE ADD KI HAI (Ab Terminal me OTP dikhega)
-    console.log(`\n🔥 [REGISTER OTP] Sent to ${email}: ${otp}\n`);
-
-    await OTP.findOneAndUpdate({ email: email.toLowerCase() }, { userId: upperId, otp, expiresAt: Date.now() + 600000 }, { upsert: true });
-
-    // Email Send
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "Registration OTP",
-      html: `<p>Your OTP is: <b>${otp}</b></p>`
-    });
-
-    res.status(200).json({ message: "OTP sent" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error" });
-  }
-});
-
-app.post("/api/auth/verify-otp", async (req, res) => {
-  try {
-    const { email, otp, formData } = req.body;
-    const otpRecord = await OTP.findOne({ email: email.toLowerCase(), otp });
-    if (!otpRecord || Date.now() > otpRecord.expiresAt) return res.status(400).json({ message: "Invalid/Expired OTP" });
-    const hashedPassword = await bcrypt.hash(formData.password, 10);
-
-    const newUser = await User.create({
-      id: formData.id.toString().trim().toUpperCase(),
-      role: formData.role.toLowerCase(),
-      fullName: formData.fullName,
-      email: formData.email.toLowerCase(),
-      phone: formData.phone,
-      password: hashedPassword,
-      program: formData.program,
-      studentType: formData.studentType
-    });
-
-    await OTP.deleteOne({ _id: otpRecord._id });
-    res.status(201).json({ message: "✅ Registered successfully", user: newUser });
-  } catch (err) {
-    if (err.code === 11000) return res.status(400).json({ message: "ID or Email already exists." });
-    res.status(500).json({ message: "Registration failed" });
-  }
-});
-
-// ------------------ 7️⃣ LOGIN ROUTES ------------------
-
-// ✅ DEBUG VERSION: LOGIN ROUTE
-// ✅ LOGIN ROUTE (With OTP Log + Email)
-app.post("/api/auth/request-otp", async (req, res) => {
-  try {
-    const { role, id, phone, password } = req.body;
-    const safeId = id.toString().trim().toUpperCase();
-    console.log(`\n🔍 [LOGIN ATTEMPT] ID: ${safeId}`);
-
-    const user = await User.findOne({ role: role.toLowerCase(), id: safeId });
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    if (user.phone.toString().trim() !== phone.toString().trim()) {
-      return res.status(400).json({ message: "Phone mismatch" });
-    }
-
-    const isMatch = await bcrypt.compare(password.toString().trim(), user.password);
-    if (!isMatch) return res.status(400).json({ message: "Invalid Password" });
-
-    // Generate OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // ✅ YE LINE ADD KI HAI (Ab Terminal me OTP dikhega)
-    console.log(`\n🔥 [LOGIN OTP] Sent to ${user.email}: ${otp}\n`);
-
-    await OTP.create({ userId: safeId, phone, otp, expiresAt: Date.now() + 300000 });
-
-    // ✅ EMAIL SENDING LOGIC (Ye bhi add kar diya)
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: user.email,
-      subject: "Login OTP",
-      html: `<p>Your Login OTP is: <b>${otp}</b></p>`
-    });
-
-    res.json({ message: "OTP sent" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error" });
-  }
-});
-app.post("/api/auth/verify-otp-password", async (req, res) => {
-  try {
-    const { id, otp, password, role } = req.body;
-    const safeId = id.toString().trim().toUpperCase();
-
-    const user = await User.findOne({ id: safeId, role: role.toLowerCase() });
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    const otpRecord = await OTP.findOne({ userId: safeId, otp });
-    if (!otpRecord || Date.now() > otpRecord.expiresAt) return res.status(400).json({ message: "Invalid OTP" });
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Invalid password" });
-
-    // 🔥 SELF-HEALING: Force Master Admin rights for ID 10001 if missing
-    if (safeId === "10001" && !user.isMasterAdmin) {
-      user.isMasterAdmin = true;
-      user.role = "admin"; // Ensure role is admin
-      await user.save();
-      console.log("🚑 SELF-HEALED: User 10001 forced to Master Admin during login.");
-    }
-    await OTP.deleteOne({ _id: otpRecord._id });
-
-    // ✅ Include admin details in token response
-    const token = jwt.sign({
-      id: user.id,
-      role: user.role,
-      isDeptAdmin: user.isDeptAdmin,
-      adminDepartment: user.adminDepartment,
-      isMasterAdmin: user.isMasterAdmin // 🔥 Added to token
-    }, "mock_secret");
-
-    res.json({
-      message: "✅ Login success",
-      id: user.id,
-      role: user.role,
-      token,
-      isDeptAdmin: user.isDeptAdmin,
-      adminDepartment: user.adminDepartment,
-      isMasterAdmin: user.isMasterAdmin // 🔥 Added to response
-    });
-  } catch (err) {
-    res.status(500).json({ message: "Login failed" });
-  }
-});
 
 // server.js -> /api/auth/user/:id Route
 app.get("/api/auth/user/:id", async (req, res) => {

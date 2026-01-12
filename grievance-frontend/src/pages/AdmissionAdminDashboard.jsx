@@ -38,8 +38,9 @@ function AdmissionAdminDashboard() {
 
   useEffect(() => {
     // ✅ Auth Check: Must be Admin OR Staff with Admin Rights for "Admission"
-    // Also allowing Master Admin (10001)
-    const isAuthorized = (userId === "10001") ||
+    // Also allowing Master Admin
+    const isMasterAdmin = localStorage.getItem("is_master_admin") === "true";
+    const isAuthorized = isMasterAdmin ||
       (adminDept === "Admission" && (role === "admin" || isDeptAdmin));
 
     if (!isAuthorized) {
@@ -315,6 +316,7 @@ function AdmissionAdminDashboard() {
                 </div>
 
                 <div style={{ overflowY: 'auto', paddingRight: '5px' }}>
+                  <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Grievance ID:</strong> {selectedGrievance._id}</p>
                   <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Student:</strong> {selectedGrievance.name} <span style={{ color: '#94a3b8' }}>({selectedGrievance.userId || selectedGrievance.regid || 'N/A'})</span></p>
                   <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
                   <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Status:</strong> <span className={`status-badge status-${selectedGrievance.status.toLowerCase()}`}>{selectedGrievance.status}</span></p>
