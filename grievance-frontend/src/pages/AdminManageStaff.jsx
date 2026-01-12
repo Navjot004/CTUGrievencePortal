@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
 import ctLogo from "../assets/ct-logo.png";
+import { ShieldIcon, AdminIcon, LockIcon, UserIcon } from "../components/Icons";
 
 const AdminManageStaff = () => {
   const navigate = useNavigate();
@@ -65,7 +66,7 @@ const AdminManageStaff = () => {
     }
     // Dept Admin Restriction: Can only add to own dept
     if (!isMaster && action === "promote" && selectedDept !== myDepartment) {
-      alert(`❌ You are only authorized to add staff to ${myDepartment}.`);
+      alert(`You are only authorized to add staff to ${myDepartment}.`);
       return;
     }
 
@@ -117,11 +118,11 @@ const AdminManageStaff = () => {
       });
       const data = await res.json();
       if (res.ok) {
-        alert("✅ Ownership Transferred! Please login again.");
+        alert("Ownership Transferred! Please login again.");
         localStorage.clear();
         navigate("/");
       } else {
-        alert("❌ Error: " + data.message);
+        alert("Error: " + data.message);
       }
     } catch (err) {
       alert("Server Error");
@@ -148,9 +149,13 @@ const AdminManageStaff = () => {
             <p>
               Logged in as: <strong>{userId}</strong>
               {myDepartment ? (
-                <span className="status-badge status-assigned" style={{ marginLeft: '10px', fontSize: '0.8rem' }}>🛡️ {myDepartment}</span>
+                <span className="status-badge status-assigned" style={{ marginLeft: '10px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                  <ShieldIcon width="14" height="14" /> {myDepartment}
+                </span>
               ) : (
-                <span className="status-badge status-resolved" style={{ marginLeft: '10px', fontSize: '0.8rem' }}>👑 Master Admin</span>
+                <span className="status-badge status-resolved" style={{ marginLeft: '10px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                  <AdminIcon width="14" height="14" /> Master Admin
+                </span>
               )}
             </p>
           </div>
@@ -234,12 +239,12 @@ const AdminManageStaff = () => {
                           {/* ✅ HIERARCHY DISPLAY FIX */}
                           <td>
                             {staff.isDeptAdmin ? (
-                              <span className="status-badge status-resolved" style={{ border: '1px solid #16a34a' }}>
-                                👑 Admin: {staff.adminDepartment}
+                              <span className="status-badge status-resolved" style={{ border: '1px solid #16a34a', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                                <AdminIcon width="14" height="14" /> Admin: {staff.adminDepartment}
                               </span>
                             ) : staff.adminDepartment ? (
-                              <span className="status-badge status-assigned" style={{ border: '1px solid #2563eb' }}>
-                                🛡️ Team: {staff.adminDepartment}
+                              <span className="status-badge status-assigned" style={{ border: '1px solid #2563eb', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                                <ShieldIcon width="14" height="14" /> Team: {staff.adminDepartment}
                               </span>
                             ) : (
                               <span className="status-badge status-pending">General Staff</span>
@@ -248,7 +253,9 @@ const AdminManageStaff = () => {
 
                           <td>
                             {!isEditable ? (
-                              <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>🔒 Locked</span>
+                              <span style={{ fontSize: '0.85rem', color: '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                                <LockIcon width="14" height="14" /> Locked
+                              </span>
                             ) : (
                               <>
                                 {staff.adminDepartment ? (
@@ -291,7 +298,7 @@ const AdminManageStaff = () => {
                                     onClick={() => handleTransferOwnership(staff.id)}
                                     title="Transfer your Master Admin role to this user"
                                   >
-                                    ⚡ Transfer Owner
+                                    <UserIcon width="14" height="14" style={{ marginRight: '5px' }} /> Transfer Owner
                                   </button>
                                 )}
                               </>

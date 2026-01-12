@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import "../styles/Dashboard.css"; // Ensure this has basic modal styles
 
 // ✅ Advanced Icons
-const PaperclipIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>;
-const CameraIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>;
+import { PaperclipIcon, CameraIcon, SendIcon, FileIcon, XIcon as CloseIcon } from "./Icons";
 
 function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRole }) {
   const [messages, setMessages] = useState([]);
@@ -11,13 +10,13 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
   const [selectedFile, setSelectedFile] = useState(null); // ✅ NEW: Track selected file
   const [isUploading, setIsUploading] = useState(false);  // ✅ NEW: Loading state for upload
   const [grievanceData, setGrievanceData] = useState(null); // ✅ Store grievance details
-  
+
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null); // ✅ NEW: Ref for hidden file input
   const chatBodyRef = useRef(null); // ✅ NEW: Ref for scroll container
   const hasScrolledRef = useRef(false); // ✅ NEW: Track initial scroll
   const prevMessagesLength = useRef(0); // ✅ NEW: Track message count to detect new messages
-  
+
   const [showCamera, setShowCamera] = useState(false); // ✅ Camera State
   const videoRef = useRef(null); // ✅ Video Ref
   const canvasRef = useRef(null); // ✅ Canvas Ref
@@ -78,7 +77,7 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
 
     // Check if user is near bottom (within 100px)
     const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
-    
+
     const lastMsg = messages[currentLength - 1];
     const isMyMessage = lastMsg?.senderId === currentUserId;
 
@@ -86,7 +85,7 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
     if (!hasScrolledRef.current && currentLength > 0) {
       messagesEndRef.current.scrollIntoView({ behavior: "auto" });
       hasScrolledRef.current = true;
-    } 
+    }
     // 2. Only scroll if a NEW message arrived
     else if (isNewMessage) {
       // Scroll if I sent it OR if I was already reading at the bottom
@@ -192,7 +191,7 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext("2d");
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
+
       canvas.toBlob((blob) => {
         if (blob) {
           const file = new File([blob], `camera_capture_${Date.now()}.png`, { type: "image/png" });
@@ -206,163 +205,227 @@ function ChatPopup({ isOpen, onClose, grievanceId, currentUserId, currentUserRol
   if (!isOpen) return null;
 
   return (
-    <div className="chat-modal-overlay">
-      <div className="chat-modal" style={{ position: 'relative' }}>
-        
+    <div className="chat-modal-overlay" style={{
+      position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+      backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(5px)',
+      display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999
+    }}>
+      <div className="chat-modal" style={{
+        position: 'relative', width: '100%', maxWidth: '450px', height: '85vh', maxHeight: '700px',
+        backgroundColor: '#ffffff', borderRadius: '24px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: 'scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+      }}>
+
         {/* ✅ CAMERA OVERLAY */}
         {showCamera && (
           <div style={{
             position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-            backgroundColor: '#000', zIndex: 20, display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center', borderRadius: '12px'
+            backgroundColor: '#000', zIndex: 50, display: 'flex', flexDirection: 'column'
           }}>
-            <video ref={videoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px' }} />
+            <video ref={videoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             <canvas ref={canvasRef} style={{ display: 'none' }} />
-            
-            <div style={{ position: 'absolute', bottom: '20px', display: 'flex', gap: '15px', zIndex: 30 }}>
-              <button 
+
+            <div style={{ position: 'absolute', bottom: '30px', width: '100%', display: 'flex', justifyContent: 'center', gap: '20px', zIndex: 60 }}>
+              <button
                 onClick={() => setShowCamera(false)}
-                style={{ padding: '10px 20px', borderRadius: '30px', border: 'none', background: 'rgba(255,255,255,0.2)', color: 'white', backdropFilter: 'blur(5px)', cursor: 'pointer', fontWeight: '600' }}
+                style={{ padding: '12px 24px', borderRadius: '30px', border: 'none', background: 'rgba(255,255,255,0.2)', color: 'white', backdropFilter: 'blur(10px)', cursor: 'pointer', fontWeight: '600' }}
               >
                 Cancel
               </button>
-              <button 
+              <button
                 onClick={handleCapture}
-                style={{ padding: '10px 20px', borderRadius: '30px', border: 'none', background: '#ef4444', color: 'white', cursor: 'pointer', fontWeight: '600', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)' }}
-              >
-                Capture
-              </button>
+                style={{ width: '60px', height: '60px', borderRadius: '50%', border: '4px solid white', background: 'transparent', cursor: 'pointer' }}
+              />
             </div>
           </div>
         )}
 
-        <div className="chat-header">
-          <div>
-            {currentUserRole === "student" ? (
-              <>
-                <h3 style={{ margin: '0 0 5px 0' }}>
-                  {grievanceData?.assignedStaff?.name || 'Support Team'}
-                </h3>
-                <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b', lineHeight: '1.3' }}>
-                  {grievanceData?.assignedStaff ? `📋 ${grievanceData.assignedStaff.department}` : 'Awaiting assignment...'}
-                </p>
-              </>
-            ) : (
-              <>
-                <h3 style={{ margin: '0 0 5px 0' }}>
-                  {grievanceData?.name || 'Chat'}
-                </h3>
-              </>
-            )}
+        {/* ✅ HEADER */}
+        <div style={{
+          padding: '16px 20px', background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(10px)',
+          borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 10
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1, #a855f7)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem' }}>
+              {currentUserRole === "student" ? grievanceData?.assignedStaff?.name?.[0] || "S" : grievanceData?.name?.[0] || "U"}
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '600', color: '#1e293b' }}>
+                {currentUserRole === "student" ? (grievanceData?.assignedStaff?.name || 'Support Team') : (grievanceData?.name || 'Student')}
+              </h3>
+              <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>
+                {currentUserRole === "student" ? (grievanceData?.assignedStaff ? grievanceData.assignedStaff.department : 'Support') : (grievanceData?.userId || 'Online')}
+              </p>
+            </div>
           </div>
-          <button className="close-btn" onClick={onClose}>✕</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '8px', borderRadius: '50%', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#f1f5f9'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+            <CloseIcon />
+          </button>
         </div>
-        
-        <div className="chat-body" ref={chatBodyRef}>
-          {messages.length === 0 ? (
-            <p className="no-msg">No messages yet. Start the conversation!</p>
-          ) : (
-            messages.map((msg) => (
-              <div 
-                key={msg._id} 
-                className={`chat-message ${msg.senderId === currentUserId ? "sent" : "received"}`}
-              >
-                <div className="msg-bubble">
-                  <small className="msg-sender">{msg.senderRole === currentUserRole ? "You" : msg.senderId}</small>
-                  
-                  {/* ✅ DISPLAY TEXT */}
-                  {msg.message && <p>{msg.message}</p>}
 
-                  {/* ✅ DISPLAY FILE (Image or Download Link) */}
-                  {msg.fileData && (
-                    <div className="file-attachment" style={{marginTop: '5px'}}>
-                      {msg.fileData.contentType.startsWith("image/") ? (
-                        <img 
-                          src={`http://localhost:5000/api/file/${msg.fileData.filename}`} 
-                          alt="attachment" 
-                          style={{maxWidth: "100%", borderRadius: "8px", cursor: "pointer"}}
-                          onClick={() => window.open(`http://localhost:5000/api/file/${msg.fileData.filename}`, "_blank")}
-                        />
-                      ) : (
-                        <a 
-                          href={`http://localhost:5000/api/file/${msg.fileData.filename}`} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          style={{display: "flex", alignItems: "center", gap: "5px", color: "inherit", textDecoration: "underline"}}
-                        >
-                          📄 Download {msg.fileData.originalName || "File"}
-                        </a>
-                      )}
+        {/* ✅ CHAT BODY */}
+        <div className="chat-body" ref={chatBodyRef} style={{
+          flex: 1, overflowY: 'auto', padding: '20px', background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '12px'
+        }}>
+          {messages.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8', textAlign: 'center' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '10px' }}>💬</div>
+              <p>No messages yet.<br />Start the conversation!</p>
+            </div>
+          ) : (
+            messages.map((msg, index) => {
+              const isMine = msg.senderId === currentUserId;
+              const showAvatar = !isMine && (index === 0 || messages[index - 1].senderId !== msg.senderId);
+
+              return (
+                <div key={msg._id} style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start', alignItems: 'flex-end', gap: '8px' }}>
+
+                  {/* Avatar for received messages */}
+                  {!isMine && (
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#cbd5e1', flexShrink: 0, opacity: showAvatar ? 1 : 0 }}>
+                      {showAvatar && <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', color: 'white', fontWeight: 'bold' }}>{msg.sender?.[0]}</div>}
                     </div>
                   )}
 
-                  <span className="msg-time" style={{fontSize: '0.65rem', opacity: 0.7, float: 'right', marginTop: '4px'}}>
-                    {new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                  </span>
+                  <div style={{
+                    maxWidth: '75%',
+                    padding: '10px 14px',
+                    borderRadius: '18px',
+                    borderBottomRightRadius: isMine ? '4px' : '18px',
+                    borderBottomLeftRadius: isMine ? '18px' : '4px',
+                    background: isMine ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : '#ffffff',
+                    color: isMine ? 'white' : '#1e293b',
+                    boxShadow: isMine ? '0 4px 12px rgba(99, 102, 241, 0.2)' : '0 2px 4px rgba(0,0,0,0.05)',
+                    fontSize: '0.95rem',
+                    lineHeight: '1.4',
+                    position: 'relative'
+                  }}>
+                    {/* ✅ DISPLAY FILE */}
+                    {msg.fileData && (
+                      <div style={{ marginBottom: msg.message ? '8px' : '0' }}>
+                        {msg.fileData.contentType.startsWith("image/") ? (
+                          <img
+                            src={`http://localhost:5000/api/file/${msg.fileData.filename}`}
+                            alt="attachment"
+                            style={{ maxWidth: "100%", borderRadius: "12px", cursor: "pointer", display: 'block' }}
+                            onClick={() => window.open(`http://localhost:5000/api/file/${msg.fileData.filename}`, "_blank")}
+                          />
+                        ) : (
+                          <a
+                            href={`http://localhost:5000/api/file/${msg.fileData.filename}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px",
+                              background: isMine ? 'rgba(255,255,255,0.1)' : '#f1f5f9',
+                              borderRadius: "10px", textDecoration: "none", color: 'inherit', fontWeight: '500'
+                            }}
+                          >
+                            <FileIcon />
+                            <span style={{ fontSize: '0.85rem' }}>Download File</span>
+                          </a>
+                        )}
+                      </div>
+                    )}
+
+                    {/* TEXT */}
+                    {msg.message}
+
+                    {/* TIME */}
+                    <div style={{
+                      fontSize: '0.65rem', marginTop: '4px', textAlign: 'right',
+                      opacity: 0.7, color: isMine ? 'rgba(255,255,255,0.8)' : '#94a3b8'
+                    }}>
+                      {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
           <div ref={messagesEndRef} />
         </div>
 
-        {/* ✅ FOOTER WITH ATTACHMENT */}
-        <div className="chat-footer-wrapper" style={{background: 'white', borderTop: '1px solid #eee'}}>
-          
-          {/* Preview Selected File */}
+        {/* ✅ FOOTER INPUT AREA */}
+        <div style={{ padding: '16px', background: 'white', borderTop: '1px solid #f1f5f9' }}>
+
+          {/* File Preview */}
           {selectedFile && (
-            <div className="file-preview" style={{padding: '5px 15px', fontSize: '0.8rem', background: '#f0f9ff', borderBottom: '1px solid #e0f2fe', display: 'flex', justifyContent: 'space-between'}}>
-              <span>📎 {selectedFile.name}</span>
-              <button onClick={() => setSelectedFile(null)} style={{background: 'none', border: 'none', color: 'red', cursor: 'pointer'}}>✕</button>
+            <div style={{
+              marginBottom: '10px', padding: '8px 12px', background: '#eff6ff',
+              borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              fontSize: '0.85rem', color: '#1e40af'
+            }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><PaperclipIcon width="16" height="16" /> {selectedFile.name}</span>
+              <button
+                onClick={() => setSelectedFile(null)}
+                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                ✕
+              </button>
             </div>
           )}
 
-          {/* ✅ Icons Row (Above Input) */}
-          <div style={{ display: 'flex', gap: '15px', padding: '10px 15px 0 15px' }}>
-            {/* 📎 Attachment Button */}
-            <button 
-              type="button" 
+          <form onSubmit={handleSend} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f1f5f9', padding: '6px 8px', borderRadius: '30px' }}>
+
+            {/* Attachment Button */}
+            <button
+              type="button"
               onClick={() => fileInputRef.current.click()}
-              style={{background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.2s'}}
+              style={{ width: '36px', height: '36px', borderRadius: '50%', border: 'none', background: 'white', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', transition: 'transform 0.2s' }}
               title="Attach File"
             >
               <PaperclipIcon />
             </button>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleFileChange} 
-              style={{display: "none"}} 
-            />
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: "none" }} />
 
-            {/* 📷 Camera Button */}
-            <button 
-              type="button" 
+            {/* Camera Button */}
+            <button
+              type="button"
               onClick={() => setShowCamera(true)}
-              style={{background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.2s'}}
-              title="Open Camera"
+              style={{ width: '36px', height: '36px', borderRadius: '50%', border: 'none', background: 'white', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', transition: 'transform 0.2s' }}
+              title="Camera"
             >
               <CameraIcon />
             </button>
-          </div>
 
-          <form className="chat-footer" onSubmit={handleSend} style={{padding: '5px 15px 15px 15px', display: 'flex', flexDirection: 'column', gap: '10px'}}>
-            <input 
-              type="text" 
-              placeholder="Type a message..." 
+            {/* Text Input */}
+            <input
+              type="text"
+              placeholder="Message..."
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               disabled={isUploading}
-              style={{ width: '100%', boxSizing: 'border-box' }}
+              style={{ flex: 1, border: 'none', background: 'transparent', padding: '8px 4px', fontSize: '0.95rem', outline: 'none', color: '#1e293b' }}
             />
-            <button type="submit" disabled={isUploading || (!newMessage.trim() && !selectedFile)} style={{ width: '100%' }}>
-              {isUploading ? "..." : "Send"}
+
+            {/* Send Button */}
+            <button
+              type="submit"
+              disabled={isUploading || (!newMessage.trim() && !selectedFile)}
+              style={{
+                width: '40px', height: '40px', borderRadius: '50%', border: 'none',
+                background: (newMessage.trim() || selectedFile) ? '#6366f1' : '#cbd5e1',
+                color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: (newMessage.trim() || selectedFile) ? 'pointer' : 'default',
+                transition: 'background 0.2s, transform 0.2s',
+                transform: (newMessage.trim() || selectedFile) ? 'scale(1)' : 'scale(0.95)'
+              }}
+            >
+              <SendIcon />
             </button>
           </form>
         </div>
       </div>
+      <style>{`
+        @keyframes scaleUp {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+      `}</style>
     </div>
   );
+
 }
 
 export default ChatPopup;

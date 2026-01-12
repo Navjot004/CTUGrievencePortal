@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import "../styles/Dashboard.css";
 import ctLogo from "../assets/ct-logo.png";
+import { GraduationCapIcon } from "../components/Icons";
 
 function Accounts() {
   const navigate = useNavigate();
@@ -36,7 +37,7 @@ function Accounts() {
       try {
         const res = await fetch(`http://localhost:5000/api/auth/user/${userId}`);
         const data = await res.json();
-        
+
         if (res.ok) {
           setFormData((prev) => ({
             ...prev,
@@ -44,7 +45,7 @@ function Accounts() {
             email: data.email || "",
             phone: data.phone || "",
             // 🔥 MAIN FIX: API se 'department' field utha kar 'school' mein set ki
-            school: data.department || "", 
+            school: data.department || "",
           }));
         }
       } catch (err) {
@@ -69,63 +70,63 @@ function Accounts() {
     navigate("/");
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setMsg("Submitting...");
-  setStatusType("info");
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setMsg("Submitting...");
+    setStatusType("info");
 
-  // 1️⃣ Upload File to MongoDB (GridFS) First
-  let attachmentUrl = "";
-  if (attachment) {
-    const fileData = new FormData();
-    fileData.append("file", attachment);
-    try {
-      const uploadRes = await fetch("http://localhost:5000/api/upload", { method: "POST", body: fileData });
-      if (!uploadRes.ok) throw new Error("File upload failed");
-      const uploadJson = await uploadRes.json();
-      attachmentUrl = uploadJson.filename; // Save the filename from MongoDB
-    } catch (err) {
-      setMsg(`❌ Upload Error: ${err.message}`); setStatusType("error"); return;
+    // 1️⃣ Upload File to MongoDB (GridFS) First
+    let attachmentUrl = "";
+    if (attachment) {
+      const fileData = new FormData();
+      fileData.append("file", attachment);
+      try {
+        const uploadRes = await fetch("http://localhost:5000/api/upload", { method: "POST", body: fileData });
+        if (!uploadRes.ok) throw new Error("File upload failed");
+        const uploadJson = await uploadRes.json();
+        attachmentUrl = uploadJson.filename; // Save the filename from MongoDB
+      } catch (err) {
+        setMsg(`Upload Error: ${err.message}`); setStatusType("error"); return;
+      }
     }
-  }
 
-  // 2️⃣ Submit Grievance as JSON
-  const payload = {
-    userId,
-    name: formData.name,
-    regid: formData.regid,
-    email: formData.email,
-    phone: formData.phone,
-    studentProgram: formData.school,
-    school: "Accounts",
-    category: "Accounts",
-    message: `${formData.issueType} - ${formData.message}`,
-    attachment: attachmentUrl || ""
+    // 2️⃣ Submit Grievance as JSON
+    const payload = {
+      userId,
+      name: formData.name,
+      regid: formData.regid,
+      email: formData.email,
+      phone: formData.phone,
+      studentProgram: formData.school,
+      school: "Accounts",
+      category: "Accounts",
+      message: `${formData.issueType} - ${formData.message}`,
+      attachment: attachmentUrl || ""
+    };
+
+    try {
+      const res = await fetch("http://localhost:5000/api/grievances/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const responseData = await res.json();
+      if (!res.ok) throw new Error(responseData.message);
+
+      setMsg("Grievance submitted successfully!");
+      setStatusType("success");
+
+      setFormData((prev) => ({ ...prev, issueType: "", message: "" }));
+      setAttachment(null);
+
+      const fileInput = document.getElementById("fileInput");
+      if (fileInput) fileInput.value = "";
+    } catch (err) {
+      setMsg(`${err.message}`);
+      setStatusType("error");
+    }
   };
-
-  try {
-    const res = await fetch("http://localhost:5000/api/grievances/submit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    const responseData = await res.json();
-    if (!res.ok) throw new Error(responseData.message);
-
-    setMsg("✅ Grievance submitted successfully!");
-    setStatusType("success");
-
-    setFormData((prev) => ({ ...prev, issueType: "", message: "" }));
-    setAttachment(null);
-
-    const fileInput = document.getElementById("fileInput");
-    if (fileInput) fileInput.value = "";
-  } catch (err) {
-    setMsg(`❌ ${err.message}`);
-    setStatusType("error");
-  }
-};
 
 
   return (
@@ -137,8 +138,8 @@ const handleSubmit = async (e) => {
             <h1>Student Dashboard</h1>
             <p>
               Welcome, <strong>{formData.name || userId}</strong>
-              {formData.school && <span className="status-badge status-assigned" style={{marginLeft: '10px', fontSize: '0.8rem'}}>
-                🎓 {formData.school}
+              {formData.school && <span className="status-badge status-assigned" style={{ marginLeft: '10px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <GraduationCapIcon width="14" height="14" /> {formData.school}
               </span>}
             </p>
           </div>

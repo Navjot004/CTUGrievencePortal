@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import "../styles/Dashboard.css";
 import ctLogo from "../assets/ct-logo.png";
+import { GraduationCapIcon } from "../components/Icons";
 
 function StudentSection() {
   const navigate = useNavigate();
@@ -79,7 +80,7 @@ function StudentSection() {
         const uploadJson = await uploadRes.json();
         attachmentUrl = uploadJson.filename;
       } catch (err) {
-        setMsg(`❌ Upload Error: ${err.message}`); setStatusType("error"); return;
+        setMsg(`Upload Error: ${err.message}`); setStatusType("error"); return;
       }
     }
 
@@ -106,14 +107,14 @@ function StudentSection() {
       const responseData = await res.json();
       if (!res.ok) throw new Error(responseData.message || "Submit failed");
 
-      setMsg("✅ Grievance submitted successfully!");
+      setMsg("Grievance submitted successfully!");
       setStatusType("success");
       setFormData((prev) => ({ ...prev, issueType: "", message: "" }));
       setAttachment(null);
       const fileInput = document.getElementById("fileInputSection");
       if (fileInput) fileInput.value = "";
     } catch (err) {
-      setMsg(`❌ ${err.message}`);
+      setMsg(`${err.message}`);
       setStatusType("error");
     }
   };
@@ -127,8 +128,8 @@ function StudentSection() {
             <h1>Student Dashboard</h1>
             <p>
               Welcome, <strong>{formData.name || userId}</strong>
-              {formData.school && <span className="status-badge status-assigned" style={{marginLeft: '10px', fontSize: '0.8rem'}}>
-                🎓 {formData.school}
+              {formData.school && <span className="status-badge status-assigned" style={{ marginLeft: '10px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <GraduationCapIcon width="14" height="14" /> {formData.school}
               </span>}
             </p>
           </div>

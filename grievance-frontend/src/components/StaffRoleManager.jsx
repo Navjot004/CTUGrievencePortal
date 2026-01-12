@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
+import { ShieldIcon, LockIcon, AlertCircleIcon, AdminIcon, CheckCircleIcon, XIcon, UserIcon } from "./Icons";
 
 function StaffRoleManager() {
   const [staffList, setStaffList] = useState([]);
@@ -17,22 +18,18 @@ function StaffRoleManager() {
   // 🔥 Toggle for Danger Zone
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  useEffect(() => {
-    fetchStaffList();
-  }, []);
+
 
 
   // ... (omitting middle part which is handled by other tool call or unchanged) ...
 
-  const fetchStaffList = async () => {
+  const fetchStaffList = useCallback(async () => {
     try {
       const res = await fetch("http://localhost:5000/api/admin-staff/all", {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
-        // Master Admin sees everyone. Dept Admin sees only their department staff or unassigned staff.
-        // But for simplicity, let's show all, and disable actions on others.
         setStaffList(data);
       }
     } catch (err) {
@@ -40,7 +37,11 @@ function StaffRoleManager() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    fetchStaffList();
+  }, [fetchStaffList]);
 
   const handleRoleChange = async (targetStaffId, action, department) => {
     setMsg("Processing...");
@@ -79,10 +80,10 @@ function StaffRoleManager() {
 
       const data = await res.json();
       if (res.ok) {
-        setMsg(`✅ Success: ${data.message}`);
+        setMsg(`Success: ${data.message}`);
         fetchStaffList(); // Refresh list to show new roles
       } else {
-        setMsg(`❌ Error: ${data.message}`);
+        setMsg(`Error: ${data.message}`);
       }
     } catch (err) {
       setMsg("❌ Network Error");
@@ -103,11 +104,11 @@ function StaffRoleManager() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert("✅ Ownership Transferred! Please login again.");
+        alert("Ownership Transferred! Please login again.");
         localStorage.clear();
         window.location.href = "/";
       } else {
-        alert("❌ Error: " + data.message);
+        alert("Error: " + data.message);
       }
     } catch (err) {
       alert("Server Error");
@@ -168,8 +169,8 @@ function StaffRoleManager() {
               checked={showAdvanced}
               onChange={(e) => setShowAdvanced(e.target.checked)}
             />
-            <span style={{ fontSize: '0.9rem', color: showAdvanced ? '#dc2626' : '#64748b', fontWeight: showAdvanced ? 'bold' : 'normal' }}>
-              {showAdvanced ? "⚠️ Advanced Mode ON" : "Advanced Mode"}
+            <span style={{ fontSize: '0.9rem', color: showAdvanced ? '#dc2626' : '#64748b', fontWeight: showAdvanced ? 'bold' : 'normal', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              {showAdvanced ? <><AlertCircleIcon width="16" height="16" /> Advanced Mode ON</> : "Advanced Mode"}
             </span>
           </label>
         )}
@@ -224,16 +225,16 @@ function StaffRoleManager() {
                       {staff.isDeptAdmin ? (
                         <span
                           className="status-badge status-resolved"
-                          style={{ border: '1px solid #16a34a', padding: '5px 10px' }}
+                          style={{ border: '1px solid #16a34a', padding: '5px 10px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
                         >
-                          👑 Admin: {staff.adminDepartment}
+                          <AdminIcon width="14" height="14" /> Admin: {staff.adminDepartment}
                         </span>
                       ) : staff.adminDepartment ? (
                         <span
                           className="status-badge status-assigned"
-                          style={{ border: '1px solid #2563eb', padding: '5px 10px' }}
+                          style={{ border: '1px solid #2563eb', padding: '5px 10px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
                         >
-                          🛡️ Team: {staff.adminDepartment}
+                          <ShieldIcon width="14" height="14" /> Team: {staff.adminDepartment}
                         </span>
                       ) : (
                         <span className="status-badge status-pending">General Staff</span>
@@ -242,8 +243,8 @@ function StaffRoleManager() {
 
                     <td>
                       {!canEdit(staff) ? (
-                        <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
-                          🔒 Locked
+                        <span style={{ color: '#94a3b8', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                          <LockIcon width="14" height="14" /> Locked
                         </span>
                       ) : (
                         <>
@@ -299,11 +300,11 @@ function StaffRoleManager() {
                           {isMasterAdmin && showAdvanced && (
                             <button
                               className="action-btn"
-                              style={{ backgroundColor: "#7c3aed", color: "white", marginLeft: "10px", minWidth: "120px" }}
+                              style={{ backgroundColor: "#7c3aed", color: "white", marginLeft: "10px", minWidth: "120px", display: 'inline-flex', alignItems: 'center', gap: '5px', justifyContent: 'center' }}
                               onClick={() => handleTransferOwnership(staff.id)}
                               title="Transfer your Master Admin role to this user"
                             >
-                              ⚡ Transfer Owner
+                              <UserIcon width="16" height="16" /> Transfer Owner
                             </button>
                           )}
                         </>

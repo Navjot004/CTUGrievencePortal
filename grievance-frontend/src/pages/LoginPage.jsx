@@ -3,24 +3,15 @@ import { useNavigate, Link } from "react-router-dom";
 import "../styles/LoginPage.css";
 
 // Agar aapke paas local logo hai, toh niche wali line uncomment karein:
-import ctLogo from "../assets/ct-logo.png"; 
+import ctLogo from "../assets/ct-logo.png";
 // const ctLogo = "https://upload.wikimedia.org/wikipedia/commons/9/97/CT_University_logo.png"; 
 
 // ----- ICONS -----
-const UserIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>);
-const LockIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>);
-const PhoneIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>);
-const KeyIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>);
-const EyeIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>);
-const EyeOffIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>);
-
-// ----- ROLE ICONS -----
-const StudentIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v16H6.5a2.5 2.5 0 0 1 0-5H20"></path><path d="m5 12 4-2 4 2"></path><path d="m19 18 2 2 2-2"></path></svg>);
-const StaffIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>);
-const AdminIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>);
+// ----- ICONS -----
+import { UserIcon, LockIcon, PhoneIcon, KeyIcon, EyeIcon, EyeOffIcon, StudentIcon, StaffIcon, AdminIcon } from "../components/Icons";
 
 function LoginPage() {
-  const [selectedRole, setSelectedRole] = useState(null); 
+  const [selectedRole, setSelectedRole] = useState(null);
   const [userId, setUserId] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -46,7 +37,7 @@ function LoginPage() {
   // ✅ Step 1: Verify Password & Send OTP (NO ID VALIDATION)
   const handleSendOTP = async (e) => {
     e.preventDefault();
-    
+
     // ❌ REMOVED: validateIdForRole() check. 
     // Backend will check if ID exists in Excel records.
 
@@ -69,7 +60,7 @@ function LoginPage() {
       if (!res.ok) throw new Error(data.message || "Failed to send OTP");
 
       setOtpSent(true);
-      setMessage("✅ Credentials verified! OTP sent.");
+      setMessage("Credentials verified! OTP sent.");
       setStatusType("success");
     } catch (err) {
       setMessage(err.message);
@@ -102,11 +93,11 @@ function LoginPage() {
       localStorage.setItem("grievance_id", data.id.toUpperCase());
       localStorage.setItem("grievance_role", data.role.toLowerCase());
       localStorage.setItem("grievance_token", data.token);
-      
+
       // ✅ Save Admin Flags
       if (data.isDeptAdmin) localStorage.setItem("is_dept_admin", "true");
       else localStorage.removeItem("is_dept_admin");
-      
+
       if (data.adminDepartment) localStorage.setItem("admin_department", data.adminDepartment);
       else localStorage.removeItem("admin_department");
 
@@ -120,28 +111,28 @@ function LoginPage() {
       setTimeout(() => {
         if (role === "student") {
           navigate("/student/dashboard");
-        } 
+        }
         else if (role === "staff") {
           // If Promoted Staff (Boss) -> Admin Dashboard View
           if (isDeptAdmin) {
-             navigate("/admin/school"); 
-          } 
+            navigate("/admin/school");
+          }
           // If Staff Assigned by Admin -> AdminStaffDashboard
           else if (data.adminDepartment) {
-             navigate("/staff/admin");
-          } 
+            navigate("/staff/admin");
+          }
           // General Unassigned Staff -> StaffDashboard
           else {
-             navigate("/staff/general");
+            navigate("/staff/general");
           }
-        } 
+        }
         else if (role === "admin") {
           // Check for Master Admin
           if (data.id === "10001") {
-             navigate("/admin/dashboard");
+            navigate("/admin/dashboard");
           } else {
-             // Department Admins go to School Dashboard (Common Layout)
-             navigate("/admin/school");
+            // Department Admins go to School Dashboard (Common Layout)
+            navigate("/admin/school");
           }
         }
       }, 1000);
@@ -204,8 +195,8 @@ function LoginPage() {
                       <input
                         type="text"
                         placeholder={
-                          selectedRole === "student" ? "e.g. 72212871" : 
-                          selectedRole === "staff" ? "e.g. 25001" : "e.g. 10002"
+                          selectedRole === "student" ? "e.g. 72212871" :
+                            selectedRole === "staff" ? "e.g. 25001" : "e.g. 10002"
                         }
                         value={userId}
                         onChange={(e) => setUserId(e.target.value.toUpperCase())}
@@ -276,8 +267,8 @@ function LoginPage() {
                   </div>
 
                   <button className="btn-primary" type="submit">Login</button>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => { setOtpSent(false); setMessage(""); setOtp(""); }}
                     style={{ background: 'none', border: 'none', color: '#4f46e5', cursor: 'pointer', textDecoration: 'underline', marginTop: '10px', fontSize: '14px', display: 'block', width: '100%' }}
                   >

@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import "../styles/Dashboard.css";
 import AssignStaffPopup from "../components/AssignStaffPopup";
 import ctLogo from "../assets/ct-logo.png";
+import { ShieldIcon, PaperclipIcon } from "../components/Icons";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
@@ -23,11 +24,11 @@ function AccountAdminDashboard() {
   const [staffMap, setStaffMap] = useState({}); // ✅ Store Staff Names
 
   // ✅ FILTER STATES
-  const [searchId, setSearchId] = useState(""); 
+  const [searchId, setSearchId] = useState("");
   const [searchStaffId, setSearchStaffId] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All"); 
+  const [statusFilter, setStatusFilter] = useState("All");
   const [filterMonth, setFilterMonth] = useState("");
-  
+
   // Modals
   const [isAssignPopupOpen, setIsAssignPopupOpen] = useState(false);
   const [assignGrievanceId, setAssignGrievanceId] = useState(null);
@@ -36,7 +37,7 @@ function AccountAdminDashboard() {
   useEffect(() => {
     // ✅ Auth Check: Must be Admin OR Staff with Admin Rights for "Accounts"
     const isAuthorized = (userId === "10001") || // Master
-                         (adminDept === "Accounts" && (role === "admin" || isDeptAdmin));
+      (adminDept === "Accounts" && (role === "admin" || isDeptAdmin));
 
     if (!isAuthorized) {
       navigate("/");
@@ -85,7 +86,7 @@ function AccountAdminDashboard() {
       if (!res.ok) throw new Error("Update failed");
       setMsg("Status updated!");
       setStatusType("success");
-      fetchGrievances(); 
+      fetchGrievances();
     } catch (err) {
       setMsg(err.message);
       setStatusType("error");
@@ -93,8 +94,8 @@ function AccountAdminDashboard() {
   };
 
   const confirmResolve = (g) => {
-    const confirmMsg = g.assignedTo 
-      ? `⚠️ Professional Action Required\n\nThis grievance is currently assigned to Staff ID: ${g.assignedTo}.\n\nMarking it as 'Resolved' will close the ticket and override the active assignment.\n\nAre you sure you want to proceed?`
+    const confirmMsg = g.assignedTo
+      ? `Professional Action Required\n\nThis grievance is currently assigned to Staff ID: ${g.assignedTo}.\n\nMarking it as 'Resolved' will close the ticket and override the active assignment.\n\nAre you sure you want to proceed?`
       : "Are you sure you want to mark this grievance as Resolved?";
 
     if (window.confirm(confirmMsg)) {
@@ -130,8 +131,8 @@ function AccountAdminDashboard() {
             <h1>Accounts Department</h1>
             <p>
               Admin: <strong>{userId}</strong>
-              <span className="status-badge status-assigned" style={{marginLeft: '10px', fontSize: '0.8rem'}}>
-                🛡️ Accounts
+              <span className="status-badge status-assigned" style={{ marginLeft: '10px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <ShieldIcon width="14" height="14" /> Accounts
               </span>
             </p>
           </div>
@@ -150,20 +151,20 @@ function AccountAdminDashboard() {
         <div className="card">
           <h2>Incoming Grievances</h2>
           {msg && <div className={`alert-box ${statusType}`}>{msg}</div>}
-          
+
           {/* ✅ FILTER BAR */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "20px", padding: "15px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-            <input 
-              type="text" placeholder="Search Student ID..." 
+            <input
+              type="text" placeholder="Search Student ID..."
               value={searchId} onChange={(e) => setSearchId(e.target.value)}
               style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px" }}
             />
-            <input 
-              type="text" placeholder="Search Staff ID..." 
+            <input
+              type="text" placeholder="Search Staff ID..."
               value={searchStaffId} onChange={(e) => setSearchStaffId(e.target.value)}
               style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px" }}
             />
-            <select 
+            <select
               value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
               style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 120px", cursor: "pointer" }}
             >
@@ -173,8 +174,8 @@ function AccountAdminDashboard() {
               <option value="Resolved">Resolved</option>
               <option value="Rejected">Rejected</option>
             </select>
-            <input 
-              type="month" 
+            <input
+              type="month"
               value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}
               style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
             />
@@ -190,141 +191,139 @@ function AccountAdminDashboard() {
                 <thead><tr><th>Student ID</th><th>Name</th><th>Message</th><th>Assigned To</th><th>Status</th><th>Action</th></tr></thead>
                 <tbody>
                   {filteredGrievances.map((g) => (
-                    <tr key={g._id}>
-                      <td style={{fontWeight: 'bold', color: '#334155'}}>{g.userId}</td>
-                    <td>{g.name}</td>
-                    <td className="message-cell" style={{ maxWidth: '200px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
-                        <span style={{ wordBreak: 'break-word', lineHeight: '1.3' }}>
-                          {g.message.substring(0, 30)}{g.message.length > 30 ? "..." : ""}
-                        </span>
-                        <button 
-                          onClick={() => setSelectedGrievance(g)}
-                          style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', textDecoration: 'underline', padding: 0 }}
+                    <tr key={g._id} onClick={() => setSelectedGrievance(g)} style={{ cursor: "pointer" }}>
+                      <td style={{ fontWeight: 'bold', color: '#334155' }}>{g.userId}</td>
+                      <td>{g.name}</td>
+                      <td className="message-cell" style={{ maxWidth: '200px' }}>
+                        <div
+                          style={{ padding: "4px", borderRadius: "4px", transition: "background 0.22s" }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = "#f1f5f9"}
+                          onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                         >
-                          See more
-                        </button>
-                      </div>
-                    </td>
-
-                    {/* ✅ ASSIGNED TO COLUMN */}
-                    <td>
-                      {g.assignedTo ? (
-                        <div>
-                          <span style={{ fontWeight: "600", display: "block", color: "#1e293b" }}>
-                            {staffMap[g.assignedTo] || "Staff"}
+                          <span style={{ wordBreak: 'break-word', lineHeight: '1.3', color: "#334155", fontWeight: "500" }}>
+                            {g.message.substring(0, 40)}{g.message.length > 40 ? "..." : ""}
                           </span>
-                          <span style={{ fontSize: "0.85rem", color: "#64748b" }}>({g.assignedTo})</span>
                         </div>
-                      ) : (
-                        <span style={{ color: "#94a3b8", fontStyle: "italic" }}>Not Assigned Yet</span>
-                      )}
-                    </td>
+                      </td>
 
-                    <td><span className={`status-badge status-${g.status.toLowerCase()}`}>{g.status}</span></td>
-                    <td>
-                       <div className="action-buttons">
-                         <button 
-                           className="action-btn assign-btn" 
-                           onClick={() => openAssignPopup(g._id)}
-                           disabled={g.status === "Resolved" || g.assignedTo}
-                           style={{ opacity: (g.status === "Resolved" || g.assignedTo) ? 0.5 : 1, cursor: (g.status === "Resolved" || g.assignedTo) ? "not-allowed" : "pointer" }}
-                         >
-                           Assign
-                         </button>
-                         <button 
-                           className="action-btn resolve-btn" 
-                           onClick={() => confirmResolve(g)}
-                           disabled={g.status === "Resolved"}
-                           style={{ opacity: g.status === "Resolved" ? 0.5 : 1, cursor: g.status === "Resolved" ? "not-allowed" : "pointer", marginLeft: "5px" }}
-                         >
-                           Resolve
-                         </button>
-                         <button 
-                           className="action-btn reject-btn" 
-                           onClick={() => { if(window.confirm("Reject this grievance?")) updateStatus(g._id, "Rejected"); }}
-                           disabled={g.status === "Resolved" || g.status === "Rejected"}
-                           style={{ opacity: (g.status === "Resolved" || g.status === "Rejected") ? 0.5 : 1, cursor: (g.status === "Resolved" || g.status === "Rejected") ? "not-allowed" : "pointer", marginLeft: "5px" }}
-                         >
-                           Reject
-                         </button>
-                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      {/* ✅ ASSIGNED TO COLUMN */}
+                      <td>
+                        {g.assignedTo ? (
+                          <div>
+                            <span style={{ fontWeight: "600", display: "block", color: "#1e293b" }}>
+                              {staffMap[g.assignedTo] || "Staff"}
+                            </span>
+                            <span style={{ fontSize: "0.85rem", color: "#64748b" }}>({g.assignedTo})</span>
+                          </div>
+                        ) : (
+                          <span style={{ color: "#94a3b8", fontStyle: "italic" }}>Not Assigned Yet</span>
+                        )}
+                      </td>
+
+                      <td><span className={`status-badge status-${g.status.toLowerCase()}`}>{g.status}</span></td>
+                      <td>
+                        <div className="action-buttons">
+                          <button
+                            className="action-btn assign-btn"
+                            onClick={(e) => { e.stopPropagation(); openAssignPopup(g._id); }}
+                            disabled={g.status === "Resolved" || g.assignedTo}
+                            style={{ opacity: (g.status === "Resolved" || g.assignedTo) ? 0.5 : 1, cursor: (g.status === "Resolved" || g.assignedTo) ? "not-allowed" : "pointer" }}
+                          >
+                            Assign
+                          </button>
+                          <button
+                            className="action-btn resolve-btn"
+                            onClick={(e) => { e.stopPropagation(); confirmResolve(g); }}
+                            disabled={g.status === "Resolved"}
+                            style={{ opacity: g.status === "Resolved" ? 0.5 : 1, cursor: g.status === "Resolved" ? "not-allowed" : "pointer", marginLeft: "5px" }}
+                          >
+                            Resolve
+                          </button>
+                          <button
+                            className="action-btn reject-btn"
+                            onClick={(e) => { e.stopPropagation(); if (window.confirm("Reject this grievance?")) updateStatus(g._id, "Rejected"); }}
+                            disabled={g.status === "Resolved" || g.status === "Rejected"}
+                            style={{ opacity: (g.status === "Resolved" || g.status === "Rejected") ? 0.5 : 1, cursor: (g.status === "Resolved" || g.status === "Rejected") ? "not-allowed" : "pointer", marginLeft: "5px" }}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
 
           {/* Popups */}
           {selectedGrievance && (
-        <div 
-          onClick={() => setSelectedGrievance(null)}
-          style={{
-            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-            backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
-          }}
-        >
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: 'white', padding: '25px', borderRadius: '12px', width: '90%', maxWidth: '500px',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.2)', position: 'relative', display: 'flex', flexDirection: 'column', maxHeight: '85vh'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '15px', marginBottom: '15px' }}>
-              <h3 style={{ margin: 0, color: '#1e293b', fontSize: '1.25rem' }}>Grievance Details</h3>
-              <button onClick={() => setSelectedGrievance(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>&times;</button>
-            </div>
-            
-            <div style={{ overflowY: 'auto', paddingRight: '5px' }}>
-              <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Student:</strong> {selectedGrievance.name} <span style={{color:'#94a3b8'}}>({selectedGrievance.userId || selectedGrievance.regid || 'N/A'})</span></p>
-              <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
-              <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Status:</strong> <span className={`status-badge status-${selectedGrievance.status.toLowerCase()}`}>{selectedGrievance.status}</span></p>
-              
-              <div style={{ backgroundColor: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '10px' }}>
-                <strong style={{ display: 'block', marginBottom: '8px', color: '#334155' }}>Full Message:</strong>
-                <p style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: '1.6', color: '#1e293b', wordBreak: 'break-word' }}>
-                  {selectedGrievance.message}
-                </p>
-              </div>
-
-              {/* ✅ ATTACHMENT BUTTON */}
-              {selectedGrievance.attachment && (
-                <div style={{ marginTop: '15px' }}>
-                  <strong>Attachment: </strong>
-                  <a 
-                    href={`http://localhost:5000/api/file/${selectedGrievance.attachment}`} 
-                    target="_blank" rel="noopener noreferrer"
-                    style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: '600' }}
-                  >
-                    View Document 📎
-                  </a>
-                </div>
-              )}
-            </div>
-
-            <div style={{ textAlign: 'right', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #eee' }}>
-              <button 
-                onClick={() => setSelectedGrievance(null)}
+            <div
+              onClick={() => setSelectedGrievance(null)}
+              style={{
+                position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+                backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+              }}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
                 style={{
-                  padding: '10px 20px', backgroundColor: '#e2e8f0', border: 'none', borderRadius: '6px',
-                  cursor: 'pointer', fontWeight: '600', color: '#475569', transition: 'background 0.2s'
+                  background: 'white', padding: '25px', borderRadius: '12px', width: '90%', maxWidth: '500px',
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.2)', position: 'relative', display: 'flex', flexDirection: 'column', maxHeight: '85vh'
                 }}
-                onMouseOver={(e) => e.target.style.backgroundColor = '#cbd5e1'}
-                onMouseOut={(e) => e.target.style.backgroundColor = '#e2e8f0'}
               >
-                Close
-              </button>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '15px', marginBottom: '15px' }}>
+                  <h3 style={{ margin: 0, color: '#1e293b', fontSize: '1.25rem' }}>Grievance Details</h3>
+                  <button onClick={() => setSelectedGrievance(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>&times;</button>
+                </div>
+
+                <div style={{ overflowY: 'auto', paddingRight: '5px' }}>
+                  <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Student:</strong> {selectedGrievance.name} <span style={{ color: '#94a3b8' }}>({selectedGrievance.userId || selectedGrievance.regid || 'N/A'})</span></p>
+                  <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
+                  <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Status:</strong> <span className={`status-badge status-${selectedGrievance.status.toLowerCase()}`}>{selectedGrievance.status}</span></p>
+
+                  <div style={{ backgroundColor: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '10px' }}>
+                    <strong style={{ display: 'block', marginBottom: '8px', color: '#334155' }}>Full Message:</strong>
+                    <p style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: '1.6', color: '#1e293b', wordBreak: 'break-word' }}>
+                      {selectedGrievance.message}
+                    </p>
+                  </div>
+
+                  {/* ✅ ATTACHMENT BUTTON */}
+                  {selectedGrievance.attachment && (
+                    <div style={{ marginTop: '15px' }}>
+                      <strong>Attachment: </strong>
+                      <a
+                        href={`http://localhost:5000/api/file/${selectedGrievance.attachment}`}
+                        target="_blank" rel="noopener noreferrer"
+                        style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: '600' }}
+                      >
+                        View Document <PaperclipIcon width="14" height="14" style={{ marginLeft: '4px' }} />
+                      </a>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ textAlign: 'right', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #eee' }}>
+                  <button
+                    onClick={() => setSelectedGrievance(null)}
+                    style={{
+                      padding: '10px 20px', backgroundColor: '#e2e8f0', border: 'none', borderRadius: '6px',
+                      cursor: 'pointer', fontWeight: '600', color: '#475569', transition: 'background 0.2s'
+                    }}
+                    onMouseOver={(e) => e.target.style.backgroundColor = '#cbd5e1'}
+                    onMouseOut={(e) => e.target.style.backgroundColor = '#e2e8f0'}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
         </div>
       </main>
-      
-      <AssignStaffPopup isOpen={isAssignPopupOpen} onClose={() => setIsAssignPopupOpen(false)} department="Accounts" grievanceId={assignGrievanceId} adminId={userId} onAssigned={(m, t) => {setMsg(m); setStatusType(t); fetchGrievances()}} />
+
+      <AssignStaffPopup isOpen={isAssignPopupOpen} onClose={() => setIsAssignPopupOpen(false)} department="Accounts" grievanceId={assignGrievanceId} adminId={userId} onAssigned={(m, t) => { setMsg(m); setStatusType(t); fetchGrievances() }} />
 
       {/* ✅ SUPER SMOOTH INTERACTIONS (Makhan UI) */}
       <style>{`

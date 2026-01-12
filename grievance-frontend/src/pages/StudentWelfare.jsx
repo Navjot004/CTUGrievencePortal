@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import "../styles/Dashboard.css";
 import ctLogo from "../assets/ct-logo.png";
+import { GraduationCapIcon } from "../components/Icons";
 
 function StudentWelfare() {
   const navigate = useNavigate();
@@ -68,65 +69,65 @@ function StudentWelfare() {
     navigate("/");
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setMsg("Submitting grievance...");
-  setStatusType("info");
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setMsg("Submitting grievance...");
+    setStatusType("info");
 
-  // 1️⃣ Upload File to MongoDB (GridFS) First
-  let attachmentUrl = "";
-  if (attachment) {
-    const fileData = new FormData();
-    fileData.append("file", attachment);
-    try {
-      const uploadRes = await fetch("http://localhost:5000/api/upload", { method: "POST", body: fileData });
-      if (!uploadRes.ok) throw new Error("File upload failed");
-      const uploadJson = await uploadRes.json();
-      attachmentUrl = uploadJson.filename;
-    } catch (err) {
-      console.error("❌ [FRONTEND] Upload Error:", err);
-      setMsg(`❌ Upload Error: ${err.message}`); setStatusType("error"); return;
-    }
-  }
-
-  // 2️⃣ Submit Grievance as JSON (Fix for Backend)
-  const payload = {
-    userId,
-    name: formData.name,
-    regid: formData.regid,
-    email: formData.email,
-    phone: formData.phone,
-    studentProgram: formData.program,
-    category: "Student Welfare",
-    message: formData.message,
-    attachment: attachmentUrl || "" // Send filename string
-  };
-
-  try {
-    const res = await fetch(
-      "http://localhost:5000/api/grievances/submit",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }, // ✅ Important
-        body: JSON.stringify(payload),
+    // 1️⃣ Upload File to MongoDB (GridFS) First
+    let attachmentUrl = "";
+    if (attachment) {
+      const fileData = new FormData();
+      fileData.append("file", attachment);
+      try {
+        const uploadRes = await fetch("http://localhost:5000/api/upload", { method: "POST", body: fileData });
+        if (!uploadRes.ok) throw new Error("File upload failed");
+        const uploadJson = await uploadRes.json();
+        attachmentUrl = uploadJson.filename;
+      } catch (err) {
+        console.error("[FRONTEND] Upload Error:", err);
+        setMsg(`Upload Error: ${err.message}`); setStatusType("error"); return;
       }
-    );
+    }
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message);
+    // 2️⃣ Submit Grievance as JSON (Fix for Backend)
+    const payload = {
+      userId,
+      name: formData.name,
+      regid: formData.regid,
+      email: formData.email,
+      phone: formData.phone,
+      studentProgram: formData.program,
+      category: "Student Welfare",
+      message: formData.message,
+      attachment: attachmentUrl || "" // Send filename string
+    };
 
-    setMsg("✅ Grievance submitted successfully");
-    setStatusType("success");
-    setFormData((prev) => ({ ...prev, message: "" }));
-    setAttachment(null);
+    try {
+      const res = await fetch(
+        "http://localhost:5000/api/grievances/submit",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }, // ✅ Important
+          body: JSON.stringify(payload),
+        }
+      );
 
-    const fileInput = document.getElementById("fileInput");
-    if (fileInput) fileInput.value = "";
-  } catch (err) {
-    setMsg(`❌ ${err.message}`);
-    setStatusType("error");
-  }
-};
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+
+      setMsg("✅ Grievance submitted successfully");
+      setStatusType("success");
+      setFormData((prev) => ({ ...prev, message: "" }));
+      setAttachment(null);
+
+      const fileInput = document.getElementById("fileInput");
+      if (fileInput) fileInput.value = "";
+    } catch (err) {
+      setMsg(`❌ ${err.message}`);
+      setStatusType("error");
+    }
+  };
 
 
 
@@ -139,8 +140,8 @@ const handleSubmit = async (e) => {
             <h1>Student Dashboard</h1>
             <p>
               Welcome, <strong>{formData.name || userId}</strong>
-              {formData.program && <span className="status-badge status-assigned" style={{marginLeft: '10px', fontSize: '0.8rem'}}>
-                🎓 {formData.program}
+              {formData.program && <span className="status-badge status-assigned" style={{ marginLeft: '10px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <GraduationCapIcon width="14" height="14" /> {formData.program}
               </span>}
             </p>
           </div>

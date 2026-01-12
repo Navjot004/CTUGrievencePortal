@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import "../styles/Dashboard.css"; 
+import "../styles/Dashboard.css";
 import ctLogo from "../assets/ct-logo.png";
+import { GraduationCapIcon } from "../components/Icons";
 
 // ✅ 1. DATA: Map Program -> School (Used for Dropdown)
 const academicPrograms = {
@@ -17,7 +18,7 @@ const academicPrograms = {
 
 // Helper to auto-select if possible
 const getSchoolFromProgram = (programName) => {
-  return ""; 
+  return "";
 };
 
 function Department() {
@@ -45,7 +46,7 @@ function Department() {
       try {
         const res = await fetch(`http://localhost:5000/api/auth/user/${userId}`);
         const data = await res.json();
-        
+
         if (res.ok) {
           setFormData((prev) => ({
             ...prev,
@@ -94,8 +95,8 @@ function Department() {
         const uploadJson = await uploadRes.json();
         attachmentUrl = uploadJson.filename;
       } catch (err) {
-        console.error("❌ [FRONTEND] Upload Error:", err);
-        setMsg(`❌ Upload Error: ${err.message}`); setStatusType("error"); return;
+        console.error("[FRONTEND] Upload Error:", err);
+        setMsg(`Upload Error: ${err.message}`); setStatusType("error"); return;
       }
     }
 
@@ -142,8 +143,8 @@ function Department() {
             <h1>Student Dashboard</h1>
             <p>
               Welcome, <strong>{formData.name || userId}</strong>
-              {formData.studentProgram && <span className="status-badge status-assigned" style={{marginLeft: '10px', fontSize: '0.8rem'}}>
-                🎓 {formData.studentProgram}
+              {formData.studentProgram && <span className="status-badge status-assigned" style={{ marginLeft: '10px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <GraduationCapIcon width="14" height="14" /> {formData.studentProgram}
               </span>}
             </p>
           </div>
@@ -166,7 +167,7 @@ function Department() {
       <main className="dashboard-body">
         <div className="card">
           <h2>Submit {categoryTitle} Grievance</h2>
-          
+
           {loading ? (
             <p>Loading your details...</p>
           ) : (
@@ -204,7 +205,7 @@ function Department() {
                     <option key={school} value={school}>{school}</option>
                   ))}
                 </select>
-                <small style={{color: "#64748b", marginTop: "5px"}}>
+                <small style={{ color: "#64748b", marginTop: "5px" }}>
                   Please select the specific school your grievance relates to.
                 </small>
               </div>
@@ -229,9 +230,9 @@ function Department() {
 
               <div className="input-group">
                 <label>Attach Document (Optional)</label>
-                <input 
+                <input
                   id="fileInput"
-                  type="file" 
+                  type="file"
                   onChange={handleFileChange}
                   accept=".pdf,.jpg,.jpeg,.png"
                   className="file-input"

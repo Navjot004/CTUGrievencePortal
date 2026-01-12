@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
 import ctLogo from "../assets/ct-logo.png";
+import { ClipboardIcon, PaperclipIcon } from "../components/Icons";
 
 // Helper: format dates for tables
 const formatDate = (dateString) => {
@@ -206,7 +207,7 @@ function StaffDashboard() {
           userId,
           name: formData.name,
           email: formData.email,
-          phone: "", 
+          phone: "",
           regid: formData.staffId,
           school: formData.department, // Selected School
           category: formData.department, // Routes to School Admin
@@ -228,7 +229,7 @@ function StaffDashboard() {
       }));
       setErrors({});
       setAttachment(null);
-      if(document.getElementById("staffFileInput")) document.getElementById("staffFileInput").value = "";
+      if (document.getElementById("staffFileInput")) document.getElementById("staffFileInput").value = "";
 
       fetchMyGrievances();
     } catch (err) {
@@ -309,10 +310,10 @@ function StaffDashboard() {
               {loadingProfile
                 ? "Loading your profile..."
                 : <>Welcome, <strong>{staffName || userId}</strong> {staffDept && (
-                    <span className="status-badge status-assigned" style={{marginLeft: '10px', fontSize: '0.8rem'}}>
-                      💼 {staffDept}
-                    </span>
-                  )}</>}
+                  <span className="status-badge status-assigned" style={{ marginLeft: '10px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                    <ClipboardIcon width="14" height="14" /> {staffDept}
+                  </span>
+                )}</>}
             </p>
           </div>
         </div>
@@ -391,9 +392,9 @@ function StaffDashboard() {
 
                 <div className="input-group">
                   <label>Attach Document (Optional)</label>
-                  <input 
+                  <input
                     id="staffFileInput"
-                    type="file" 
+                    type="file"
                     onChange={handleFileChange}
                     accept=".pdf,.jpg,.jpeg,.png"
                     className="file-input"
@@ -413,15 +414,15 @@ function StaffDashboard() {
 
               {/* ✅ FILTER BAR */}
               <div style={{
-                display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "20px", 
+                display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "20px",
                 padding: "15px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0"
               }}>
-                <input 
-                  type="text" placeholder="Search Assigned Staff ID..." 
+                <input
+                  type="text" placeholder="Search Assigned Staff ID..."
                   value={searchStaffId} onChange={(e) => setSearchStaffId(e.target.value)}
                   style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px" }}
                 />
-                <select 
+                <select
                   value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
                   style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 120px", cursor: "pointer" }}
                 >
@@ -431,19 +432,19 @@ function StaffDashboard() {
                   <option value="Resolved">Resolved</option>
                   <option value="Rejected">Rejected</option>
                 </select>
-                <select 
+                <select
                   value={filterDepartment} onChange={(e) => setFilterDepartment(e.target.value)}
                   style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
                 >
                   <option value="All">All Departments</option>
                   {uniqueDepartments.map(dept => <option key={dept} value={dept}>{dept}</option>)}
                 </select>
-                <input 
-                  type="month" 
+                <input
+                  type="month"
                   value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}
                   style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
                 />
-                <button 
+                <button
                   onClick={() => {
                     setSearchStaffId(""); setFilterStatus("All"); setFilterDepartment("All"); setFilterMonth("");
                   }}
@@ -471,31 +472,19 @@ function StaffDashboard() {
                     </thead>
                     <tbody>
                       {filteredMyGrievances.map((g) => (
-                        <tr key={g._id}>
+                        <tr key={g._id} onClick={() => setSelectedGrievance(g)} style={{ cursor: "pointer" }}>
                           <td>{g.category}</td>
-                          
+
                           {/* --- FIXED MESSAGE CELL (Max Width 150px + See More) --- */}
                           <td className="message-cell" style={{ maxWidth: '150px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '5px' }}>
-                              <span style={{ wordBreak: 'break-all', lineHeight: '1.2' }}>
-                                {g.message.substring(0, 20)}{g.message.length > 20 ? "..." : ""}
+                            <div
+                              style={{ padding: "4px", borderRadius: "4px", transition: "background 0.22s" }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = "#f1f5f9"}
+                              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                            >
+                              <span style={{ wordBreak: 'break-all', lineHeight: '1.2', color: "#334155", fontWeight: "500" }}>
+                                {g.message.substring(0, 30)}{g.message.length > 30 ? "..." : ""}
                               </span>
-                              <button 
-                                onClick={() => setSelectedGrievance(g)}
-                                style={{
-                                  background: 'none',
-                                  border: 'none',
-                                  color: '#2563eb',
-                                  cursor: 'pointer',
-                                  fontSize: '0.75rem',
-                                  fontWeight: '600',
-                                  textDecoration: 'underline',
-                                  padding: 0,
-                                  whiteSpace: 'nowrap'
-                                }}
-                              >
-                                See more
-                              </button>
                             </div>
                           </td>
                           {/* ---------------------------------------------------- */}
@@ -520,7 +509,7 @@ function StaffDashboard() {
 
       {/* --- DETAILS POPUP MODAL (Fixed for Long Text) --- */}
       {selectedGrievance && (
-        <div 
+        <div
           onClick={() => setSelectedGrievance(null)}
           style={{
             position: 'fixed',
@@ -535,7 +524,7 @@ function StaffDashboard() {
             zIndex: 1000
           }}
         >
-          <div 
+          <div
             onClick={(e) => e.stopPropagation()}
             style={{
               background: 'white', padding: '25px', borderRadius: '12px', width: '90%', maxWidth: '500px',
@@ -546,17 +535,17 @@ function StaffDashboard() {
               <h3 style={{ margin: 0, color: '#1e293b', fontSize: '1.25rem' }}>Grievance Details</h3>
               <button onClick={() => setSelectedGrievance(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>&times;</button>
             </div>
-            
+
             <div style={{ overflowY: 'auto', paddingRight: '5px' }}>
               <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Category:</strong> {selectedGrievance.category}</p>
-              
+
               {selectedGrievance.name && (
                 <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Submitted By:</strong> {selectedGrievance.name}</p>
               )}
-              
+
               <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
               <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Status:</strong> <span className={`status-badge status-${selectedGrievance.status.toLowerCase()}`}>{selectedGrievance.status}</span></p>
-              
+
               <div style={{ backgroundColor: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '10px' }}>
                 <strong style={{ display: 'block', marginBottom: '8px', color: '#334155' }}>Full Message:</strong>
                 <p style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: '1.6', color: '#1e293b', wordBreak: 'break-word' }}>
@@ -568,19 +557,19 @@ function StaffDashboard() {
               {selectedGrievance.attachment && (
                 <div style={{ marginTop: '15px' }}>
                   <strong>Attachment: </strong>
-                  <a 
-                    href={`http://localhost:5000/api/file/${selectedGrievance.attachment}`} 
+                  <a
+                    href={`http://localhost:5000/api/file/${selectedGrievance.attachment}`}
                     target="_blank" rel="noopener noreferrer"
                     style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: '600' }}
                   >
-                    View Document 📎
+                    View Document <PaperclipIcon width="14" height="14" style={{ marginLeft: '4px' }} />
                   </a>
                 </div>
               )}
             </div>
 
             <div style={{ textAlign: 'right', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #eee' }}>
-              <button 
+              <button
                 onClick={() => setSelectedGrievance(null)}
                 style={{
                   padding: '10px 20px', backgroundColor: '#e2e8f0', border: 'none', borderRadius: '6px',

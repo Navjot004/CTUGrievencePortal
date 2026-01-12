@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import "../styles/Dashboard.css";
 import AssignStaffPopup from "../components/AssignStaffPopup";
 import ctLogo from "../assets/ct-logo.png";
+import { ShieldIcon, PaperclipIcon } from "../components/Icons";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
@@ -31,9 +32,9 @@ function StudentWelfareAdminDashboard() {
   const [staffMap, setStaffMap] = useState({}); // ✅ Store Staff Names
 
   // ✅ FILTER STATES
-  const [searchId, setSearchId] = useState(""); 
+  const [searchId, setSearchId] = useState("");
   const [searchStaffId, setSearchStaffId] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All"); 
+  const [statusFilter, setStatusFilter] = useState("All");
   const [filterMonth, setFilterMonth] = useState("");
 
   // Popups State
@@ -44,34 +45,34 @@ function StudentWelfareAdminDashboard() {
   useEffect(() => {
     // ✅ Security Check: Agar banda Student Welfare ka admin nahi hai, toh bhaga do
     if (adminDept !== "Student Welfare") {
-       // navigate("/"); // Development ke liye comment kiya hai, production mein on kar dena
-       console.warn("Wrong Department Access");
+      // navigate("/"); // Development ke liye comment kiya hai, production mein on kar dena
+      console.warn("Wrong Department Access");
     }
-    
+
     fetchGrievances();
     fetchStaffNames(); // ✅ Fetch staff list
   }, [adminDept]);
 
-const fetchGrievances = async () => {
-  try {
-    setLoading(true);
+  const fetchGrievances = async () => {
+    try {
+      setLoading(true);
 
-    const category = encodeURIComponent("Student Welfare");
-    const url = `http://localhost:5000/api/grievances/category/${category}`;
+      const category = encodeURIComponent("Student Welfare");
+      const url = `http://localhost:5000/api/grievances/category/${category}`;
 
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("Failed to fetch");
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch");
 
-    const data = await res.json();
-    setGrievances(data);
-  } catch (err) {
-    console.error(err);
-    setMsg("Failed to load grievances");
-    setStatusType("error");
-  } finally {
-    setLoading(false);
-  }
-};
+      const data = await res.json();
+      setGrievances(data);
+    } catch (err) {
+      console.error(err);
+      setMsg("Failed to load grievances");
+      setStatusType("error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ✅ Fetch Staff List to Map IDs to Names
   const fetchStaffNames = async () => {
@@ -160,8 +161,8 @@ const fetchGrievances = async () => {
             <h1>Student Welfare Department</h1>
             <p>
               Welcome, <strong>{userId}</strong>
-              <span className="status-badge status-assigned" style={{marginLeft: '10px', fontSize: '0.8rem'}}>
-                🛡️ Student Welfare
+              <span className="status-badge status-assigned" style={{ marginLeft: '10px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <ShieldIcon width="14" height="14" /> Student Welfare
               </span>
             </p>
           </div>
@@ -183,17 +184,17 @@ const fetchGrievances = async () => {
 
           {/* ✅ FILTER BAR */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "20px", padding: "15px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-            <input 
-              type="text" placeholder="Search Student ID..." 
+            <input
+              type="text" placeholder="Search Student ID..."
               value={searchId} onChange={(e) => setSearchId(e.target.value)}
               style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px" }}
             />
-            <input 
-              type="text" placeholder="Search Staff ID..." 
+            <input
+              type="text" placeholder="Search Staff ID..."
               value={searchStaffId} onChange={(e) => setSearchStaffId(e.target.value)}
               style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px" }}
             />
-            <select 
+            <select
               value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
               style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 120px", cursor: "pointer" }}
             >
@@ -203,8 +204,8 @@ const fetchGrievances = async () => {
               <option value="Resolved">Resolved</option>
               <option value="Rejected">Rejected</option>
             </select>
-            <input 
-              type="month" 
+            <input
+              type="month"
               value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}
               style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
             />
@@ -230,20 +231,18 @@ const fetchGrievances = async () => {
               </thead>
               <tbody>
                 {filteredGrievances.map((g) => (
-                  <tr key={g._id}>
-                    <td style={{fontWeight: 'bold', color: '#334155'}}>{g.userId}</td>
+                  <tr key={g._id} onClick={() => setSelectedGrievance(g)} style={{ cursor: "pointer" }}>
+                    <td style={{ fontWeight: 'bold', color: '#334155' }}>{g.userId}</td>
                     <td>{g.name}</td>
                     <td className="message-cell" style={{ maxWidth: '200px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
-                        <span style={{ wordBreak: 'break-word', lineHeight: '1.3' }}>
-                          {g.message.substring(0, 30)}{g.message.length > 30 ? "..." : ""}
+                      <div
+                        style={{ padding: "4px", borderRadius: "4px", transition: "background 0.22s" }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = "#f1f5f9"}
+                        onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                      >
+                        <span style={{ wordBreak: 'break-word', lineHeight: '1.3', color: "#334155", fontWeight: "500" }}>
+                          {g.message.substring(0, 40)}{g.message.length > 40 ? "..." : ""}
                         </span>
-                        <button 
-                          onClick={() => setSelectedGrievance(g)}
-                          style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', textDecoration: 'underline', padding: 0 }}
-                        >
-                          See more
-                        </button>
                       </div>
                     </td>
 
@@ -267,30 +266,32 @@ const fetchGrievances = async () => {
                       </span>
                     </td>
                     <td>
-                      <button 
-                        className="action-btn assign-btn" 
-                        onClick={() => openAssignPopup(g._id)}
-                        disabled={g.status === "Resolved" || g.assignedTo}
-                        style={{ opacity: (g.status === "Resolved" || g.assignedTo) ? 0.5 : 1, cursor: (g.status === "Resolved" || g.assignedTo) ? "not-allowed" : "pointer" }}
-                      >
-                        Assign
-                      </button>
-                      <button 
-                        className="action-btn resolve-btn" 
-                        onClick={() => resolveGrievance(g)} // ✅ Now passing the full object 'g'
-                        disabled={g.status === "Resolved"}
-                        style={{ opacity: g.status === "Resolved" ? 0.5 : 1, cursor: g.status === "Resolved" ? "not-allowed" : "pointer", marginLeft: "5px" }}
-                      >
-                        Resolve
-                      </button>
-                      <button 
-                        className="action-btn reject-btn" 
-                        onClick={() => rejectGrievance(g)}
-                        disabled={g.status === "Resolved" || g.status === "Rejected"}
-                        style={{ opacity: (g.status === "Resolved" || g.status === "Rejected") ? 0.5 : 1, cursor: (g.status === "Resolved" || g.status === "Rejected") ? "not-allowed" : "pointer", marginLeft: "5px" }}
-                      >
-                        Reject
-                      </button>
+                      <div className="action-buttons">
+                        <button
+                          className="action-btn assign-btn"
+                          onClick={(e) => { e.stopPropagation(); openAssignPopup(g._id); }}
+                          disabled={g.status === "Resolved" || g.assignedTo}
+                          style={{ opacity: (g.status === "Resolved" || g.assignedTo) ? 0.5 : 1, cursor: (g.status === "Resolved" || g.assignedTo) ? "not-allowed" : "pointer" }}
+                        >
+                          Assign
+                        </button>
+                        <button
+                          className="action-btn resolve-btn"
+                          onClick={(e) => { e.stopPropagation(); resolveGrievance(g); }} // ✅ Now passing the full object 'g'
+                          disabled={g.status === "Resolved"}
+                          style={{ opacity: g.status === "Resolved" ? 0.5 : 1, cursor: g.status === "Resolved" ? "not-allowed" : "pointer" }}
+                        >
+                          Resolve
+                        </button>
+                        <button
+                          className="action-btn reject-btn"
+                          onClick={(e) => { e.stopPropagation(); rejectGrievance(g); }}
+                          disabled={g.status === "Resolved" || g.status === "Rejected"}
+                          style={{ opacity: (g.status === "Resolved" || g.status === "Rejected") ? 0.5 : 1, cursor: (g.status === "Resolved" || g.status === "Rejected") ? "not-allowed" : "pointer" }}
+                        >
+                          Reject
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -302,14 +303,14 @@ const fetchGrievances = async () => {
 
       {/* ✅ PROFESSIONAL DETAILS MODAL */}
       {selectedGrievance && (
-        <div 
+        <div
           onClick={() => setSelectedGrievance(null)}
           style={{
             position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
             backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
           }}
         >
-          <div 
+          <div
             onClick={(e) => e.stopPropagation()}
             style={{
               background: 'white', padding: '25px', borderRadius: '12px', width: '90%', maxWidth: '500px',
@@ -320,12 +321,12 @@ const fetchGrievances = async () => {
               <h3 style={{ margin: 0, color: '#1e293b', fontSize: '1.25rem' }}>Grievance Details</h3>
               <button onClick={() => setSelectedGrievance(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>&times;</button>
             </div>
-            
+
             <div style={{ overflowY: 'auto', paddingRight: '5px' }}>
-              <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Student:</strong> {selectedGrievance.name} <span style={{color:'#94a3b8'}}>({selectedGrievance.userId || selectedGrievance.regid || 'N/A'})</span></p>
+              <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Student:</strong> {selectedGrievance.name} <span style={{ color: '#94a3b8' }}>({selectedGrievance.userId || selectedGrievance.regid || 'N/A'})</span></p>
               <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
               <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Status:</strong> <span className={`status-badge status-${selectedGrievance.status.toLowerCase()}`}>{selectedGrievance.status}</span></p>
-              
+
               <div style={{ backgroundColor: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '10px' }}>
                 <strong style={{ display: 'block', marginBottom: '8px', color: '#334155' }}>Full Message:</strong>
                 <p style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: '1.6', color: '#1e293b', wordBreak: 'break-word' }}>
@@ -337,19 +338,19 @@ const fetchGrievances = async () => {
               {selectedGrievance.attachment && (
                 <div style={{ marginTop: '15px' }}>
                   <strong>Attachment: </strong>
-                  <a 
-                    href={`http://localhost:5000/api/file/${selectedGrievance.attachment}`} 
+                  <a
+                    href={`http://localhost:5000/api/file/${selectedGrievance.attachment}`}
                     target="_blank" rel="noopener noreferrer"
                     style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: '600' }}
                   >
-                    View Document 📎
+                    View Document <PaperclipIcon width="14" height="14" style={{ marginLeft: '4px' }} />
                   </a>
                 </div>
               )}
             </div>
 
             <div style={{ textAlign: 'right', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #eee' }}>
-              <button 
+              <button
                 onClick={() => setSelectedGrievance(null)}
                 style={{
                   padding: '10px 20px', backgroundColor: '#e2e8f0', border: 'none', borderRadius: '6px',

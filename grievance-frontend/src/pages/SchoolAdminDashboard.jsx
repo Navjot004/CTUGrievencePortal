@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import "../styles/Dashboard.css"; // Existing CSS for table structure
 import AssignStaffPopup from "../components/AssignStaffPopup";
 import ctLogo from "../assets/ct-logo.png";
+import { SearchIcon, UserIcon, HomeIcon, PaperclipIcon } from "../components/Icons";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
@@ -19,18 +20,18 @@ const formatDateDateOnly = (dateString) => {
 function SchoolAdminDashboard() {
   const navigate = useNavigate();
   const userId = localStorage.getItem("grievance_id")?.toUpperCase();
-  
-  const mySchoolName = localStorage.getItem("admin_department"); 
-  const isAuthorized = !!mySchoolName; 
+
+  const mySchoolName = localStorage.getItem("admin_department");
+  const isAuthorized = !!mySchoolName;
 
   // Data States
   const [grievances, setGrievances] = useState([]);
   const [staffMap, setStaffMap] = useState({});
-  
+
   // ✅ FILTER STATES
-  const [searchId, setSearchId] = useState(""); 
+  const [searchId, setSearchId] = useState("");
   const [searchStaffId, setSearchStaffId] = useState(""); // Search by Staff ID
-  const [statusFilter, setStatusFilter] = useState("All"); 
+  const [statusFilter, setStatusFilter] = useState("All");
   const [filterMonth, setFilterMonth] = useState(""); // ✅ Month Filter
 
   // ✅ Feedback States (Added to fix "not working" issue)
@@ -47,7 +48,7 @@ function SchoolAdminDashboard() {
       navigate("/");
     } else {
       fetchMySchoolGrievances();
-      fetchStaffNames(); 
+      fetchStaffNames();
     }
   }, [navigate, isAuthorized]);
 
@@ -93,10 +94,10 @@ function SchoolAdminDashboard() {
         body: JSON.stringify({ status: newStatus, resolvedBy: userId }),
       });
       if (!res.ok) throw new Error("Update failed");
-      
+
       setMsg("✅ Status updated successfully!");
       setStatusType("success");
-      fetchMySchoolGrievances(); 
+      fetchMySchoolGrievances();
     } catch (err) {
       setMsg(`❌ Error: ${err.message}`);
       setStatusType("error");
@@ -104,8 +105,8 @@ function SchoolAdminDashboard() {
   };
 
   const confirmResolve = (g) => {
-    const confirmMsg = g.assignedTo 
-      ? `⚠️ Professional Action Required\n\nThis grievance is currently assigned to Staff ID: ${g.assignedTo}.\n\nMarking it as 'Resolved' will close the ticket and override the active assignment.\n\nAre you sure you want to proceed?`
+    const confirmMsg = g.assignedTo
+      ? `Professional Action Required\n\nThis grievance is currently assigned to Staff ID: ${g.assignedTo}.\n\nMarking it as 'Resolved' will close the ticket and override the active assignment.\n\nAre you sure you want to proceed?`
       : "Are you sure you want to mark this grievance as Resolved?";
 
     if (window.confirm(confirmMsg)) {
@@ -204,8 +205,8 @@ function SchoolAdminDashboard() {
             <h1>{mySchoolName || "School"} Dashboard</h1>
             <p>
               Admin: <strong>{userId}</strong>
-              {mySchoolName && <span className="status-badge status-assigned" style={{marginLeft: '10px', fontSize: '0.8rem'}}>
-                🏫 {mySchoolName}
+              {mySchoolName && <span className="status-badge status-assigned" style={{ marginLeft: '10px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <HomeIcon width="14" height="14" /> {mySchoolName}
               </span>}
             </p>
           </div>
@@ -231,15 +232,15 @@ function SchoolAdminDashboard() {
 
           {/* ✅ MODERN FILTER BAR (Inline Styles) */}
           <div style={styles.filterBar}>
-            
+
             {/* Search Inputs */}
             <div style={styles.searchGroup}>
               {/* Student ID */}
               <div style={styles.inputWrapper}>
-                <span style={styles.icon}>🔍</span>
-                <input 
-                  type="text" 
-                  placeholder="Search Student ID..." 
+                <span style={styles.icon}><SearchIcon width="16" height="16" /></span>
+                <input
+                  type="text"
+                  placeholder="Search Student ID..."
                   value={searchId}
                   onChange={(e) => setSearchId(e.target.value)}
                   style={styles.input}
@@ -248,10 +249,10 @@ function SchoolAdminDashboard() {
 
               {/* Staff ID */}
               <div style={styles.inputWrapper}>
-                <span style={styles.icon}>👨‍🏫</span>
-                <input 
-                  type="text" 
-                  placeholder="Search Staff ID..." 
+                <span style={styles.icon}><UserIcon width="16" height="16" /></span>
+                <input
+                  type="text"
+                  placeholder="Search Staff ID..."
                   value={searchStaffId}
                   onChange={(e) => setSearchStaffId(e.target.value)}
                   style={styles.input}
@@ -261,24 +262,24 @@ function SchoolAdminDashboard() {
 
             {/* Status Dropdown */}
             <div style={styles.selectWrapper}>
-              <select 
-                value={statusFilter} 
+              <select
+                value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 style={styles.select}
               >
                 <option value="All">All Statuses</option>
-                <option value="Pending">🟡 Pending</option>
-                <option value="Assigned">🔵 Assigned</option>
-                <option value="Resolved">🟢 Resolved</option>
-                <option value="Rejected">🔴 Rejected</option>
+                <option value="Pending">Pending</option>
+                <option value="Assigned">Assigned</option>
+                <option value="Resolved">Resolved</option>
+                <option value="Rejected">Rejected</option>
               </select>
             </div>
 
             {/* Month Picker */}
             <div style={styles.selectWrapper}>
-              <input 
-                type="month" 
-                value={filterMonth} 
+              <input
+                type="month"
+                value={filterMonth}
                 onChange={(e) => setFilterMonth(e.target.value)}
                 style={styles.input}
               />
@@ -310,10 +311,10 @@ function SchoolAdminDashboard() {
                     const staffName = staffMap[g.assignedTo];
 
                     return (
-                      <tr key={g._id}>
+                      <tr key={g._id} onClick={() => setSelectedGrievance(g)} style={{ cursor: "pointer" }}>
                         <td style={{ fontWeight: "bold", color: "#333" }}>{g.userId}</td>
                         <td>{g.name}</td>
-                        
+
                         {/* ✅ ASSIGNED TO COLUMN (Standardized) */}
                         <td>
                           {g.assignedTo ? (
@@ -329,16 +330,14 @@ function SchoolAdminDashboard() {
                         </td>
 
                         <td className="message-cell" style={{ maxWidth: '200px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
-                            <span style={{ wordBreak: 'break-word', lineHeight: '1.3' }}>
-                              {g.message.substring(0, 30)}{g.message.length > 30 ? "..." : ""}
+                          <div
+                            style={{ padding: "4px", borderRadius: "4px", transition: "background 0.2s" }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = "#f1f5f9"}
+                            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                          >
+                            <span style={{ wordBreak: 'break-word', lineHeight: '1.3', color: "#334155", fontWeight: "500" }}>
+                              {g.message.substring(0, 40)}{g.message.length > 40 ? "..." : ""}
                             </span>
-                            <button 
-                              onClick={() => setSelectedGrievance(g)}
-                              style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', textDecoration: 'underline', padding: 0 }}
-                            >
-                              See more
-                            </button>
                           </div>
                         </td>
                         <td>{formatDate(g.createdAt)}</td>
@@ -346,25 +345,25 @@ function SchoolAdminDashboard() {
                         <td><span className={`status-badge status-${g.status.toLowerCase()}`}>{g.status}</span></td>
                         <td className="action-cell">
                           <div className="action-buttons">
-                            <button 
-                              className="action-btn assign-btn" 
-                              onClick={() => openAssignPopup(g._id)}
+                            <button
+                              className="action-btn assign-btn"
+                              onClick={(e) => { e.stopPropagation(); openAssignPopup(g._id); }}
                               disabled={g.status === "Resolved" || g.assignedTo}
                               style={{ opacity: (g.status === "Resolved" || g.assignedTo) ? 0.5 : 1, cursor: (g.status === "Resolved" || g.assignedTo) ? "not-allowed" : "pointer" }}
                             >
                               Assign
                             </button>
-                            <button 
-                              className="action-btn resolve-btn" 
-                              onClick={() => confirmResolve(g)}
+                            <button
+                              className="action-btn resolve-btn"
+                              onClick={(e) => { e.stopPropagation(); confirmResolve(g); }}
                               disabled={g.status === "Resolved"}
                               style={{ opacity: g.status === "Resolved" ? 0.5 : 1, cursor: g.status === "Resolved" ? "not-allowed" : "pointer", marginLeft: "5px" }}
                             >
                               Resolve
                             </button>
-                            <button 
-                              className="action-btn reject-btn" 
-                              onClick={() => { if(window.confirm("Reject this grievance?")) updateStatus(g._id, "Rejected"); }}
+                            <button
+                              className="action-btn reject-btn"
+                              onClick={(e) => { e.stopPropagation(); if (window.confirm("Reject this grievance?")) updateStatus(g._id, "Rejected"); }}
                               disabled={g.status === "Resolved" || g.status === "Rejected"}
                               style={{ opacity: (g.status === "Resolved" || g.status === "Rejected") ? 0.5 : 1, cursor: (g.status === "Resolved" || g.status === "Rejected") ? "not-allowed" : "pointer", marginLeft: "5px" }}
                             >
@@ -383,14 +382,14 @@ function SchoolAdminDashboard() {
       </main>
 
       {selectedGrievance && (
-        <div 
+        <div
           onClick={() => setSelectedGrievance(null)}
           style={{
             position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
             backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
           }}
         >
-          <div 
+          <div
             onClick={(e) => e.stopPropagation()}
             style={{
               background: 'white', padding: '25px', borderRadius: '12px', width: '90%', maxWidth: '500px',
@@ -401,12 +400,12 @@ function SchoolAdminDashboard() {
               <h3 style={{ margin: 0, color: '#1e293b', fontSize: '1.25rem' }}>Grievance Details</h3>
               <button onClick={() => setSelectedGrievance(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>&times;</button>
             </div>
-            
+
             <div style={{ overflowY: 'auto', paddingRight: '5px' }}>
-              <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Student:</strong> {selectedGrievance.name} <span style={{color:'#94a3b8'}}>({selectedGrievance.userId || selectedGrievance.regid || 'N/A'})</span></p>
+              <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Student:</strong> {selectedGrievance.name} <span style={{ color: '#94a3b8' }}>({selectedGrievance.userId || selectedGrievance.regid || 'N/A'})</span></p>
               <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
               <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Status:</strong> <span className={`status-badge status-${selectedGrievance.status.toLowerCase()}`}>{selectedGrievance.status}</span></p>
-              
+
               <div style={{ backgroundColor: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '10px' }}>
                 <strong style={{ display: 'block', marginBottom: '8px', color: '#334155' }}>Full Message:</strong>
                 <p style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: '1.6', color: '#1e293b', wordBreak: 'break-word' }}>
@@ -418,19 +417,19 @@ function SchoolAdminDashboard() {
               {selectedGrievance.attachment && (
                 <div style={{ marginTop: '15px' }}>
                   <strong>Attachment: </strong>
-                  <a 
-                    href={`http://localhost:5000/api/file/${selectedGrievance.attachment}`} 
+                  <a
+                    href={`http://localhost:5000/api/file/${selectedGrievance.attachment}`}
                     target="_blank" rel="noopener noreferrer"
                     style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: '600' }}
                   >
-                    View Document 📎
+                    View Document <PaperclipIcon width="14" height="14" style={{ marginLeft: '4px' }} />
                   </a>
                 </div>
               )}
             </div>
 
             <div style={{ textAlign: 'right', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #eee' }}>
-              <button 
+              <button
                 onClick={() => setSelectedGrievance(null)}
                 style={{
                   padding: '10px 20px', backgroundColor: '#e2e8f0', border: 'none', borderRadius: '6px',

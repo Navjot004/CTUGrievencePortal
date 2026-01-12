@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
 
 import AdminUploadRecords from "../components/AdminUploadRecords";
 import StaffRoleManager from "../components/StaffRoleManager";
 import ctLogo from "../assets/ct-logo.png";
+import { ShieldIcon, PaperclipIcon } from "../components/Icons";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
@@ -21,7 +22,6 @@ function AdminDashboard() {
   const navigate = useNavigate();
 
   const userId = localStorage.getItem("grievance_id")?.toUpperCase();
-  const role = localStorage.getItem("grievance_role")?.toLowerCase();
   const isDeptAdmin = localStorage.getItem("is_dept_admin") === "true";
 
   const isMasterAdmin = userId === "10001";
@@ -41,16 +41,9 @@ function AdminDashboard() {
   const [filterDepartment, setFilterDepartment] = useState("All");
   const [filterMonth, setFilterMonth] = useState("");
 
-  useEffect(() => {
-    if (!isMasterAdmin && !isDeptAdmin) {
-      navigate("/");
-    } else {
-      fetchAllGrievances();
-      fetchStaffNames(); // ✅ Fetch staff details
-    }
-  }, [navigate]);
 
-  const fetchAllGrievances = async () => {
+
+  const fetchAllGrievances = useCallback(async () => {
     try {
       const res = await fetch("http://localhost:5000/api/grievances/all");
       if (!res.ok) throw new Error("Failed to fetch grievances");
@@ -60,12 +53,12 @@ function AdminDashboard() {
       setMsg(err.message);
       setStatusType("error");
     }
-  };
+  }, []);
 
-  // ✅ Fetch Staff List to Map IDs to Names
-  const fetchStaffNames = async () => {
+  // Fetch Staff List to Map IDs to Names
+  const fetchStaffNames = useCallback(async () => {
     try {
-      const token = localStorage.getItem("grievance_token"); // ✅ Get Token
+      const token = localStorage.getItem("grievance_token"); // Get Token
       const res = await fetch("http://localhost:5000/api/admin-staff/all", {
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -80,7 +73,16 @@ function AdminDashboard() {
     } catch (error) {
       console.error("Error fetching staff list:", error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!isMasterAdmin && !isDeptAdmin) {
+      navigate("/");
+    } else {
+      fetchAllGrievances();
+      fetchStaffNames(); // Fetch staff details
+    }
+  }, [navigate, isMasterAdmin, isDeptAdmin, fetchAllGrievances, fetchStaffNames]);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -119,8 +121,8 @@ function AdminDashboard() {
             <h1>Admin Dashboard</h1>
             <p>
               Welcome, <strong>{userId}</strong>
-              <span className="status-badge status-resolved" style={{ marginLeft: '10px', fontSize: '0.8rem' }}>
-                👑 Master Admin
+              <span className="status-badge status-resolved" style={{ marginLeft: '10px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <ShieldIcon width="14" height="14" /> Master Admin
               </span>
             </p>
           </div>
@@ -234,27 +236,25 @@ function AdminDashboard() {
                   </thead>
                   <tbody>
                     {filteredGrievances.map((g) => (
-                      <tr key={g._id}>
+                      <tr key={g._id} onClick={() => setSelectedGrievance(g)} style={{ cursor: "pointer" }}>
                         <td style={{ fontWeight: 'bold', color: '#334155' }}>{g.userId}</td>
                         <td>{g.category || g.school || "N/A"}</td>
 
                         <td className="message-cell" style={{ maxWidth: '200px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
-                            <span style={{ wordBreak: 'break-word', lineHeight: '1.3' }}>
-                              {g.message.substring(0, 30)}{g.message.length > 30 ? "..." : ""}
+                          <div
+                            style={{ padding: "4px", borderRadius: "4px", transition: "background 0.2s" }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = "#f1f5f9"}
+                            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                          >
+                            <span style={{ wordBreak: 'break-word', lineHeight: '1.3', color: "#334155", fontWeight: "500" }}>
+                              {g.message.substring(0, 40)}{g.message.length > 40 ? "..." : ""}
                             </span>
-                            <button
-                              onClick={() => setSelectedGrievance(g)}
-                              style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', textDecoration: 'underline', padding: 0 }}
-                            >
-                              See more
-                            </button>
                           </div>
                         </td>
 
                         <td>
                           <span
-                            className={`status-badge status-${g.status
+                            className={`status-badge status-${(g.status || "")
                               .toLowerCase()
                               .replace(" ", "")}`}
                           >
@@ -310,7 +310,7 @@ function AdminDashboard() {
               <div style={{ overflowY: 'auto', paddingRight: '5px' }}>
                 <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Category:</strong> {selectedGrievance.category || selectedGrievance.school || "N/A"}</p>
                 <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
-                <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Status:</strong> <span className={`status-badge status-${selectedGrievance.status.toLowerCase()}`}>{selectedGrievance.status}</span></p>
+                <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Status:</strong> <span className={`status-badge status-${(selectedGrievance.status || "").toLowerCase()}`}>{selectedGrievance.status}</span></p>
 
                 <div style={{ backgroundColor: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '10px' }}>
                   <strong style={{ display: 'block', marginBottom: '8px', color: '#334155' }}>Full Message:</strong>
@@ -328,7 +328,7 @@ function AdminDashboard() {
                       target="_blank" rel="noopener noreferrer"
                       style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: '600' }}
                     >
-                      View Document 📎
+                      View Document <PaperclipIcon width="14" height="14" style={{ marginLeft: '4px' }} />
                     </a>
                   </div>
                 )}

@@ -4,6 +4,7 @@ import "../styles/Dashboard.css";
 // ✅ IMPORT CHAT COMPONENT
 import ChatPopup from "../components/ChatPopup";
 import ctLogo from "../assets/ct-logo.png";
+import { ShieldIcon, BellIcon, PaperclipIcon } from "../components/Icons";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
@@ -37,7 +38,7 @@ const schools = [
 
 function AdminStaffDashboard() {
   const navigate = useNavigate();
-  
+
   // ✅ Get Details from LocalStorage (Faster & Error Free)
   const role = localStorage.getItem("grievance_role")?.toLowerCase();
   const staffId = localStorage.getItem("grievance_id")?.toUpperCase();
@@ -60,8 +61,8 @@ function AdminStaffDashboard() {
   // --- NOTIFICATION STATE ---
   const [unreadMap, setUnreadMap] = useState({});
   const [toast, setToast] = useState({ show: false, message: "" });
-  const lastMessageRef = useRef({}); 
-  const isFirstPoll = useRef(true); 
+  const lastMessageRef = useRef({});
+  const isFirstPoll = useRef(true);
 
   // ✅ State for "See More" Details Popup
   const [selectedGrievance, setSelectedGrievance] = useState(null);
@@ -90,12 +91,12 @@ function AdminStaffDashboard() {
       navigate("/");
       return;
     }
-    
+
     // Must belong to a department (Rajesh has dept, General Staff does not)
     if (!myDepartment) {
-        // Redirect General Staff back to General Dashboard
-        navigate("/staff/general");
-        return;
+      // Redirect General Staff back to General Dashboard
+      navigate("/staff/general");
+      return;
     }
 
     // Optional: If Boss tries to access Worker View, redirect them to Boss View?
@@ -208,24 +209,24 @@ function AdminStaffDashboard() {
           const res = await fetch(`http://localhost:5000/api/chat/${g._id}`);
           if (res.ok) {
             const msgs = await res.json();
-            
+
             if (msgs.length > 0) {
               const lastMsg = msgs[msgs.length - 1];
-              
+
               // If sender is NOT staff, then it's student -> UNREAD
               const isStudentSender = (lastMsg.senderRole !== "staff" && lastMsg.senderId !== staffId);
 
               // A. Red Dot Logic
               if (showChat && currentChatId === g._id) {
-                 newUnreadMap[g._id] = false;
+                newUnreadMap[g._id] = false;
               } else {
-                 newUnreadMap[g._id] = isStudentSender;
+                newUnreadMap[g._id] = isStudentSender;
               }
 
               // B. Toast Logic
               if (lastMessageRef.current[g._id] !== lastMsg._id) {
                 if (!isFirstPoll.current && isStudentSender) {
-                   newToastMsg = `New message from ${g.name}`;
+                  newToastMsg = `New message from ${g.name}`;
                 }
                 lastMessageRef.current[g._id] = lastMsg._id;
               }
@@ -237,7 +238,7 @@ function AdminStaffDashboard() {
       }));
 
       setUnreadMap(newUnreadMap);
-      
+
       if (newToastMsg) {
         showToastNotification(newToastMsg);
       }
@@ -249,7 +250,7 @@ function AdminStaffDashboard() {
     pollMessages(); // Run once immediately
 
     return () => clearInterval(intervalId);
-  }, [grievances, staffId, showChat, currentChatId]); 
+  }, [grievances, staffId, showChat, currentChatId]);
 
   const showToastNotification = (message) => {
     setToast({ show: true, message });
@@ -340,13 +341,13 @@ function AdminStaffDashboard() {
           userId: staffId,
           name: staffName,
           email: staffEmail,
-          phone: "", 
+          phone: "",
           regid: staffId,
           school: formData.department, // Selected School
           category: formData.department, // Routes to School Admin
           message: formData.message,
           studentProgram: "Admin Staff", // Required by backend
-          attachment: attachmentUrl || "" 
+          attachment: attachmentUrl || ""
         }),
       });
 
@@ -357,8 +358,8 @@ function AdminStaffDashboard() {
       setStatusType("success");
       setFormData({ department: "", message: "" });
       setAttachment(null);
-      if(document.getElementById("adminStaffFile")) document.getElementById("adminStaffFile").value = "";
-      
+      if (document.getElementById("adminStaffFile")) document.getElementById("adminStaffFile").value = "";
+
       fetchMySubmissions(); // Refresh list
     } catch (err) {
       setMsg(`Error: ${err.message}`);
@@ -426,7 +427,7 @@ function AdminStaffDashboard() {
       {/* Toast Notification */}
       {toast.show && (
         <div className="toast-notification">
-          <span>🔔</span>
+          <span><BellIcon width="20" height="20" /></span>
           {toast.message}
         </div>
       )}
@@ -437,10 +438,10 @@ function AdminStaffDashboard() {
           <div className="header-content">
             <h1>Admin Staff Dashboard</h1>
             <p>
-              Welcome, {staffName || staffId} 
+              Welcome, {staffName || staffId}
               {/* ✅ Badge for Team Member */}
-              <span className="status-badge status-assigned" style={{marginLeft: '10px', fontSize: '0.8rem'}}>
-                🛡️ Team: {myDepartment}
+              <span className="status-badge status-assigned" style={{ marginLeft: '10px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <ShieldIcon width="14" height="14" /> Team: {myDepartment}
               </span>
             </p>
           </div>
@@ -454,24 +455,24 @@ function AdminStaffDashboard() {
       <nav className="navbar" style={{ padding: '0 20px', background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
         <ul style={{ display: 'flex', gap: '20px', listStyle: 'none', margin: 0, padding: 0 }}>
           <li>
-            <button 
-              onClick={() => setActiveTab("assigned")} 
+            <button
+              onClick={() => setActiveTab("assigned")}
               style={{ background: "none", border: "none", padding: "10px 15px", cursor: "pointer", fontSize: "1rem", fontWeight: activeTab === "assigned" ? "600" : "500", color: activeTab === "assigned" ? "#2563eb" : "#64748b", borderBottom: activeTab === "assigned" ? "2px solid #2563eb" : "2px solid transparent" }}
             >
               My Assigned Tasks
             </button>
           </li>
           <li>
-            <button 
-              onClick={() => setActiveTab("submit")} 
+            <button
+              onClick={() => setActiveTab("submit")}
               style={{ background: "none", border: "none", padding: "10px 15px", cursor: "pointer", fontSize: "1rem", fontWeight: activeTab === "submit" ? "600" : "500", color: activeTab === "submit" ? "#2563eb" : "#64748b", borderBottom: activeTab === "submit" ? "2px solid #2563eb" : "2px solid transparent" }}
             >
               Submit Grievance
             </button>
           </li>
           <li>
-            <button 
-              onClick={() => setActiveTab("mine")} 
+            <button
+              onClick={() => setActiveTab("mine")}
               style={{ background: "none", border: "none", padding: "10px 15px", cursor: "pointer", fontSize: "1rem", fontWeight: activeTab === "mine" ? "600" : "500", color: activeTab === "mine" ? "#2563eb" : "#64748b", borderBottom: activeTab === "mine" ? "2px solid #2563eb" : "2px solid transparent" }}
             >
               My Submissions
@@ -486,191 +487,180 @@ function AdminStaffDashboard() {
 
           {/* TAB 1: ASSIGNED TASKS */}
           {activeTab === "assigned" && (
-          <>
-          <h2>Assigned Grievances</h2>
-          <p style={{ marginBottom: "1rem", color: "#64748b" }}>These grievances have been specifically assigned to you.</p>
-          
-          {/* ✅ FILTER BAR */}
-          <div style={{
-            display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "20px", 
-            padding: "15px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0"
-          }}>
-            <input 
-              type="text" placeholder="Search Student ID..." 
-              value={searchId} onChange={(e) => setSearchId(e.target.value)}
-              style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px" }}
-            />
-            <select 
-              value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-              style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 120px", cursor: "pointer" }}
-            >
-              <option value="All">All Status</option>
-              <option value="Pending">Pending</option>
-              <option value="Assigned">Assigned</option>
-              <option value="Resolved">Resolved</option>
-              <option value="Rejected">Rejected</option>
-            </select>
-            <select 
-              value={filterDepartment} onChange={(e) => setFilterDepartment(e.target.value)}
-              style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
-            >
-              <option value="All">All Departments</option>
-              {uniqueDepartments.map(dept => <option key={dept} value={dept}>{dept}</option>)}
-            </select>
-            <input 
-              type="month" 
-              value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}
-              style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
-            />
-            <button 
-              onClick={() => {
-                setSearchId(""); setFilterStatus("All"); setFilterDepartment("All"); setFilterMonth("");
-              }}
-              style={{ padding: "10px 20px", borderRadius: "6px", border: "none", background: "#64748b", color: "white", cursor: "pointer", fontWeight: "600" }}
-            >
-              Reset
-            </button>
-          </div>
+            <>
+              <h2>Assigned Grievances</h2>
+              <p style={{ marginBottom: "1rem", color: "#64748b" }}>These grievances have been specifically assigned to you.</p>
 
-          {loading ? (
-            <div className="table-container">
-              <table className="grievance-table">
-                <thead>
-                  <tr>
-                    <th>Student Name</th>
-                    <th>Email</th>
-                    <th>Reg. ID</th>
-                    <th>Message</th>
-                    <th>Submitted At</th>
-                    <th className="deadline-col">Deadline</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[1,2,3,4].map(i => (
-                    <tr key={i} className="skeleton-row">
-                      <td><div className="skeleton skeleton-text" style={{ width: 80 }} /></td>
-                      <td><div className="skeleton skeleton-text" style={{ width: 120 }} /></td>
-                      <td><div className="skeleton skeleton-text" style={{ width: 80 }} /></td>
-                      <td className="message-cell"><div className="skeleton skeleton-text" style={{ width: 180 }} /></td>
-                      <td><div className="skeleton skeleton-text" style={{ width: 90 }} /></td>
-                      <td className="deadline-col"><div className="skeleton skeleton-text" style={{ width: 90 }} /></td>
-                      <td><div className="skeleton skeleton-pill" /></td>
-                      <td><div className="skeleton skeleton-btn" /></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : getFilteredData(grievances, "assigned").length === 0 ? (
-            <div className="empty-state">
-              <p>{grievances.length === 0 ? "No grievances found assigned to your ID." : "No grievances match your filters."}</p>
-            </div>
-          ) : (
-            <div className="table-container">
-              <table className="grievance-table">
-                <thead>
-                  <tr>
-                    <th>Student Name</th>
-                    <th>Email</th>
-                    <th>Reg. ID</th>
-                    <th>Message</th>
-                    <th>Submitted At</th>                    <th className="deadline-col">Deadline</th>                    <th>Status</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {getFilteredData(grievances, "assigned").map((g) => (
-                    <tr key={g._id}>
-                      <td>{g.name}</td>
-                      <td>{g.email}</td>
-                      <td>{g.regid || "-"}</td>
+              {/* ✅ FILTER BAR */}
+              <div style={{
+                display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "20px",
+                padding: "15px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0"
+              }}>
+                <input
+                  type="text" placeholder="Search Student ID..."
+                  value={searchId} onChange={(e) => setSearchId(e.target.value)}
+                  style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px" }}
+                />
+                <select
+                  value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+                  style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 120px", cursor: "pointer" }}
+                >
+                  <option value="All">All Status</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Assigned">Assigned</option>
+                  <option value="Resolved">Resolved</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+                <select
+                  value={filterDepartment} onChange={(e) => setFilterDepartment(e.target.value)}
+                  style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
+                >
+                  <option value="All">All Departments</option>
+                  {uniqueDepartments.map(dept => <option key={dept} value={dept}>{dept}</option>)}
+                </select>
+                <input
+                  type="month"
+                  value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}
+                  style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
+                />
+                <button
+                  onClick={() => {
+                    setSearchId(""); setFilterStatus("All"); setFilterDepartment("All"); setFilterMonth("");
+                  }}
+                  style={{ padding: "10px 20px", borderRadius: "6px", border: "none", background: "#64748b", color: "white", cursor: "pointer", fontWeight: "600" }}
+                >
+                  Reset
+                </button>
+              </div>
 
-                      {/* --- FIXED MESSAGE CELL (Max Width 150px + See More) --- */}
-                      <td className="message-cell" style={{ maxWidth: '150px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '5px' }}>
-                          <span style={{ wordBreak: 'break-all', lineHeight: '1.2' }}>
-                            {g.message.substring(0, 20)}{g.message.length > 20 ? "..." : ""}
-                          </span>
-                          <button 
-                            onClick={() => setSelectedGrievance(g)}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              color: '#2563eb',
-                              cursor: 'pointer',
-                              fontSize: '0.75rem',
-                              fontWeight: '600',
-                              textDecoration: 'underline',
-                              padding: 0,
-                              whiteSpace: 'nowrap'
-                            }}
-                          >
-                            See more
-                          </button>
-                        </div>
-                      </td>
-                      {/* ---------------------------------------------------- */}
+              {loading ? (
+                <div className="table-container">
+                  <table className="grievance-table">
+                    <thead>
+                      <tr>
+                        <th>Student Name</th>
+                        <th>Email</th>
+                        <th>Reg. ID</th>
+                        <th>Message</th>
+                        <th>Submitted At</th>
+                        <th className="deadline-col">Deadline</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[1, 2, 3, 4].map(i => (
+                        <tr key={i} className="skeleton-row">
+                          <td><div className="skeleton skeleton-text" style={{ width: 80 }} /></td>
+                          <td><div className="skeleton skeleton-text" style={{ width: 120 }} /></td>
+                          <td><div className="skeleton skeleton-text" style={{ width: 80 }} /></td>
+                          <td className="message-cell"><div className="skeleton skeleton-text" style={{ width: 180 }} /></td>
+                          <td><div className="skeleton skeleton-text" style={{ width: 90 }} /></td>
+                          <td className="deadline-col"><div className="skeleton skeleton-text" style={{ width: 90 }} /></td>
+                          <td><div className="skeleton skeleton-pill" /></td>
+                          <td><div className="skeleton skeleton-btn" /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : getFilteredData(grievances, "assigned").length === 0 ? (
+                <div className="empty-state">
+                  <p>{grievances.length === 0 ? "No grievances found assigned to your ID." : "No grievances match your filters."}</p>
+                </div>
+              ) : (
+                <div className="table-container">
+                  <table className="grievance-table">
+                    <thead>
+                      <tr>
+                        <th>Student Name</th>
+                        <th>Email</th>
+                        <th>Reg. ID</th>
+                        <th>Message</th>
+                        <th>Submitted At</th>                    <th className="deadline-col">Deadline</th>                    <th>Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getFilteredData(grievances, "assigned").map((g) => (
+                        <tr key={g._id} onClick={() => setSelectedGrievance(g)} style={{ cursor: "pointer" }}>
+                          <td>{g.name}</td>
+                          <td>{g.email}</td>
+                          <td>{g.regid || "-"}</td>
 
-                      <td>{formatDate(g.createdAt)}</td>
-                      <td className="deadline-col">{(g.deadlineDate || g.deadline || g.deadline_date) ? formatDateDateOnly(g.deadlineDate || g.deadline || g.deadline_date) : "-"}</td>
-                      <td>
-                        <span
-                          className={`status-badge status-${g.status
-                            .toLowerCase()
-                            .replace(" ", "")}`}
-                        >
-                          {g.status}
-                        </span>
-                      </td>
-                      <td className="action-cell">
-                        <div className="action-buttons">
-                          {g.status !== "Resolved" && g.status !== "Rejected" ? (
-                            <>
-                              <button
-                              className="action-btn resolve-btn"
-                              onClick={() => updateStatus(g._id, "Resolved")}
-                              >
-                              Mark Resolved
-                              </button>
-                              <button
-                              className="action-btn reject-btn"
-                              onClick={() => {
-                                if(window.confirm("Are you sure you want to REJECT this grievance?")) updateStatus(g._id, "Rejected");
-                              }}
-                              >
-                              Reject
-                              </button>
-                            </>
-                          ) : (
-                            <span className="done-btn">Resolved</span>
-                          )}
-
-                          {/* Chat Button with Notification Wrapper */}
-                          <div className="chat-btn-wrapper">
-                            <button 
-                                className="action-btn"
-                                style={{ backgroundColor: "#2563eb", color: "white" }} 
-                                onClick={() => openChat(g._id)}
+                          {/* --- FIXED MESSAGE CELL (Max Width 150px + See More) --- */}
+                          <td className="message-cell" style={{ maxWidth: '150px' }}>
+                            <div
+                              style={{ padding: "4px", borderRadius: "4px", transition: "background 0.22s" }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = "#f1f5f9"}
+                              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                             >
-                                Chat
-                            </button>
-                            {/* 🔴 RED DOT */}
-                            {unreadMap[g._id] && (
-                              <span className="notification-dot"></span>
-                            )}
-                          </div>
+                              <span style={{ wordBreak: 'break-all', lineHeight: '1.2', color: "#334155", fontWeight: "500" }}>
+                                {g.message.substring(0, 30)}{g.message.length > 30 ? "..." : ""}
+                              </span>
+                            </div>
+                          </td>
+                          {/* ---------------------------------------------------- */}
 
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          </>
+                          <td>{formatDate(g.createdAt)}</td>
+                          <td className="deadline-col">{(g.deadlineDate || g.deadline || g.deadline_date) ? formatDateDateOnly(g.deadlineDate || g.deadline || g.deadline_date) : "-"}</td>
+                          <td>
+                            <span
+                              className={`status-badge status-${g.status
+                                .toLowerCase()
+                                .replace(" ", "")}`}
+                            >
+                              {g.status}
+                            </span>
+                          </td>
+                          <td className="action-cell">
+                            <div className="action-buttons">
+                              {g.status !== "Resolved" && g.status !== "Rejected" ? (
+                                <>
+                                  <button
+                                    className="action-btn resolve-btn"
+                                    onClick={(e) => { e.stopPropagation(); updateStatus(g._id, "Resolved"); }}
+                                  >
+                                    Mark Resolved
+                                  </button>
+                                  <button
+                                    className="action-btn reject-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (window.confirm("Are you sure you want to REJECT this grievance?")) updateStatus(g._id, "Rejected");
+                                    }}
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              ) : (
+                                <span className="done-btn">Resolved</span>
+                              )}
+
+                              {/* Chat Button with Notification Wrapper */}
+                              <div className="chat-btn-wrapper">
+                                <button
+                                  className="action-btn"
+                                  style={{ backgroundColor: "#2563eb", color: "white" }}
+                                  onClick={(e) => { e.stopPropagation(); openChat(g._id); }}
+                                >
+                                  Chat
+                                </button>
+                                {/* 🔴 RED DOT */}
+                                {unreadMap[g._id] && (
+                                  <span className="notification-dot"></span>
+                                )}
+                              </div>
+
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
           )}
 
           {/* TAB 2: SUBMIT GRIEVANCE */}
@@ -723,18 +713,18 @@ function AdminStaffDashboard() {
           {activeTab === "mine" && (
             <>
               <h2>My Submitted Grievances</h2>
-              
+
               {/* ✅ FILTER BAR (For My Submissions) */}
               <div style={{
-                display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "20px", 
+                display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "20px",
                 padding: "15px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0"
               }}>
-                <input 
-                  type="text" placeholder="Search Assigned Staff ID..." 
+                <input
+                  type="text" placeholder="Search Assigned Staff ID..."
                   value={searchId} onChange={(e) => setSearchId(e.target.value)}
                   style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px" }}
                 />
-                <select 
+                <select
                   value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
                   style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 120px", cursor: "pointer" }}
                 >
@@ -744,19 +734,19 @@ function AdminStaffDashboard() {
                   <option value="Resolved">Resolved</option>
                   <option value="Rejected">Rejected</option>
                 </select>
-                <select 
+                <select
                   value={filterDepartment} onChange={(e) => setFilterDepartment(e.target.value)}
                   style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
                 >
                   <option value="All">All Departments</option>
                   {uniqueDepartments.map(dept => <option key={dept} value={dept}>{dept}</option>)}
                 </select>
-                <input 
-                  type="month" 
+                <input
+                  type="month"
                   value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}
                   style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
                 />
-                <button 
+                <button
                   onClick={() => {
                     setSearchId(""); setFilterStatus("All"); setFilterDepartment("All"); setFilterMonth("");
                   }}
@@ -780,19 +770,17 @@ function AdminStaffDashboard() {
                     </thead>
                     <tbody>
                       {getFilteredData(myGrievances, "mine").map((g) => (
-                        <tr key={g._id}>
+                        <tr key={g._id} onClick={() => setSelectedGrievance(g)} style={{ cursor: "pointer" }}>
                           <td>{g.category}</td>
                           <td className="message-cell" style={{ maxWidth: '150px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '5px' }}>
-                              <span style={{ wordBreak: 'break-all', lineHeight: '1.2' }}>
-                                {g.message.substring(0, 20)}{g.message.length > 20 ? "..." : ""}
+                            <div
+                              style={{ padding: "4px", borderRadius: "4px", transition: "background 0.22s" }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = "#f1f5f9"}
+                              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                            >
+                              <span style={{ wordBreak: 'break-all', lineHeight: '1.2', color: "#334155", fontWeight: "500" }}>
+                                {g.message.substring(0, 30)}{g.message.length > 30 ? "..." : ""}
                               </span>
-                              <button 
-                                onClick={() => setSelectedGrievance(g)}
-                                style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', textDecoration: 'underline', padding: 0 }}
-                              >
-                                See more
-                              </button>
                             </div>
                           </td>
                           <td>
@@ -813,114 +801,114 @@ function AdminStaffDashboard() {
 
           {/* --- DETAILS POPUP MODAL (Fixed for Long Text) --- */}
           {selectedGrievance && (
-        <div 
-          onClick={() => setSelectedGrievance(null)}
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1000
-          }}
-        >
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: 'white',
-              padding: '20px',
-              borderRadius: '12px',
-              width: '90%',
-              maxWidth: '500px',
-              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-              position: 'relative'
-            }}
-          >
-            {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '15px' }}>
-              <h3 style={{ margin: 0 }}>Grievance Details</h3>
-              <button 
-                onClick={() => setSelectedGrievance(null)}
-                style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}
-              >
-                &times;
-              </button>
-            </div>
-            
-            {/* Modal Body */}
-            <div style={{ fontSize: '0.95rem', color: '#334155' }}>
-              <p style={{ marginBottom: '8px' }}><strong>Student:</strong> {selectedGrievance.name} ({selectedGrievance.regid})</p>
-              <p style={{ marginBottom: '8px' }}><strong>Email:</strong> {selectedGrievance.email}</p>
-              <p style={{ marginBottom: '8px' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
-              <p style={{ marginBottom: '8px' }}><strong>Deadline:</strong> {(selectedGrievance.deadlineDate || selectedGrievance.deadline || selectedGrievance.deadline_date) ? formatDateDateOnly(selectedGrievance.deadlineDate || selectedGrievance.deadline || selectedGrievance.deadline_date) : "-"}</p>
-              
-              <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '6px', margin: '15px 0', border: '1px solid #e2e8f0' }}>
-                <strong style={{ display: 'block', marginBottom: '5px', color: '#1e293b' }}>Full Message:</strong>
-                
-                {/* --- FIXED: Break-all added here --- */}
-                <p style={{ 
-                  margin: 0, 
-                  whiteSpace: 'pre-wrap', 
-                  lineHeight: '1.5',
-                  wordBreak: 'break-all',     
-                  overflowWrap: 'anywhere' 
-                }}>
-                  {selectedGrievance.message}
-                </p>
-                {/* ----------------------------------- */}
-
-              </div>
-
-              {/* ✅ ATTACHMENT BUTTON */}
-              {selectedGrievance.attachment && (
-                <div style={{ marginTop: '15px' }}>
-                  <strong>Attachment: </strong>
-                  <a 
-                    href={`http://localhost:5000/api/file/${selectedGrievance.attachment}`} 
-                    target="_blank" rel="noopener noreferrer"
-                    style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: '600' }}
-                  >
-                    View Document 📎
-                  </a>
-                </div>
-              )}
-
-              <p style={{ marginBottom: '8px' }}><strong>Status:</strong> {selectedGrievance.status}</p>
-            </div>
-
-            {/* Modal Footer */}
-            <div style={{ textAlign: 'right', marginTop: '15px' }}>
-              <button 
-                onClick={() => setSelectedGrievance(null)}
+            <div
+              onClick={() => setSelectedGrievance(null)}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 1000
+              }}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
                 style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#e2e8f0',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                  color: '#475569'
+                  background: 'white',
+                  padding: '20px',
+                  borderRadius: '12px',
+                  width: '90%',
+                  maxWidth: '500px',
+                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                  position: 'relative'
                 }}
               >
-                Close
-              </button>
+                {/* Modal Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '15px' }}>
+                  <h3 style={{ margin: 0 }}>Grievance Details</h3>
+                  <button
+                    onClick={() => setSelectedGrievance(null)}
+                    style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}
+                  >
+                    &times;
+                  </button>
+                </div>
+
+                {/* Modal Body */}
+                <div style={{ fontSize: '0.95rem', color: '#334155' }}>
+                  <p style={{ marginBottom: '8px' }}><strong>Student:</strong> {selectedGrievance.name} ({selectedGrievance.regid})</p>
+                  <p style={{ marginBottom: '8px' }}><strong>Email:</strong> {selectedGrievance.email}</p>
+                  <p style={{ marginBottom: '8px' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
+                  <p style={{ marginBottom: '8px' }}><strong>Deadline:</strong> {(selectedGrievance.deadlineDate || selectedGrievance.deadline || selectedGrievance.deadline_date) ? formatDateDateOnly(selectedGrievance.deadlineDate || selectedGrievance.deadline || selectedGrievance.deadline_date) : "-"}</p>
+
+                  <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '6px', margin: '15px 0', border: '1px solid #e2e8f0' }}>
+                    <strong style={{ display: 'block', marginBottom: '5px', color: '#1e293b' }}>Full Message:</strong>
+
+                    {/* --- FIXED: Break-all added here --- */}
+                    <p style={{
+                      margin: 0,
+                      whiteSpace: 'pre-wrap',
+                      lineHeight: '1.5',
+                      wordBreak: 'break-all',
+                      overflowWrap: 'anywhere'
+                    }}>
+                      {selectedGrievance.message}
+                    </p>
+                    {/* ----------------------------------- */}
+
+                  </div>
+
+                  {/* ✅ ATTACHMENT BUTTON */}
+                  {selectedGrievance.attachment && (
+                    <div style={{ marginTop: '15px' }}>
+                      <strong>Attachment: </strong>
+                      <a
+                        href={`http://localhost:5000/api/file/${selectedGrievance.attachment}`}
+                        target="_blank" rel="noopener noreferrer"
+                        style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: '600' }}
+                      >
+                        View Document <PaperclipIcon width="14" height="14" style={{ marginLeft: '4px' }} />
+                      </a>
+                    </div>
+                  )}
+
+                  <p style={{ marginBottom: '8px' }}><strong>Status:</strong> {selectedGrievance.status}</p>
+                </div>
+
+                {/* Modal Footer */}
+                <div style={{ textAlign: 'right', marginTop: '15px' }}>
+                  <button
+                    onClick={() => setSelectedGrievance(null)}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: '#e2e8f0',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                      color: '#475569'
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
           {/* --------------------------------------- */}
         </div>
       </main>
 
       {/* ✅ Chat Popup (Using Reusable Component) */}
-      <ChatPopup 
-        isOpen={showChat} 
-        onClose={closeChat} 
-        grievanceId={currentChatId} 
+      <ChatPopup
+        isOpen={showChat}
+        onClose={closeChat}
+        grievanceId={currentChatId}
         currentUserId={staffId}
         currentUserRole="staff"
       />
