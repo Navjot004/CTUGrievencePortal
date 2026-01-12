@@ -352,9 +352,12 @@ app.post("/api/admin-staff/role", verifyToken, async (req, res) => {
 
       // 🔥 RESET ASSIGNED GRIEVANCES TO PENDING
       const updateResult = await Grievance.updateMany(
-        { assignedTo: safeTargetId },
         {
-          $set: { status: "Pending", assignedTo: null, assignedRole: null, assignedBy: null }
+          assignedTo: safeTargetId,
+          status: { $nin: ["Resolved", "Rejected"] }
+        },
+        {
+          $set: { status: "Pending", assignedTo: null, assignedRole: null, assignedBy: null, deadlineDate: null }
         }
       );
 

@@ -8,6 +8,8 @@ import {
   updateGrievanceStatus,
   assignToStaff,
   getGrievanceDetail,
+  requestExtension,
+  resolveExtension
 } from "../controllers/grievanceController.js";
 
 const router = express.Router();
@@ -40,5 +42,12 @@ router.get("/assigned/:staffId", getAssignedGrievances);
 /* ================= UPDATE (STAFF / ADMIN) ================= */
 // ✅ Update grievance status (Resolve / Reject / In Progress)
 router.put("/update/:id", updateGrievanceStatus);
+
+/* ================= EXTENSION ================= */
+// ✅ Staff requests extension
+router.post("/extension/request/:id", requestExtension);
+
+// ✅ Admin resolves extension
+router.post("/extension/resolve/:id", resolveExtension);
 
 export default router;

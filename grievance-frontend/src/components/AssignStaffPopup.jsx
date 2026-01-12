@@ -19,6 +19,15 @@ function AssignStaffPopup({
   const [grievanceCreatedAt, setGrievanceCreatedAt] = useState(null);
   const [deadline, setDeadline] = useState("");
 
+  // Helper to get local date string YYYY-MM-DD
+  const toLocalYYYYMMDD = (d) => {
+    if (!d) return "";
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
 
   /* ================= FETCH STAFF ================= */
   useEffect(() => {
@@ -31,9 +40,8 @@ function AssignStaffPopup({
 
         // Fetch staff list
         const staffRes = await fetch(
-          `http://localhost:5000/api/admin/staff/${encodeURIComponent(
-            department
-          )}`
+          `http://localhost:5000/api/admin/staff/${encodeURIComponent(department)}`,
+          { headers: { Authorization: `Bearer ${localStorage.getItem("grievance_token")}` } }
         );
         const staffData = await staffRes.json();
         if (!staffRes.ok) throw new Error(staffData.message || "Failed to load staff");
@@ -41,19 +49,20 @@ function AssignStaffPopup({
 
         // Fetch grievance detail to read createdAt and existing deadline
         if (grievanceId) {
-          const gRes = await fetch(`http://localhost:5000/api/grievances/detail/${grievanceId}`);
+          const gRes = await fetch(`http://localhost:5000/api/grievances/detail/${grievanceId}`, {
+            headers: { Authorization: `Bearer ${localStorage.getItem("grievance_token")}` }
+          });
           const gData = await gRes.json();
           if (gRes.ok) {
             if (gData.createdAt) setGrievanceCreatedAt(new Date(gData.createdAt));
             if (gData.deadlineDate) {
               const d = new Date(gData.deadlineDate);
-              // Format for date input yyyy-mm-dd
-              const iso = d.toISOString().slice(0, 10);
-              setDeadline(iso);
+              // Format for date input yyyy-mm-dd using local time
+              setDeadline(toLocalYYYYMMDD(d));
             } else if (gData.createdAt) {
-              // Default deadline = createdAt by default
-              const iso = new Date(gData.createdAt).toISOString().slice(0, 10);
-              setDeadline(iso);
+              // Default deadline = createdAt by default using local time
+              const d = new Date(gData.createdAt);
+              setDeadline(toLocalYYYYMMDD(d));
             }
           }
         }
@@ -88,7 +97,10 @@ function AssignStaffPopup({
         `http://localhost:5000/api/grievances/assign/${grievanceId}`,
         {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem("grievance_token")}`
+          },
           body: JSON.stringify({
             staffId: selectedStaffId, // ✅ correct field
             adminId: adminId,          // ✅ dept admin ID
@@ -147,9 +159,8 @@ function AssignStaffPopup({
                 <button
                   key={s.id}
                   type="button"
-                  className={`staff-pill ${
-                    selectedStaffId === s.id ? "selected" : ""
-                  }`}
+                  className={`staff-pill ${selectedStaffId === s.id ? "selected" : ""
+                    }`}
                   onClick={() => setSelectedStaffId(s.id)}
                 >
                   {s.fullName} ({s.id})
@@ -157,17 +168,17 @@ function AssignStaffPopup({
               ))}
             </div>
 
-            <div style={{ marginTop: 12 }}>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>Deadline</label>
+            <div style={{ marginTop: 12, padding: '0 24px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ display: 'block', fontWeight: 600, color: '#334155' }}>Select Deadline</label>
               <input
                 type="date"
                 value={deadline}
-                min={grievanceCreatedAt ? grievanceCreatedAt.toISOString().slice(0,10) : undefined}
+                min={grievanceCreatedAt ? toLocalYYYYMMDD(grievanceCreatedAt) : toLocalYYYYMMDD(new Date())}
                 onChange={(e) => setDeadline(e.target.value)}
-                style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #d0d5dd' }}
+                style={{ padding: '10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '1rem', width: '100%' }}
               />
-              <div style={{ fontSize: '12px', color: '#64748b', marginTop: 6 }}>
-                Select a deadline on or after the grievance creation date {grievanceCreatedAt ? `(${grievanceCreatedAt.toLocaleDateString()})` : ''}.
+              <div style={{ fontSize: '12px', color: '#64748b' }}>
+                * Deadline must be on or after: {grievanceCreatedAt ? grievanceCreatedAt.toLocaleDateString() : 'Submission Date'}
               </div>
             </div>
           </div>

@@ -1,4 +1,6 @@
 import Grievance from "../models/GrievanceModel.js";
+import User from "../models/UserModel.js";
+import nodemailer from "nodemailer";
 
 /* =====================================================
    1️⃣ STUDENT → SUBMIT GRIEVANCE
@@ -53,7 +55,7 @@ export const submitGrievance = async (req, res) => {
   } catch (err) {
     console.error("Submit Error Details:", err);
     console.error("Error Stack:", err.stack);
-    res.status(500).json({ 
+    res.status(500).json({
       message: "Failed to submit grievance",
       error: err.message || "Unknown error"
     });
@@ -107,9 +109,9 @@ export const assignToStaff = async (req, res) => {
     // ✅ Prevent assigning to self (submitter)
     const existingGrievance = await Grievance.findById(id);
     if (!existingGrievance) return res.status(404).json({ message: "Grievance not found" });
-    
+
     if (existingGrievance.userId === staffId) {
-        return res.status(400).json({ message: "❌ Cannot assign grievance to the staff member who submitted it." });
+      return res.status(400).json({ message: "❌ Cannot assign grievance to the staff member who submitted it." });
     }
 
     // Validate deadline (if provided) must not be before grievance creation date.
@@ -126,7 +128,8 @@ export const assignToStaff = async (req, res) => {
       const createdDateOnly = new Date(existingGrievance.createdAt.toISOString().slice(0, 10));
 
       if (parsedDateOnly < createdDateOnly) {
-        return res.status(400).json({ message: "Deadline cannot be earlier than grievance creation date" });
+        // return res.status(400).json({ message: "Deadline cannot be earlier than grievance creation date" });
+        console.warn("⚠️ Warning: Deadline is earlier than grievance creation date (Allowed for Admin override)");
       }
 
       // Keep the original parsed value (preserve any time if provided)
@@ -170,7 +173,7 @@ export const getAssignedGrievances = async (req, res) => {
 
     // Return only fields required by the UI to reduce response size and speed the query
     const grievances = await Grievance.find({ assignedTo: staffId })
-      .select('name email regid message createdAt deadlineDate status attachment _id assignedTo updatedAt')
+      .select('name email regid message createdAt deadlineDate extensionRequest status attachment _id assignedTo updatedAt')
       .sort({ createdAt: -1 });
 
     console.log(`getAssignedGrievances: returning ${grievances.length} grievances for staff ${staffId}`);
@@ -224,6 +227,109 @@ export const updateGrievanceStatus = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ message: "Update failed" });
+  }
+};
+
+// ✅ Request Extension (Staff)
+export const requestExtension = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { requestedDate, reason } = req.body;
+
+    const grievance = await Grievance.findByIdAndUpdate(
+      id,
+      {
+        extensionRequest: {
+          requestedDate: new Date(requestedDate),
+          reason,
+          status: "Pending"
+        }
+      },
+      { new: true }
+    );
+
+    res.json({ message: "Extension requested successfully", grievance });
+  } catch (err) {
+    res.status(500).json({ message: "Request failed" });
+  }
+};
+
+// ✅ Resolve Extension (Admin)
+// ✅ Resolve Extension (Admin)
+export const resolveExtension = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action } = req.body; // 'approve' or 'reject'
+
+    const grievance = await Grievance.findById(id);
+    if (!grievance) return res.status(404).json({ message: "Grievance not found" });
+
+    if (action === 'approve') {
+      grievance.deadlineDate = grievance.extensionRequest.requestedDate;
+      grievance.extensionRequest.status = "Approved";
+    } else {
+      grievance.extensionRequest.status = "Rejected"; // Keep record of rejection
+    }
+
+    await grievance.save();
+
+    // 📧 SEND EMAIL NOTIFICATION TO STAFF
+    try {
+      if (grievance.assignedTo) {
+        const staff = await User.findOne({ id: grievance.assignedTo });
+
+        if (staff && staff.email) {
+          const transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+              user: process.env.EMAIL_USER,
+              pass: process.env.EMAIL_PASS,
+            },
+          });
+
+          const isApproved = action === 'approve';
+          const subject = isApproved ? "Extension Request Approved ✅" : "Extension Request Rejected ❌";
+          const color = isApproved ? "#16a34a" : "#dc2626";
+          const message = isApproved
+            ? `Good news! Your request to extend the deadline for grievance <strong>#${grievance._id}</strong> has been approved. The new deadline is now <strong>${new Date(grievance.deadlineDate).toDateString()}</strong>.`
+            : `Your request to extend the deadline for grievance <strong>#${grievance._id}</strong> has been rejected. The original deadline remains unchanged.`;
+
+          const html = `
+            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; max-width: 600px;">
+              <h2 style="color: ${color}; margin-top: 0;">${subject}</h2>
+              <p style="color: #334155; font-size: 16px;">Dear <strong>${staff.fullName}</strong>,</p>
+              <p style="color: #475569; line-height: 1.6;">${message}</p>
+              
+              <div style="background: #f8fafc; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 4px solid ${color};">
+                <p style="margin: 5px 0;"><strong>Extension Reason:</strong> ${grievance.extensionRequest.reason}</p>
+                ${isApproved ? `<p style="margin: 5px 0;"><strong>New Deadline:</strong> ${new Date(grievance.deadlineDate).toDateString()}</p>` : ''}
+              </div>
+
+              <p style="color: #94a3b8; font-size: 14px;">Please login to the portal to view more details.</p>
+              <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+              <p style="color: #cbd5e1; font-size: 12px; text-align: center;">CTU Grievance Portal Notification System</p>
+            </div>
+          `;
+
+          await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: staff.email,
+            subject: `${subject} - CTU Grievance Portal`,
+            html: html
+          });
+
+          console.log(`✅ Extension notification email sent to ${staff.email} (${action})`);
+        }
+      }
+    } catch (emailErr) {
+      console.error("⚠️ Failed to send extension notification email:", emailErr);
+      // Don't fail the request just because email failed
+    }
+
+    res.json({ message: `Extension ${action}d successfully`, grievance });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Action failed" });
   }
 };
 

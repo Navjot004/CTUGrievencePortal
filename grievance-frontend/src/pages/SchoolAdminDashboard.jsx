@@ -79,8 +79,31 @@ function SchoolAdminDashboard() {
         });
         setStaffMap(map);
       }
-    } catch (error) {
-      console.error("Error fetching staff list:", error);
+    } catch (err) {
+      console.error("Error assigning stuff:", err);
+      setMsg("Failed to assign staff.");
+      setStatusType("error");
+    }
+  };
+
+  const handleExtensionResolution = async (action) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/grievances/extension/resolve/${selectedGrievance._id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMsg(`Extension ${action}ed!`);
+        setStatusType("success");
+        setSelectedGrievance(null);
+        fetchMySchoolGrievances();
+      } else {
+        alert(data.message);
+      }
+    } catch (err) {
+      alert("Action failed");
     }
   };
 
@@ -341,7 +364,14 @@ function SchoolAdminDashboard() {
                           </div>
                         </td>
                         <td>{formatDate(g.createdAt)}</td>
-                        <td className="deadline-col">{(g.deadlineDate || g.deadline || g.deadline_date) ? formatDateDateOnly(g.deadlineDate || g.deadline || g.deadline_date) : "-"}</td>
+                        <td className="deadline-col">
+                          {(g.deadlineDate || g.deadline || g.deadline_date) ? formatDateDateOnly(g.deadlineDate || g.deadline || g.deadline_date) : "-"}
+                          {g.extensionRequest?.status === "Pending" && (
+                            <div style={{ fontSize: "0.7rem", color: "#d97706", fontWeight: "bold", marginTop: "4px", display: "flex", alignItems: "center", gap: "3px" }}>
+                              <span style={{ fontSize: "10px" }}>⚠️</span> EXT REQ
+                            </div>
+                          )}
+                        </td>
                         <td><span className={`status-badge status-${g.status.toLowerCase()}`}>{g.status}</span></td>
                         <td className="action-cell">
                           <div className="action-buttons">
@@ -427,6 +457,32 @@ function SchoolAdminDashboard() {
                 </div>
               )}
             </div>
+
+            {/* ✅ EXTENSION REQUEST UI */}
+            {selectedGrievance.extensionRequest?.status === "Pending" && (
+              <div style={{ marginTop: "15px", padding: "15px", background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: "8px" }}>
+                <h4 style={{ margin: "0 0 10px 0", color: "#b45309", display: "flex", alignItems: "center", gap: "8px" }}>
+                  ⚠️ Deadline Extension Requested
+                </h4>
+                <p style={{ margin: "0 0 5px 0", fontSize: "0.9rem" }}><strong>Proposed Date:</strong> {formatDate(selectedGrievance.extensionRequest.requestedDate)}</p>
+                <p style={{ margin: "0 0 15px 0", fontSize: "0.9rem" }}><strong>Reason:</strong> {selectedGrievance.extensionRequest.reason}</p>
+
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button
+                    onClick={() => handleExtensionResolution("approve")}
+                    style={{ padding: "8px 16px", background: "#16a34a", color: "white", border: "none", borderRadius: "6px", fontSize: "0.9rem", fontWeight: "600", cursor: "pointer" }}
+                  >
+                    Approve Extension
+                  </button>
+                  <button
+                    onClick={() => handleExtensionResolution("reject")}
+                    style={{ padding: "8px 16px", background: "#ef4444", color: "white", border: "none", borderRadius: "6px", fontSize: "0.9rem", fontWeight: "600", cursor: "pointer" }}
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div style={{ textAlign: 'right', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #eee' }}>
               <button

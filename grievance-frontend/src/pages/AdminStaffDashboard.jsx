@@ -4,7 +4,7 @@ import "../styles/Dashboard.css";
 // ✅ IMPORT CHAT COMPONENT
 import ChatPopup from "../components/ChatPopup";
 import ctLogo from "../assets/ct-logo.png";
-import { ShieldIcon, BellIcon, PaperclipIcon } from "../components/Icons";
+import { ShieldIcon, BellIcon, PaperclipIcon, EyeIcon, ClockIcon, XIcon } from "../components/Icons";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
@@ -82,6 +82,11 @@ function AdminStaffDashboard() {
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterDepartment, setFilterDepartment] = useState("All");
   const [filterMonth, setFilterMonth] = useState("");
+
+  // ✅ EXTENSION REQUEST STATES
+  const [extensionPopup, setExtensionPopup] = useState(null); // { grievance }
+  const [extDate, setExtDate] = useState("");
+  const [extReason, setExtReason] = useState("");
 
 
   // 1. Authorization Check
@@ -295,6 +300,42 @@ function AdminStaffDashboard() {
       console.error("Error updating grievance:", err);
       setMsg(`Error: ${err.message}`);
       setStatusType("error");
+    }
+  };
+
+  const handleExtensionRequest = async () => {
+    if (!extDate || !extReason) return alert("Please fill all fields");
+    try {
+      const res = await fetch(`http://localhost:5000/api/grievances/extension/request/${extensionPopup._id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestedDate: extDate, reason: extReason })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert("Extension Requested!");
+        setExtensionPopup(null);
+        setExtDate("");
+        setExtReason("");
+        // Assuming fetchMyTasks() is a function to refresh the assigned grievances list
+        // If not, you might need to call the polling function or manually update state
+        // For now, let's assume a refresh function exists or trigger a re-fetch.
+        // A simple way to trigger re-fetch is to clear grievances and let useEffect re-run.
+        // Optimistic update: Update the specific grievance in the local state
+        setGrievances(prev => prev.map(g => {
+          if (g._id === extensionPopup._id) {
+            return {
+              ...g,
+              extensionRequest: { ...g.extensionRequest, status: "Pending", requestedDate: extDate, reason: extReason }
+            };
+          }
+          return g;
+        }));
+      } else {
+        alert(data.message);
+      }
+    } catch (err) {
+      alert("Failed to request extension");
     }
   };
 
@@ -603,7 +644,25 @@ function AdminStaffDashboard() {
                           {/* ---------------------------------------------------- */}
 
                           <td>{formatDate(g.createdAt)}</td>
-                          <td className="deadline-col">{(g.deadlineDate || g.deadline || g.deadline_date) ? formatDateDateOnly(g.deadlineDate || g.deadline || g.deadline_date) : "-"}</td>
+                          <td className="deadline-col">
+                            {(g.deadlineDate || g.deadline || g.deadline_date) ? formatDateDateOnly(g.deadlineDate || g.deadline || g.deadline_date) : "-"}
+                            {/* Extension Request Button */}
+                            {g.status !== "Resolved" && g.status !== "Rejected" && (
+                              <div style={{ marginTop: "5px" }}>
+                                {g.extensionRequest?.status === "Pending" ? (
+                                  <span style={{ fontSize: "0.75rem", color: "#d97706", fontWeight: "600" }}>Ext. Pending</span>
+                                ) : (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setExtensionPopup(g); }}
+                                    title="Request Deadline Extension"
+                                    style={{ background: "none", border: "none", cursor: "pointer", color: "#6366f1", display: "flex", alignItems: "center", gap: "4px", fontSize: "0.8rem" }}
+                                  >
+                                    <ClockIcon width="14" height="14" /> Extend
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </td>
                           <td>
                             <span
                               className={`status-badge status-${g.status
@@ -951,6 +1010,55 @@ function AdminStaffDashboard() {
         tr { transition: background-color 0.2s ease; }
         tr:hover { background-color: #f8fafc !important; }
       `}</style>
+      {/* --- EXTENSION REQUEST MODAL --- */}
+      {extensionPopup && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
+          background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 2000
+        }}>
+          <div style={{ background: "white", padding: "20px", borderRadius: "8px", width: "400px", position: "relative" }}>
+            <button onClick={() => setExtensionPopup(null)} style={{ position: "absolute", top: "10px", right: "10px", background: "none", border: "none", cursor: "pointer" }}>
+              <XIcon />
+            </button>
+            <h3 style={{ marginBottom: "15px" }}>Request Deadline Extension</h3>
+            <p style={{ fontSize: "0.9rem", color: "#64748b", marginBottom: "10px" }}>Current Deadline: {formatDateDateOnly(extensionPopup.deadlineDate)}</p>
+
+            <div style={{ marginBottom: "15px" }}>
+              <label style={{ display: "block", marginBottom: "5px", fontWeight: "500" }}>New Proposed Date</label>
+              <input
+                type="date"
+                value={extDate}
+                onChange={(e) => setExtDate(e.target.value)}
+                min={(() => {
+                  const baseDateStr = extensionPopup.deadlineDate || extensionPopup.deadline || extensionPopup.deadline_date;
+                  const baseDate = baseDateStr ? new Date(baseDateStr) : new Date();
+                  baseDate.setDate(baseDate.getDate() + 1); // Move to next day
+                  return baseDate.toISOString().split('T')[0];
+                })()}
+                style={{ width: "95%", padding: "8px", border: "1px solid #cbd5e1", borderRadius: "4px" }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "20px" }}>
+              <label style={{ display: "block", marginBottom: "5px", fontWeight: "500" }}>Reason</label>
+              <textarea
+                value={extReason}
+                onChange={(e) => setExtReason(e.target.value)}
+                placeholder="Why do you need more time?"
+                style={{ width: "95%", padding: "8px", border: "1px solid #cbd5e1", borderRadius: "4px", minHeight: "80px" }}
+              />
+            </div>
+
+            <button
+              onClick={handleExtensionRequest}
+              style={{ width: "100%", padding: "10px", background: "#6366f1", color: "white", border: "none", borderRadius: "6px", fontWeight: "600", cursor: "pointer" }}
+            >
+              Submit Request
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

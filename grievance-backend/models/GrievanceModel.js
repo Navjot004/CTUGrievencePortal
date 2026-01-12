@@ -61,7 +61,18 @@ const grievanceSchema = new mongoose.Schema(
     },
 
     // ✅ Deadline for assigned staff
-    deadlineDate: { type: Date, default: null }
+    deadlineDate: { type: Date, default: null },
+
+    // ================= EXTENSION REQUEST =================
+    extensionRequest: {
+      requestedDate: { type: Date, default: null },
+      reason: { type: String, default: "" },
+      status: {
+        type: String,
+        enum: ["None", "Pending", "Approved", "Rejected"],
+        default: "None"
+      }
+    }
   },
   { timestamps: true }
 );
