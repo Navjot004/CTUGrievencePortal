@@ -22,7 +22,7 @@ const AdminUploadRecords = () => {
     // Basic frontend validation to check extension
     const validExtensions = ['.xlsx', '.xls', '.csv'];
     const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-    
+
     if (!validExtensions.includes(fileExtension)) {
       setMessage("❌ Invalid file format. Please upload .xlsx or .xls file.");
       return;
@@ -31,10 +31,14 @@ const AdminUploadRecords = () => {
     setLoading(true);
     const formData = new FormData();
     formData.append("file", file);
+    const token = localStorage.getItem("grievance_token");
 
     try {
       const res = await fetch("http://localhost:5000/api/admin/upload-records", {
         method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        },
         body: formData,
       });
 
@@ -64,16 +68,16 @@ const AdminUploadRecords = () => {
 
       <div className="upload-box">
         {/* ✅ Updated ACCEPT Attribute for better compatibility */}
-        <input 
-          type="file" 
+        <input
+          type="file"
           accept=".xlsx, .xls, .csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
-          onChange={handleFileChange} 
+          onChange={handleFileChange}
           className="upload-input"
         />
-        
-        <button 
-          onClick={handleUpload} 
-          disabled={loading} 
+
+        <button
+          onClick={handleUpload}
+          disabled={loading}
           className="upload-btn"
         >
           {loading ? "Uploading..." : "Upload Records"}
@@ -81,7 +85,7 @@ const AdminUploadRecords = () => {
       </div>
 
       {message && (
-        <div 
+        <div
           className="upload-message"
           style={{
             color: message.startsWith("❌") ? "#dc2626" : "#16a34a",

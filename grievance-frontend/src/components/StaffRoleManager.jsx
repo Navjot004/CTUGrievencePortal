@@ -7,19 +7,28 @@ function StaffRoleManager() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState("all"); // all | admins | team | general
   const [sortMode, setSortMode] = useState("admins-first"); // admins-first | alpha
-  
+
   // Current logged-in user details
   const requesterId = localStorage.getItem("grievance_id");
   const myDept = localStorage.getItem("admin_department"); // e.g. "Student Welfare"
-  const isMasterAdmin = requesterId === "10001";
+  const isMasterAdmin = requesterId === "10001"; // TODO: This check might be outdated with dynamic master, using response role is safer but UI relies on this for now.
+  const token = localStorage.getItem("grievance_token");
+
+  // 🔥 Toggle for Danger Zone
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     fetchStaffList();
   }, []);
 
+
+  // ... (omitting middle part which is handled by other tool call or unchanged) ...
+
   const fetchStaffList = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/admin-staff/all");
+      const res = await fetch("http://localhost:5000/api/admin-staff/all", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
       if (res.ok) {
         const data = await res.json();
         // Master Admin sees everyone. Dept Admin sees only their department staff or unassigned staff.
@@ -35,7 +44,7 @@ function StaffRoleManager() {
 
   const handleRoleChange = async (targetStaffId, action, department) => {
     setMsg("Processing...");
-    
+
     // Validations
     if (action === "promote" && !department) {
       alert("Please select a department first.");
@@ -57,9 +66,11 @@ function StaffRoleManager() {
     try {
       const res = await fetch("http://localhost:5000/api/admin-staff/role", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({
-          requesterId,
           targetStaffId,
           action,      // "promote" or "demote"
           department,  // Selected department
@@ -78,17 +89,42 @@ function StaffRoleManager() {
     }
   };
 
+  const handleTransferOwnership = async (newMasterId) => {
+    if (!window.confirm(`⚠️ DANGER: Are you sure you want to transfer MASTER ADMIN rights to ${newMasterId}? You will lose your Master Admin access.`)) return;
+
+    try {
+      const res = await fetch("http://localhost:5000/api/admin/transfer-ownership", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ newMasterId })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert("✅ Ownership Transferred! Please login again.");
+        localStorage.clear();
+        window.location.href = "/";
+      } else {
+        alert("❌ Error: " + data.message);
+      }
+    } catch (err) {
+      alert("Server Error");
+    }
+  };
+
   // Helper to check if current user can edit target user
   const canEdit = (staff) => {
     if (isMasterAdmin) return true; // Master can edit anyone
-    
+
     // Dept Admin can only edit:
     // 1. General Staff (Unassigned)
     // 2. Staff assigned to THEIR own department (Team Members)
     // Dept Admin CANNOT edit other Admins or staff from other depts
-    if (!staff.adminDepartment) return true; 
+    if (!staff.adminDepartment) return true;
     if (staff.adminDepartment === myDept && !staff.isDeptAdmin) return true;
-    
+
     return false;
   };
 
@@ -96,8 +132,8 @@ function StaffRoleManager() {
     <div className="card" style={{ marginTop: "20px" }}>
       <h2>Manage Staff Roles</h2>
       <p style={{ color: "#64748b", marginBottom: "15px" }}>
-        {isMasterAdmin 
-          ? "Master Privileges: You can appoint Admins for ANY department." 
+        {isMasterAdmin
+          ? "Master Privileges: You can appoint Admins for ANY department."
           : `Department Admin: You can add team members to ${myDept}.`}
       </p>
 
@@ -123,6 +159,20 @@ function StaffRoleManager() {
           <option value="admins-first">Admins First</option>
           <option value="alpha">Name A → Z</option>
         </select>
+
+        {/* 🔥 NEW: Advanced Toggle */}
+        {isMasterAdmin && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', userSelect: 'none', marginLeft: '10px' }}>
+            <input
+              type="checkbox"
+              checked={showAdvanced}
+              onChange={(e) => setShowAdvanced(e.target.checked)}
+            />
+            <span style={{ fontSize: '0.9rem', color: showAdvanced ? '#dc2626' : '#64748b', fontWeight: showAdvanced ? 'bold' : 'normal' }}>
+              {showAdvanced ? "⚠️ Advanced Mode ON" : "Advanced Mode"}
+            </span>
+          </label>
+        )}
       </div>
 
       {loading ? (
@@ -172,14 +222,14 @@ function StaffRoleManager() {
 
                     <td>
                       {staff.isDeptAdmin ? (
-                        <span 
-                          className="status-badge status-resolved" 
+                        <span
+                          className="status-badge status-resolved"
                           style={{ border: '1px solid #16a34a', padding: '5px 10px' }}
                         >
                           👑 Admin: {staff.adminDepartment}
                         </span>
                       ) : staff.adminDepartment ? (
-                        <span 
+                        <span
                           className="status-badge status-assigned"
                           style={{ border: '1px solid #2563eb', padding: '5px 10px' }}
                         >
@@ -244,6 +294,17 @@ function StaffRoleManager() {
                                 {isMasterAdmin ? "Make Admin" : "Add to Team"}
                               </button>
                             </div>
+                          )}
+                          {/* 🔥 HIDDEN BY DEFAULT: Transfer Ownership Button */}
+                          {isMasterAdmin && showAdvanced && (
+                            <button
+                              className="action-btn"
+                              style={{ backgroundColor: "#7c3aed", color: "white", marginLeft: "10px", minWidth: "120px" }}
+                              onClick={() => handleTransferOwnership(staff.id)}
+                              title="Transfer your Master Admin role to this user"
+                            >
+                              ⚡ Transfer Owner
+                            </button>
                           )}
                         </>
                       )}

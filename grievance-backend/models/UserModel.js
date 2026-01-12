@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema({
 
   // Personal Info
   fullName: { type: String },
-  email: { type: String, required: true,  }, // "unique: true" add this if you dont want same email registrations
+  email: { type: String, required: true, }, // "unique: true" add this if you dont want same email registrations
   phone: { type: String },
 
   // Auth
@@ -25,6 +25,7 @@ const userSchema = new mongoose.Schema({
   // Admin / Staff Info
   isDeptAdmin: { type: Boolean, default: false },
   adminDepartment: { type: String, default: "" },
+  isMasterAdmin: { type: Boolean, default: false }, // 🔥 Added for Transferable Ownership
 
 }, { timestamps: true });
 

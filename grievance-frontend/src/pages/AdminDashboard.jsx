@@ -65,7 +65,10 @@ function AdminDashboard() {
   // ✅ Fetch Staff List to Map IDs to Names
   const fetchStaffNames = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/admin-staff/all");
+      const token = localStorage.getItem("grievance_token"); // ✅ Get Token
+      const res = await fetch("http://localhost:5000/api/admin-staff/all", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
       if (res.ok) {
         const data = await res.json();
         const map = {};
@@ -89,7 +92,7 @@ function AdminDashboard() {
     const matchStudentId = (g.userId || "").toLowerCase().includes(searchStudentId.toLowerCase());
     const matchStaffId = (g.assignedTo || "").toLowerCase().includes(searchStaffId.toLowerCase());
     const matchStatus = filterStatus === "All" || g.status === filterStatus;
-    
+
     const categoryOrSchool = g.category || g.school || "";
     const matchDept = filterDepartment === "All" || categoryOrSchool === filterDepartment;
 
@@ -116,7 +119,7 @@ function AdminDashboard() {
             <h1>Admin Dashboard</h1>
             <p>
               Welcome, <strong>{userId}</strong>
-              <span className="status-badge status-resolved" style={{marginLeft: '10px', fontSize: '0.8rem'}}>
+              <span className="status-badge status-resolved" style={{ marginLeft: '10px', fontSize: '0.8rem' }}>
                 👑 Master Admin
               </span>
             </p>
@@ -166,20 +169,20 @@ function AdminDashboard() {
 
             {/* ✅ FILTER BAR */}
             <div style={{
-              display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "20px", 
+              display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "20px",
               padding: "15px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0"
             }}>
-              <input 
-                type="text" placeholder="Search Student ID..." 
+              <input
+                type="text" placeholder="Search Student ID..."
                 value={searchStudentId} onChange={(e) => setSearchStudentId(e.target.value)}
                 style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px" }}
               />
-              <input 
-                type="text" placeholder="Search Staff ID..." 
+              <input
+                type="text" placeholder="Search Staff ID..."
                 value={searchStaffId} onChange={(e) => setSearchStaffId(e.target.value)}
                 style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px" }}
               />
-              <select 
+              <select
                 value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
                 style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 120px", cursor: "pointer" }}
               >
@@ -189,21 +192,21 @@ function AdminDashboard() {
                 <option value="Resolved">Resolved</option>
                 <option value="Rejected">Rejected</option>
               </select>
-              <select 
+              <select
                 value={filterDepartment} onChange={(e) => setFilterDepartment(e.target.value)}
                 style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 200px", cursor: "pointer" }}
               >
                 <option value="All">All Departments</option>
                 {uniqueDepartments.map(dept => <option key={dept} value={dept}>{dept}</option>)}
               </select>
-              <input 
-                type="month" 
+              <input
+                type="month"
                 value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}
                 style={{ padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", flex: "1 1 150px", cursor: "pointer" }}
               />
-              <button 
+              <button
                 onClick={() => {
-                  setSearchStudentId(""); setSearchStaffId(""); setFilterStatus("All"); 
+                  setSearchStudentId(""); setSearchStaffId(""); setFilterStatus("All");
                   setFilterDepartment("All"); setFilterMonth("");
                 }}
                 style={{ padding: "10px 20px", borderRadius: "6px", border: "none", background: "#64748b", color: "white", cursor: "pointer", fontWeight: "600" }}
@@ -232,7 +235,7 @@ function AdminDashboard() {
                   <tbody>
                     {filteredGrievances.map((g) => (
                       <tr key={g._id}>
-                        <td style={{fontWeight: 'bold', color: '#334155'}}>{g.userId}</td>
+                        <td style={{ fontWeight: 'bold', color: '#334155' }}>{g.userId}</td>
                         <td>{g.category || g.school || "N/A"}</td>
 
                         <td className="message-cell" style={{ maxWidth: '200px' }}>
@@ -240,7 +243,7 @@ function AdminDashboard() {
                             <span style={{ wordBreak: 'break-word', lineHeight: '1.3' }}>
                               {g.message.substring(0, 30)}{g.message.length > 30 ? "..." : ""}
                             </span>
-                            <button 
+                            <button
                               onClick={() => setSelectedGrievance(g)}
                               style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600', textDecoration: 'underline', padding: 0 }}
                             >
@@ -285,14 +288,14 @@ function AdminDashboard() {
 
         {/* MODAL */}
         {selectedGrievance && (
-          <div 
+          <div
             onClick={() => setSelectedGrievance(null)}
             style={{
               position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
               backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
             }}
           >
-            <div 
+            <div
               onClick={(e) => e.stopPropagation()}
               style={{
                 background: 'white', padding: '25px', borderRadius: '12px', width: '90%', maxWidth: '500px',
@@ -303,12 +306,12 @@ function AdminDashboard() {
                 <h3 style={{ margin: 0, color: '#1e293b', fontSize: '1.25rem' }}>Grievance Details</h3>
                 <button onClick={() => setSelectedGrievance(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>&times;</button>
               </div>
-              
+
               <div style={{ overflowY: 'auto', paddingRight: '5px' }}>
                 <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Category:</strong> {selectedGrievance.category || selectedGrievance.school || "N/A"}</p>
                 <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Date:</strong> {formatDate(selectedGrievance.createdAt)}</p>
                 <p style={{ marginBottom: '10px', color: '#475569' }}><strong>Status:</strong> <span className={`status-badge status-${selectedGrievance.status.toLowerCase()}`}>{selectedGrievance.status}</span></p>
-                
+
                 <div style={{ backgroundColor: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '10px' }}>
                   <strong style={{ display: 'block', marginBottom: '8px', color: '#334155' }}>Full Message:</strong>
                   <p style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: '1.6', color: '#1e293b', wordBreak: 'break-word' }}>
@@ -320,8 +323,8 @@ function AdminDashboard() {
                 {selectedGrievance.attachment && (
                   <div style={{ marginTop: '15px' }}>
                     <strong>Attachment: </strong>
-                    <a 
-                      href={`http://localhost:5000/api/file/${selectedGrievance.attachment}`} 
+                    <a
+                      href={`http://localhost:5000/api/file/${selectedGrievance.attachment}`}
                       target="_blank" rel="noopener noreferrer"
                       style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: '600' }}
                     >
@@ -332,7 +335,7 @@ function AdminDashboard() {
               </div>
 
               <div style={{ textAlign: 'right', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #eee' }}>
-                <button 
+                <button
                   onClick={() => setSelectedGrievance(null)}
                   style={{
                     padding: '10px 20px', backgroundColor: '#e2e8f0', border: 'none', borderRadius: '6px',

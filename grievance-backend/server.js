@@ -20,7 +20,7 @@ import multer from "multer";
 import connectDB from "./config/db.js";
 import grievanceRoutes from "./routes/grievanceRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
-import authRoutes from "./routes/authRoutes.js"; 
+import authRoutes from "./routes/authRoutes.js";
 import UniversityRecord from "./models/UniversityRecord.js"; // Validation Model
 import Grievance from "./models/GrievanceModel.js"; // ✅ Import Grievance Model
 const __filename = fileURLToPath(import.meta.url);
@@ -32,8 +32,8 @@ const app = express();
 
 // ------------------ 1️⃣ Middleware ------------------
 app.use(cors({
-    origin: ["http://localhost:3000", "http://localhost:3001"],
-    credentials: true,
+  origin: ["http://localhost:3000", "http://localhost:3001"],
+  credentials: true,
 }));
 app.use(express.json());
 
@@ -65,7 +65,46 @@ conn.once("open", async () => {
   } catch (err) {
     console.log("ℹ️ Index check skipped:", err.message);
   }
+
+  // ✅ SEEDING: Ensure Master Admin Exists
+  try {
+    const User = mongoose.model("User");
+    const masterExists = await User.findOne({ isMasterAdmin: true });
+    if (!masterExists) {
+      // Fallback: If no master admin, set ID '10001' as Master
+      const defaultMasterParams = { id: "10001" };
+      const updated = await User.findOneAndUpdate(
+        defaultMasterParams,
+        { $set: { isMasterAdmin: true, role: "admin" } },
+        { new: true }
+      );
+      if (updated) {
+        console.log(`👑 MASTER ADMIN SEEDED: User ${updated.id} is now Master Admin.`);
+      } else {
+        console.log("⚠️ No Master Admin found and default ID '10001' not in DB yet.");
+      }
+    } else {
+      console.log(`✅ Master Admin Policy check passed.`);
+    }
+  } catch (err) {
+    console.error("❌ Seeding Error:", err);
+  }
 });
+
+// ------------------ MIDDLWARE: VERIFY TOKEN ------------------
+const verifyToken = (req, res, next) => {
+  const token = req.header("Authorization");
+  if (!token) return res.status(401).json({ message: "Access Denied: No Token Provided" });
+
+  try {
+    const tokenBody = token.replace("Bearer ", "");
+    const verified = jwt.verify(tokenBody, "mock_secret"); // TODO: Move secret to .env
+    req.user = verified;
+    next();
+  } catch (err) {
+    res.status(400).json({ message: "Invalid Token" });
+  }
+};
 
 // ✅ STORAGE ENGINE (Memory Storage)
 const storage = multer.memoryStorage();
@@ -81,8 +120,8 @@ const transporter = nodemailer.createTransport({
 });
 
 const twilioClient = process.env.TWILIO_SID && process.env.TWILIO_TOKEN
-    ? twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN)
-    : null;
+  ? twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN)
+  : null;
 
 // ------------------ 4️⃣ User & OTP Models (Inline Definition) ------------------
 const userSchema = new mongoose.Schema({
@@ -95,10 +134,11 @@ const userSchema = new mongoose.Schema({
   program: String,
   studentType: String,
   staffDepartment: { type: String, default: "" },
- 
+
   // ✅ DYNAMIC ADMIN FIELDS
   isDeptAdmin: { type: Boolean, default: false },
-  adminDepartment: { type: String, default: "" }
+  adminDepartment: { type: String, default: "" },
+  isMasterAdmin: { type: Boolean, default: false } // 🔥 Added for Transferable Ownership
 });
 
 const otpSchema = new mongoose.Schema({
@@ -115,7 +155,7 @@ const OTP = mongoose.models.OTP || mongoose.model("OTP", otpSchema);
 // ------------------ 5️⃣ ADMIN FEATURES (🔥 FIXED ROUTES & LOGIC) ------------------
 
 // A. Upload Excel Records
-app.post("/api/admin/upload-records", upload.single("file"), async (req, res) => {
+app.post("/api/admin/upload-records", verifyToken, upload.single("file"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
@@ -154,22 +194,30 @@ app.post("/api/admin/upload-records", upload.single("file"), async (req, res) =>
 
 // ✅ B. Promote/Demote Staff (HIERARCHY FIXED)
 // New Route Name: /api/admin-staff/role (Matches Frontend)
-app.post("/api/admin-staff/role", async (req, res) => {
+app.post("/api/admin-staff/role", verifyToken, async (req, res) => {
   try {
-    const { requesterId, targetStaffId, action, department } = req.body;
-    
-    // 1. Requester Validation
-    const requester = await User.findOne({ id: requesterId.toString().trim().toUpperCase() });
-    
-    // Master Admin (10001) bypass check
-    if (requesterId !== "10001") {
-       if (!requester || !requester.isDeptAdmin) {
-         return res.status(403).json({ message: "❌ Access Denied" });
-       }
-    }
+    const { targetStaffId, action, department } = req.body;
 
-    const isMaster = requesterId === "10001";
-    const isDeptAdmin = requester ? requester.isDeptAdmin : false;
+    // 1. Requester Validation (From Token)
+    const requesterId = req.user.id;
+    const requester = await User.findOne({ id: requesterId });
+
+    if (!requester) return res.status(403).json({ message: "❌ Access Denied" });
+
+    // DEBUG LOG ADDED
+    console.log(`🔍 ROLE CHECK: Requester: ${requester.id} (${requester.fullName})`);
+    console.log(`   ➤ isMasterAdmin (DB): ${requester.isMasterAdmin}`);
+    console.log(`   ➤ isDeptAdmin (DB): ${requester.isDeptAdmin}`);
+    console.log(`   ➤ Token Payload Master: ${req.user.isMasterAdmin}`);
+
+    // Master Admin Check (Database Driven)
+    const isMaster = requester.isMasterAdmin;
+    const isDeptAdmin = requester.isDeptAdmin;
+
+    // Permissions Check
+    if (!isMaster && !isDeptAdmin) {
+      return res.status(403).json({ message: "❌ Access Denied: Insufficient Permissions" });
+    }
 
     // Dept Admin Restriction: Can only add to own department
     if (!isMaster && isDeptAdmin) {
@@ -228,22 +276,19 @@ app.post("/api/admin-staff/role", async (req, res) => {
             </div>
           `;
 
-          try {
-            await transporter.sendMail({
-              from: process.env.EMAIL_USER,
-              to: existingAdmin.email,
-              subject: `Role Update - ${department} (Ref: ${Date.now().toString().slice(-4)})`,
-              html: demotionEmailBody
-            });
-            console.log(`✅ Demotion email sent to displaced admin ${existingAdmin.email}`);
-          } catch (emailErr) {
-            console.error("⚠️ Email sending failed:", emailErr);
-          }
+          // 🔥 ASYNC EMAIL (Fire and Forget)
+          transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: existingAdmin.email,
+            subject: `Role Update - ${department} (Ref: ${Date.now().toString().slice(-4)})`,
+            html: demotionEmailBody
+          }).then(() => console.log(`✅ Demotion email sent to displaced admin ${existingAdmin.email}`))
+            .catch(emailErr => console.error("⚠️ Email sending failed:", emailErr));
         }
       }
 
       targetMember.adminDepartment = department;
-      
+
       // 🔥 CRITICAL HIERARCHY FIX 🔥
       // Agar Master Admin kar raha hai -> Boss (Admin) banao
       // Agar Dept Admin kar raha hai -> Team Member (Staff) banao
@@ -269,10 +314,10 @@ app.post("/api/admin-staff/role", async (req, res) => {
       });
 
       const newRole = targetMember.isDeptAdmin ? "Department Admin" : "Admin Staff";
-      
+
       // ✅ Login Instruction for Admins
-      const loginInstruction = targetMember.isDeptAdmin 
-        ? "<br><br><strong>👉 Please select 'Admin' option while logging in.</strong>" 
+      const loginInstruction = targetMember.isDeptAdmin
+        ? "<br><br><strong>👉 Please select 'Admin' option while logging in.</strong>"
         : "";
 
       const emailBody = `
@@ -286,17 +331,14 @@ app.post("/api/admin-staff/role", async (req, res) => {
         </div>
       `;
 
-      try {
-        await transporter.sendMail({
-          from: process.env.EMAIL_USER,
-          to: targetMember.email,
-          subject: `🎉 Promotion Notification - ${newRole}`,
-          html: emailBody
-        });
-        console.log(`✅ Promotion email sent to ${targetMember.email}`);
-      } catch (emailErr) {
-        console.error("⚠️ Email sending failed:", emailErr);
-      }
+      // 🔥 ASYNC EMAIL (Fire and Forget)
+      transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: targetMember.email,
+        subject: `🎉 Promotion Notification - ${newRole}`,
+        html: emailBody
+      }).then(() => console.log(`✅ Promotion email sent to ${targetMember.email}`))
+        .catch(emailErr => console.error("⚠️ Email sending failed:", emailErr));
 
       const title = targetMember.isDeptAdmin ? "Admin" : "Team Member";
       res.json({ message: `✅ ${targetMember.fullName} is now ${title} of ${department}` });
@@ -311,8 +353,8 @@ app.post("/api/admin-staff/role", async (req, res) => {
       // 🔥 RESET ASSIGNED GRIEVANCES TO PENDING
       const updateResult = await Grievance.updateMany(
         { assignedTo: safeTargetId },
-        { 
-          $set: { status: "Pending", assignedTo: null, assignedRole: null, assignedBy: null } 
+        {
+          $set: { status: "Pending", assignedTo: null, assignedRole: null, assignedBy: null }
         }
       );
 
@@ -335,17 +377,14 @@ app.post("/api/admin-staff/role", async (req, res) => {
         </div>
       `;
 
-      try {
-        await transporter.sendMail({
-          from: process.env.EMAIL_USER,
-          to: targetMember.email,
-          subject: `Role Update - ${oldDept} (Ref: ${Date.now().toString().slice(-4)})`,
-          html: demotionEmailBody
-        });
-        console.log(`✅ Demotion email sent to ${targetMember.email}`);
-      } catch (emailErr) {
-        console.error("⚠️ Email sending failed:", emailErr);
-      }
+      // 🔥 ASYNC EMAIL (Fire and Forget)
+      transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: targetMember.email,
+        subject: `Role Update - ${oldDept} (Ref: ${Date.now().toString().slice(-4)})`,
+        html: demotionEmailBody
+      }).then(() => console.log(`✅ Demotion email sent to ${targetMember.email}`))
+        .catch(emailErr => console.error("⚠️ Email sending failed:", emailErr));
 
       res.json({ message: `✅ ${targetMember.fullName} removed from department role. ${updateResult.modifiedCount} grievances reset to Pending.` });
     } else {
@@ -360,17 +399,17 @@ app.post("/api/admin-staff/role", async (req, res) => {
 
 // ✅ C. Get All Staff List (ROUTE NAME FIXED)
 // New Route Name: /api/admin-staff/all (Matches Frontend)
-app.get("/api/admin-staff/all", async (req, res) => {
+app.get("/api/admin-staff/all", verifyToken, async (req, res) => {
   try {
     // Fetch: 
     // 1. All staff (role = "staff")
     // 2. All admins (role = "admin")
     // 3. Exclude Master Admin (id = 10001)
     const staffList = await User.find({
-      id: { $ne: "10001" }, // Exclude Master Admin
+      isMasterAdmin: { $ne: true }, // Exclude Master Admin
       role: { $in: ["staff", "admin"] } // Include both staff and admin roles
     }).select("id fullName email isDeptAdmin adminDepartment role");
-    
+
     res.json(staffList);
   } catch (err) {
     console.error("Staff fetch error:", err);
@@ -379,7 +418,7 @@ app.get("/api/admin-staff/all", async (req, res) => {
 });
 
 // D. Get Department Specific Staff
-app.get("/api/admin/staff/:department", async (req, res) => {
+app.get("/api/admin/staff/:department", verifyToken, async (req, res) => {
   try {
     const { department } = req.params;
     // Fetch ANYONE in that department (Boss or Team Member)
@@ -394,6 +433,53 @@ app.get("/api/admin/staff/:department", async (req, res) => {
   }
 });
 
+// 🔥 NEW: Transfer Ownership Route
+app.post("/api/admin/transfer-ownership", verifyToken, async (req, res) => {
+  try {
+    const { newMasterId } = req.body;
+    const requesterId = req.user.id;
+
+    // 1. Verify Request is from Current Master Admin
+    const currentMaster = await User.findOne({ id: requesterId, isMasterAdmin: true });
+    if (!currentMaster) {
+      return res.status(403).json({ message: "❌ Only the Master Admin can transfer ownership." });
+    }
+
+    // 2. Validate New Master ID
+    const safeTargetId = newMasterId.toString().trim().toUpperCase();
+    if (safeTargetId === requesterId) {
+      return res.status(400).json({ message: "You are already the Master Admin." });
+    }
+
+    const newMaster = await User.findOne({ id: safeTargetId });
+    if (!newMaster) {
+      return res.status(404).json({ message: "Target user not found." });
+    }
+
+    // 3. ATOMIC TRANSFER
+    // Demote Current
+    currentMaster.isMasterAdmin = false;
+    currentMaster.role = "staff"; // 🔥 DEMOTE TO STAFF (User Requested)
+
+    // Promote New
+    newMaster.isMasterAdmin = true;
+    newMaster.role = "admin";
+    newMaster.isDeptAdmin = false; // Master is above Dept Admin
+    newMaster.adminDepartment = ""; // Master has no specific Dept
+
+    await currentMaster.save();
+    await newMaster.save();
+
+    console.log(`👑 Ownership Transferred: ${currentMaster.fullName} -> ${newMaster.fullName}`);
+
+    res.json({ message: `✅ Ownership successfully transferred to ${newMaster.fullName} (${newMaster.id})` });
+
+  } catch (err) {
+    console.error("Transfer Error:", err);
+    res.status(500).json({ message: "Transfer failed" });
+  }
+});
+
 // ------------------ 6️⃣ REGISTRATION ROUTES ------------------
 
 app.post("/api/auth/register-request", async (req, res) => {
@@ -401,29 +487,29 @@ app.post("/api/auth/register-request", async (req, res) => {
     const { id, email, role } = req.body;
     const upperId = id.toString().trim().toUpperCase();
     const validRecord = await UniversityRecord.findOne({ id: upperId });
-    
+
     if (!validRecord) return res.status(403).json({ message: "ID not found in Records." });
-    
+
     // Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    
+
     // ✅ YE LINE ADD KI HAI (Ab Terminal me OTP dikhega)
-    console.log(`\n🔥 [REGISTER OTP] Sent to ${email}: ${otp}\n`); 
+    console.log(`\n🔥 [REGISTER OTP] Sent to ${email}: ${otp}\n`);
 
     await OTP.findOneAndUpdate({ email: email.toLowerCase() }, { userId: upperId, otp, expiresAt: Date.now() + 600000 }, { upsert: true });
-    
+
     // Email Send
-    await transporter.sendMail({ 
-        from: process.env.EMAIL_USER, 
-        to: email, 
-        subject: "Registration OTP", 
-        html: `<p>Your OTP is: <b>${otp}</b></p>` 
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Registration OTP",
+      html: `<p>Your OTP is: <b>${otp}</b></p>`
     });
 
     res.status(200).json({ message: "OTP sent" });
-  } catch (err) { 
-      console.error(err);
-      res.status(500).json({ message: "Error" }); 
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error" });
   }
 });
 
@@ -475,24 +561,24 @@ app.post("/api/auth/request-otp", async (req, res) => {
 
     // Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    
+
     // ✅ YE LINE ADD KI HAI (Ab Terminal me OTP dikhega)
     console.log(`\n🔥 [LOGIN OTP] Sent to ${user.email}: ${otp}\n`);
 
     await OTP.create({ userId: safeId, phone, otp, expiresAt: Date.now() + 300000 });
-    
+
     // ✅ EMAIL SENDING LOGIC (Ye bhi add kar diya)
-    await transporter.sendMail({ 
-        from: process.env.EMAIL_USER, 
-        to: user.email, 
-        subject: "Login OTP", 
-        html: `<p>Your Login OTP is: <b>${otp}</b></p>` 
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: user.email,
+      subject: "Login OTP",
+      html: `<p>Your Login OTP is: <b>${otp}</b></p>`
     });
 
     res.json({ message: "OTP sent" });
-  } catch (err) { 
-      console.error(err); 
-      res.status(500).json({ message: "Error" }); 
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error" });
   }
 });
 app.post("/api/auth/verify-otp-password", async (req, res) => {
@@ -508,6 +594,14 @@ app.post("/api/auth/verify-otp-password", async (req, res) => {
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: "Invalid password" });
+
+    // 🔥 SELF-HEALING: Force Master Admin rights for ID 10001 if missing
+    if (safeId === "10001" && !user.isMasterAdmin) {
+      user.isMasterAdmin = true;
+      user.role = "admin"; // Ensure role is admin
+      await user.save();
+      console.log("🚑 SELF-HEALED: User 10001 forced to Master Admin during login.");
+    }
     await OTP.deleteOne({ _id: otpRecord._id });
 
     // ✅ Include admin details in token response
@@ -515,7 +609,8 @@ app.post("/api/auth/verify-otp-password", async (req, res) => {
       id: user.id,
       role: user.role,
       isDeptAdmin: user.isDeptAdmin,
-      adminDepartment: user.adminDepartment
+      adminDepartment: user.adminDepartment,
+      isMasterAdmin: user.isMasterAdmin // 🔥 Added to token
     }, "mock_secret");
 
     res.json({
@@ -524,7 +619,8 @@ app.post("/api/auth/verify-otp-password", async (req, res) => {
       role: user.role,
       token,
       isDeptAdmin: user.isDeptAdmin,
-      adminDepartment: user.adminDepartment
+      adminDepartment: user.adminDepartment,
+      isMasterAdmin: user.isMasterAdmin // 🔥 Added to response
     });
   } catch (err) {
     res.status(500).json({ message: "Login failed" });
@@ -536,27 +632,27 @@ app.get("/api/auth/user/:id", async (req, res) => {
   try {
     const safeId = req.params.id.toString().trim().toUpperCase();
     const user = await User.findOne({ id: safeId });
-    
+
     if (!user) return res.status(404).json({ message: "User not found" });
 
     // 🔥 LOGIC FIX:
     // Agar Student hai -> toh 'program' bhejo
     // Agar Staff hai -> toh 'staffDepartment' ya 'adminDepartment' bhejo
     let deptToSend = "";
-    
+
     if (user.role === "student") {
-        deptToSend = user.program; 
+      deptToSend = user.program;
     } else {
-        deptToSend = user.staffDepartment || user.adminDepartment;
+      deptToSend = user.staffDepartment || user.adminDepartment;
     }
 
-    res.json({ 
-        fullName: user.fullName, 
-        email: user.email, 
-        phone: user.phone, 
-        role: user.role,
-        // Frontend ko ab hamesha 'department' milega
-        department: deptToSend || "General" 
+    res.json({
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      // Frontend ko ab hamesha 'department' milega
+      department: deptToSend || "General"
     });
 
   } catch (err) {
@@ -601,7 +697,7 @@ app.get("/api/file/:filename", async (req, res) => {
     // 🔥 FIX: Use gridfsBucket (Native) instead of gfs (gridfs-stream) for reliability
     const files = await gridfsBucket.find({ filename: req.params.filename }).toArray();
     if (!files || files.length === 0) return res.status(404).json({ err: "No file found" });
-    
+
     const file = files[0];
     res.set("Content-Type", file.contentType);
     const readstream = gridfsBucket.openDownloadStreamByName(file.filename);
@@ -615,7 +711,7 @@ app.get("/api/file/:filename", async (req, res) => {
 // ------------------ 9️⃣ Mount Routes ------------------
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-app.use("/api/auth", authRoutes); 
+app.use("/api/auth", authRoutes);
 app.use("/api/grievances", grievanceRoutes);
 app.use("/api/chat", chatRoutes);
 app.get("/", (req, res) => res.send("✅ Backend Running"));
