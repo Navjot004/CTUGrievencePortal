@@ -202,7 +202,7 @@ function SchoolAdminDashboard() {
         <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
           <img src={ctLogo} alt="CT University" style={{ height: "50px" }} />
           <div className="header-content">
-            <h1>{mySchoolName || "School"} Dashboard</h1>
+            <h1 style={{ marginLeft: '15px' }}>{mySchoolName || "School"} Dashboard</h1>
             <p>
               Admin: <strong>{userId}</strong>
               {mySchoolName && <span className="status-badge status-assigned" style={{ marginLeft: '10px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
@@ -216,7 +216,7 @@ function SchoolAdminDashboard() {
 
       <nav className="navbar">
         <ul>
-          <li className="admin-nav-title"><span>Department Issues</span></li>
+          <li className="admin-nav-title" style={{ marginLeft: '20px' }}><span>Department Issues</span></li>
           <li><Link to="/admin/manage-staff">Manage Staff</Link></li>
         </ul>
       </nav>
@@ -296,8 +296,8 @@ function SchoolAdminDashboard() {
               <table className="grievance-table">
                 <thead>
                   <tr>
-                    <th>Student ID</th>
-                    <th>Student</th>
+                    <th>ID</th>
+                    <th>Name</th>
                     <th>Assigned To</th>
                     <th>Message</th>
                     <th>Date</th>

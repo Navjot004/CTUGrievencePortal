@@ -170,7 +170,7 @@ const AdminManageStaff = () => {
             <li className="admin-nav-title"><span>Master Admin Panel</span></li>
           ) : (
             <>
-              <li className="admin-nav-title"><span>{myDepartment} Admin</span></li>
+              <li className="admin-nav-title" style={{ marginLeft: "20px" }}><span>{myDepartment} Admin</span></li>
               {/* Add back button for Dept Admin to go to dashboard */}
               <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(-1); }} style={{ cursor: 'pointer' }}>⬅ Back to Dashboard</a></li>
             </>

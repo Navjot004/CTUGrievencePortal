@@ -226,7 +226,7 @@ function AdminDashboard() {
                 <table className="grievance-table">
                   <thead>
                     <tr>
-                      <th>Student ID</th>
+                      <th>ID</th>
                       <th>Department / Category</th>
                       <th>Message</th>
                       <th>Status</th>

@@ -244,7 +244,7 @@ function Department() {
           )}
         </div>
       </main>
-      <button className="logout-floating" onClick={handleLogout}>Logout</button>
+
     </div>
   );
 }

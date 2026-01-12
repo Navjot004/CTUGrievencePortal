@@ -538,9 +538,9 @@ function AdminStaffDashboard() {
                   <table className="grievance-table">
                     <thead>
                       <tr>
-                        <th>Student Name</th>
+                        <th>Name</th>
                         <th>Email</th>
-                        <th>Reg. ID</th>
+                        <th>ID</th>
                         <th>Message</th>
                         <th>Submitted At</th>
                         <th className="deadline-col">Deadline</th>
@@ -573,9 +573,9 @@ function AdminStaffDashboard() {
                   <table className="grievance-table">
                     <thead>
                       <tr>
-                        <th>Student Name</th>
+                        <th>Name</th>
                         <th>Email</th>
-                        <th>Reg. ID</th>
+                        <th>ID</th>
                         <th>Message</th>
                         <th>Submitted At</th>                    <th className="deadline-col">Deadline</th>                    <th>Status</th>
                         <th>Action</th>
