@@ -75,6 +75,11 @@ const grievanceSchema = new mongoose.Schema(
         enum: ["None", "Pending", "Approved", "Rejected"],
         default: "None"
       }
+    },
+    // ================= VISIBILITY (SOFT DELETE) =================
+    hiddenFor: {
+      type: [String], // Array of User IDs who have "deleted" this grievance
+      default: []
     }
   },
   { timestamps: true }

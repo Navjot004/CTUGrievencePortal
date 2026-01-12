@@ -7,8 +7,9 @@ import Verifications from "../components/Verifications";
 import ctLogo from "../assets/ct-logo.png";
 import {
   BellIcon, GraduationCapIcon, ChartBarIcon, ClockIcon, CheckCircleIcon,
-  AlertCircleIcon, PaperclipIcon, MessageCircleIcon
+  AlertCircleIcon, PaperclipIcon, MessageCircleIcon, TrashIcon
 } from "../components/Icons";
+
 
 // ✅ HELPER FUNCTION
 const formatDate = (dateString) => {
@@ -27,7 +28,32 @@ function StudentDashboard() {
   const [selectedGrievance, setSelectedGrievance] = useState(null);
   const [history, setHistory] = useState([]);
   const [stats, setStats] = useState({ total: 0, pending: 0, resolved: 0, rejected: 0 });
+  const [msg, setMsg] = useState("");
+  const [statusType, setStatusType] = useState(""); // success | error
   const [loading, setLoading] = useState(true);
+
+  const handleDeleteGrievance = async (id) => {
+    if (!window.confirm("Are you sure you want to remove this grievance from your list?")) return;
+    try {
+      const token = localStorage.getItem("grievance_token");
+      const res = await fetch(`http://localhost:5000/api/grievances/hide/${id}`, {
+        method: "PUT",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setHistory(prev => prev.filter(g => g._id !== id));
+        setSelectedGrievance(null);
+        setMsg("✅ Grievance removed from view.");
+        setStatusType("success");
+        setTimeout(() => setMsg(""), 3000);
+      } else {
+        throw new Error("Failed to delete.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error removing grievance.");
+    }
+  };
 
   // ✅ User Details State
   const [studentName, setStudentName] = useState("");
@@ -561,6 +587,18 @@ function StudentDashboard() {
                 >
                   Close
                 </button>
+                <button
+                  onClick={() => handleDeleteGrievance(selectedGrievance._id)}
+                  style={{
+                    padding: '10px 20px', backgroundColor: '#fee2e2', border: '1px solid #ef4444', borderRadius: '6px',
+                    cursor: 'pointer', fontWeight: '600', color: '#dc2626', transition: 'all 0.2s', marginLeft: '10px',
+                    display: 'inline-flex', alignItems: 'center', gap: '5px'
+                  }}
+                  onMouseOver={(e) => e.target.style.backgroundColor = '#fecaca'}
+                  onMouseOut={(e) => e.target.style.backgroundColor = '#fee2e2'}
+                >
+                  <TrashIcon width="16" height="16" /> Remove
+                </button>
               </div>
             </div>
           </div>
@@ -569,7 +607,7 @@ function StudentDashboard() {
       </main>
 
       {/* ✅ Chat Popup Component */}
-      <ChatPopup
+      < ChatPopup
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
         grievanceId={chatGrievanceId}
@@ -578,40 +616,42 @@ function StudentDashboard() {
       />
 
       {/* 🔥 VERIFICATION POPUP (Glassmorphism) */}
-      {isVerificationPopupOpen && (selectedGrievance || history.some(g => g.status === "Verification")) && (
-        <VerificationModal
-          grievance={selectedGrievance || history.find(g => g.status === "Verification")}
-          onClose={() => setIsVerificationPopupOpen(false)}
-          onVerify={async (id, action, feedback) => {
-            try {
-              const res = await fetch(`http://localhost:5000/api/grievances/verify-resolution/${id}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action, feedback })
-              });
-              if (res.ok) {
-                // Refresh data
-                const updatedHistory = [...history];
-                const idx = updatedHistory.findIndex(g => g._id === id);
-                if (idx !== -1) {
-                  updatedHistory[idx].status = action === "accept" ? "Resolved" : "Pending";
+      {
+        isVerificationPopupOpen && (selectedGrievance || history.some(g => g.status === "Verification")) && (
+          <VerificationModal
+            grievance={selectedGrievance || history.find(g => g.status === "Verification")}
+            onClose={() => setIsVerificationPopupOpen(false)}
+            onVerify={async (id, action, feedback) => {
+              try {
+                const res = await fetch(`http://localhost:5000/api/grievances/verify-resolution/${id}`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ action, feedback })
+                });
+                if (res.ok) {
+                  // Refresh data
+                  const updatedHistory = [...history];
+                  const idx = updatedHistory.findIndex(g => g._id === id);
+                  if (idx !== -1) {
+                    updatedHistory[idx].status = action === "accept" ? "Resolved" : "Pending";
+                  }
+                  setHistory(updatedHistory);
+                  // Also update stats manually or re-fetch
+                  if (action === "accept") {
+                    setStats(prev => ({ ...prev, resolved: prev.resolved + 1, pending: prev.pending - 1 }));
+                  } else {
+                    setStats(prev => ({ ...prev, pending: prev.pending + 1 }));
+                  }
+                  setIsVerificationPopupOpen(false);
+                  alert(action === "accept" ? "Grievance Closed! Thank you." : "Grievance Reopened. Staff will be notified.");
                 }
-                setHistory(updatedHistory);
-                // Also update stats manually or re-fetch
-                if (action === "accept") {
-                  setStats(prev => ({ ...prev, resolved: prev.resolved + 1, pending: prev.pending - 1 }));
-                } else {
-                  setStats(prev => ({ ...prev, pending: prev.pending + 1 }));
-                }
-                setIsVerificationPopupOpen(false);
-                alert(action === "accept" ? "Grievance Closed! Thank you." : "Grievance Reopened. Staff will be notified.");
+              } catch (err) {
+                alert("Error verifying grievance.");
               }
-            } catch (err) {
-              alert("Error verifying grievance.");
-            }
-          }}
-        />
-      )}
+            }}
+          />
+        )
+      }
 
       {/* ✅ SUPER SMOOTH INTERACTIONS (Makhan UI) */}
       <style>{`
@@ -643,7 +683,7 @@ function StudentDashboard() {
         tr { transition: background-color 0.2s ease; }
         tr:hover { background-color: #f8fafc !important; }
       `}</style>
-    </div>
+    </div >
   );
 }
 

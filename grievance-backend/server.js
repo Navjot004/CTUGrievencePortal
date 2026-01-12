@@ -24,6 +24,7 @@ import chatRoutes from "./routes/chatRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import UniversityRecord from "./models/UniversityRecord.js"; // Validation Model
 import Grievance from "./models/GrievanceModel.js"; // ✅ Import Grievance Model
+import { hideGrievance } from "./controllers/grievanceController.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -507,7 +508,7 @@ app.post("/api/admin-staff/role", verifyToken, async (req, res) => {
 
 // ✅ C. Get All Staff List (ROUTE NAME FIXED)
 // New Route Name: /api/admin-staff/all (Matches Frontend)
-app.get("/api/admin-staff/all", verifyToken, async (req, res) => {
+app.get("/api/admin-staff/all", async (req, res) => {
   try {
     // Fetch: 
     // 1. All staff (role = "staff")
@@ -676,6 +677,7 @@ app.get("/api/file/:filename", async (req, res) => {
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api/auth", authRoutes);
+app.put("/api/grievances/hide/:id", verifyToken, hideGrievance); // ✅ Soft Delete Route
 app.use("/api/grievances", grievanceRoutes);
 app.use("/api/chat", chatRoutes);
 app.get("/", (req, res) => res.send("✅ Backend Running"));

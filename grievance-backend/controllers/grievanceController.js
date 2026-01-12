@@ -68,7 +68,11 @@ export const submitGrievance = async (req, res) => {
 ===================================================== */
 export const getAllGrievances = async (req, res) => {
   try {
-    const grievances = await Grievance.find().sort({ createdAt: -1 });
+    // 🔍 Filter: Don't show if user has "soft deleted" it
+    const userId = req.user ? req.user.id : null;
+    const query = userId ? { hiddenFor: { $ne: userId } } : {};
+
+    const grievances = await Grievance.find(query).sort({ createdAt: -1 });
     res.json(grievances);
   } catch (err) {
     res.status(500).json({ message: "Failed to fetch grievances" });
@@ -83,9 +87,12 @@ export const getAllGrievances = async (req, res) => {
 export const getCategoryGrievances = async (req, res) => {
   try {
     const category = decodeURIComponent(req.params.category).trim();
+    const userId = req.user ? req.user.id : null;
 
-    const grievances = await Grievance.find({ category })
-      .sort({ createdAt: -1 });
+    const grievances = await Grievance.find({
+      category,
+      hiddenFor: { $ne: userId } // 🔍 Filter hidden
+    }).sort({ createdAt: -1 });
 
     res.json(grievances);
   } catch (err) {
@@ -172,7 +179,13 @@ export const getAssignedGrievances = async (req, res) => {
     const { staffId } = req.params;
 
     // Return only fields required by the UI to reduce response size and speed the query
-    const grievances = await Grievance.find({ assignedTo: staffId })
+    const userId = req.user?.id;
+    const hiddenFilter = userId ? { hiddenFor: { $ne: userId } } : {};
+
+    const grievances = await Grievance.find({
+      assignedTo: staffId,
+      ...hiddenFilter
+    })
       .select('name email regid message createdAt deadlineDate extensionRequest status attachment _id assignedTo updatedAt')
       .sort({ createdAt: -1 });
 
@@ -192,8 +205,14 @@ export const getUserGrievances = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const grievances = await Grievance.find({ userId })
-      .sort({ createdAt: -1 });
+    // Ensure users can only see their own (controller is reusable though) or admin sees user's history
+    // We already filter by userId, just add the hidden check for the REQUESTER
+    const requesterId = req.user ? req.user.id : null;
+
+    const grievances = await Grievance.find({
+      userId,
+      hiddenFor: { $ne: requesterId } // 🔍 Filter hidden
+    }).sort({ createdAt: -1 });
 
     res.json(grievances);
   } catch (err) {
@@ -495,5 +514,22 @@ export const getGrievanceDetail = async (req, res) => {
   } catch (err) {
     console.error("Error fetching grievance details:", err);
     res.status(500).json({ error: "Failed to fetch grievance details" });
+  }
+};
+
+// ✅ Hide Grievance (Soft Delete)
+export const hideGrievance = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id; // From verifyToken
+
+    await Grievance.findByIdAndUpdate(id, {
+      $addToSet: { hiddenFor: userId }
+    });
+
+    res.json({ message: "Grievance hidden successfully" });
+  } catch (err) {
+    console.error("Hide Error:", err);
+    res.status(500).json({ message: "Failed to hide grievance" });
   }
 };

@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import "../styles/Dashboard.css"; // Existing CSS for table structure
 import AssignStaffPopup from "../components/AssignStaffPopup";
 import ctLogo from "../assets/ct-logo.png";
-import { SearchIcon, UserIcon, HomeIcon, PaperclipIcon } from "../components/Icons";
+import { SearchIcon, UserIcon, HomeIcon, PaperclipIcon, TrashIcon } from "../components/Icons";
 
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
@@ -138,7 +138,33 @@ function SchoolAdminDashboard() {
   };
 
   const openAssignPopup = (id) => { setAssignGrievanceId(id); setIsAssignPopupOpen(true); };
-  const handleLogout = () => { localStorage.clear(); navigate("/"); };
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate("/");
+  };
+
+  const handleDeleteGrievance = async (id) => {
+    if (!window.confirm("Are you sure you want to remove this grievance from your list?")) return;
+    try {
+      const token = localStorage.getItem("grievance_token");
+      const res = await fetch(`http://localhost:5000/api/grievances/hide/${id}`, {
+        method: "PUT",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setGrievances(prev => prev.filter(g => g._id !== id));
+        setSelectedGrievance(null);
+        setMsg("✅ Grievance removed from view.");
+        setStatusType("success");
+        setTimeout(() => setMsg(""), 3000);
+      } else {
+        throw new Error("Failed to delete.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error removing grievance.");
+    }
+  };
 
   // ✅ FILTER LOGIC
   const filteredGrievances = grievances.filter((g) => {
@@ -496,6 +522,18 @@ function SchoolAdminDashboard() {
                 onMouseOut={(e) => e.target.style.backgroundColor = '#e2e8f0'}
               >
                 Close
+              </button>
+              <button
+                onClick={() => handleDeleteGrievance(selectedGrievance._id)}
+                style={{
+                  padding: '10px 20px', backgroundColor: '#fee2e2', border: '1px solid #ef4444', borderRadius: '6px',
+                  cursor: 'pointer', fontWeight: '600', color: '#dc2626', transition: 'all 0.2s', marginLeft: '10px',
+                  display: 'inline-flex', alignItems: 'center', gap: '5px'
+                }}
+                onMouseOver={(e) => e.target.style.backgroundColor = '#fecaca'}
+                onMouseOut={(e) => e.target.style.backgroundColor = '#fee2e2'}
+              >
+                <TrashIcon width="16" height="16" /> Remove
               </button>
             </div>
           </div>
