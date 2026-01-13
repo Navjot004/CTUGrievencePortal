@@ -22,7 +22,18 @@ const AdminUploadRecords = () => {
 
       if (res.ok) {
         const data = await res.json();
-        setUploadedFiles(data.files || []);
+
+        // Filter for specific file extensions (.csv, .xls, .xlsx)
+        const validExtensions = ['.csv', '.xls', '.xlsx'];
+        const filteredFiles = (data.files || []).filter(file => {
+          const ext = file.filename.substring(file.filename.lastIndexOf('.')).toLowerCase();
+          return validExtensions.includes(ext);
+        });
+
+        // Sort by uploadDate (newest first)
+        const sortedFiles = filteredFiles.sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate));
+
+        setUploadedFiles(sortedFiles);
       }
     } catch (err) {
       console.error("Error fetching files:", err);

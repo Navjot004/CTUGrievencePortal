@@ -271,12 +271,13 @@ app.get("/api/admin/preview-file/:filename", verifyToken, (req, res) => {
 // A4. Export all users to Excel
 app.get("/api/admin/export-users", verifyToken, async (req, res) => {
   try {
-    const users = await User.find({}).select('id fullName email role department program isDeptAdmin adminDepartment');
+    const users = await User.find({}).select('id fullName email phone role department program isDeptAdmin adminDepartment');
 
     const data = users.map(user => ({
       ID: user.id,
       Name: user.fullName,
       Email: user.email,
+      Phone: user.phone || 'N/A', // Add Phone Number
       Role: user.role,
       Department: user.department || user.adminDepartment || '',
       Program: user.program || '',
