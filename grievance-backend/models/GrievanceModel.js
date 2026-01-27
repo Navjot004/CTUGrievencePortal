@@ -32,7 +32,9 @@ const grievanceSchema = new mongoose.Schema(
         "School of Hotel Management",
         "School of Design and innovation",
         "School of Allied Health Sciences",
-        "School of Social Sciences and Liberal Arts"
+        "School of Social Sciences and Liberal Arts",
+        "HR",
+        "CRC (Placement)"
       ]
     },
 

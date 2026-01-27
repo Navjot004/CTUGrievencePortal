@@ -24,7 +24,7 @@ const AdminManageStaff = () => {
     "Accounts", "Examination", "Student Welfare", "Admission",
     "School of Engineering", "School of Management", "School of Law",
     "Pharmaceutical Sciences", "Hotel Management", "Design & Innovation",
-    "Allied Health Sciences", "Social Sciences"
+    "Allied Health Sciences", "Social Sciences", "HR", "CRC (Placement)"
   ];
 
   const token = localStorage.getItem("grievance_token");
@@ -48,8 +48,8 @@ const AdminManageStaff = () => {
       });
       const data = await res.json();
       if (res.ok) {
-        // ✅ Filter: Show ONLY Staff and Admin-Staff (Team Members). Exclude Dept Admins & Students.
-        const onlyStaff = data.filter(user => user.role === "staff");
+        // ✅ Filter: Show ONLY Staff. Exclude Students (8-digit IDs)
+        const onlyStaff = data.filter(user => user.role === "staff" && user.id.length !== 8);
         setStaffList(onlyStaff);
       }
     } catch (err) {

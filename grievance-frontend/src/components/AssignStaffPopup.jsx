@@ -45,7 +45,10 @@ function AssignStaffPopup({
         );
         const staffData = await staffRes.json();
         if (!staffRes.ok) throw new Error(staffData.message || "Failed to load staff");
-        setStaffList(staffData);
+
+        // ✅ Fix: Filter out Students (8-digit IDs)
+        const validStaff = staffData.filter(s => s.id.length !== 8);
+        setStaffList(validStaff);
 
         // Fetch grievance detail to read createdAt and existing deadline
         if (grievanceId) {

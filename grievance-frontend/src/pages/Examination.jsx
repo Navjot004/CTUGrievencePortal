@@ -156,6 +156,8 @@ function Examination() {
           <li><Link to="/student/accounts">Accounts</Link></li>
           <li className="active"><Link to="/student/examination">Examination</Link></li>
           <li><Link to="/student/department">Department</Link></li>
+          <li><Link to="/student/hr">HR</Link></li>
+          <li><Link to="/student/crc">CRC (Placement)</Link></li>
         </ul>
       </nav>
 
