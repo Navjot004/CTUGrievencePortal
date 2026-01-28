@@ -13,11 +13,13 @@ import nodemailer from "nodemailer";
 import { Readable } from "stream";
 import xlsx from "xlsx";
 
+
 // ✅ IMPORTS FOR FILE UPLOAD
 import Grid from "gridfs-stream";
 import multer from "multer";
 
 // Modular DB and routes
+import grievanceExportRoutes from "./routes/grievanceExport.js";
 import connectDB from "./config/db.js";
 import grievanceRoutes from "./routes/grievanceRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
@@ -678,10 +680,12 @@ app.get("/api/file/:filename", async (req, res) => {
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api/auth", authRoutes);
-app.put("/api/grievances/hide/:id", verifyToken, hideGrievance); // ✅ Soft Delete Route
+app.put("/api/grievances/hide/:id", verifyToken, hideGrievance); 
+app.use("/api/grievances", grievanceExportRoutes);// ✅ Soft Delete Route
 app.use("/api/grievances", grievanceRoutes);
 app.use("/api/chat", chatRoutes);
 app.get("/", (req, res) => res.send("✅ Backend Running"));
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server: http://localhost:${PORT}`));

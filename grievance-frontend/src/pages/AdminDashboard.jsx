@@ -130,6 +130,39 @@ function AdminDashboard() {
 
     return matchStudentId && matchStaffId && matchStatus && matchDept && matchMonth;
   });
+  // ✅ EXPORT TO EXCEL (BACKEND)
+const handleExportExcel = () => {
+  const token = localStorage.getItem("grievance_token");
+
+  const params = new URLSearchParams({
+    searchStudentId,
+    searchStaffId,
+    filterStatus,
+    filterDepartment,
+    filterMonth,
+  });
+
+  fetch(`http://localhost:5000/api/grievances/export?${params.toString()}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+    .then((res) => {
+      if (!res.ok) throw new Error("Export failed");
+      return res.blob();
+    })
+    .then((blob) => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "filtered_grievances.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    })
+    .catch(() => alert("❌ Excel export failed"));
+};
+
 
   // ✅ Unique Departments for Dropdown
   const uniqueDepartments = [...new Set(grievances.map(g => g.category || g.school).filter(Boolean))];
@@ -192,11 +225,15 @@ function AdminDashboard() {
           <div className="card">
             <h2>All Incoming Grievances (Read Only)</h2>
 
-            {/* ✅ FILTER BAR */}
+            {/* ✅ FILTER BAR */
+            }
+            
             <div style={{
               display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "20px",
               padding: "15px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0"
             }}>
+              
+              
               <input
                 type="text" placeholder="Search Student ID..."
                 value={searchStudentId} onChange={(e) => setSearchStudentId(e.target.value)}
@@ -234,11 +271,27 @@ function AdminDashboard() {
                   setSearchStudentId(""); setSearchStaffId(""); setFilterStatus("All");
                   setFilterDepartment("All"); setFilterMonth("");
                 }}
+                
                 style={{ padding: "10px 20px", borderRadius: "6px", border: "none", background: "#64748b", color: "white", cursor: "pointer", fontWeight: "600" }}
               >
                 Reset
               </button>
             </div>
+            <button
+  onClick={handleExportExcel}
+  style={{
+    padding: "10px 20px",
+    borderRadius: "6px",
+    border: "none",
+    background: "#16a34a",
+    color: "white",
+    cursor: "pointer",
+    fontWeight: "600"
+  }}
+>
+  Export to Excel
+</button>
+
 
             {msg && <div className={`alert-box ${statusType}`}>{msg}</div>}
 
@@ -325,6 +378,7 @@ function AdminDashboard() {
                 boxShadow: '0 10px 25px rgba(0,0,0,0.2)', position: 'relative', display: 'flex', flexDirection: 'column', maxHeight: '85vh'
               }}
             >
+              
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '15px', marginBottom: '15px' }}>
                 <h3 style={{ margin: 0, color: '#1e293b', fontSize: '1.25rem' }}>Grievance Details</h3>
                 <button onClick={() => setSelectedGrievance(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>&times;</button>

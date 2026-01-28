@@ -219,6 +219,7 @@ function LoginPage() {
 
                   <div className="input-group">
                     <label>Password</label>
+                    
                     <div className="input-wrapper password">
                       <span className="icon"><LockIcon /></span>
                       <input
@@ -228,6 +229,7 @@ function LoginPage() {
                         onChange={(e) => setPassword(e.target.value)}
                         required
                       />
+                      
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
@@ -238,9 +240,17 @@ function LoginPage() {
                       </button>
                     </div>
                   </div>
+                  
 
                   <button className="btn-primary" type="submit">Secure Login</button>
+                  <div style={{ textAlign: "right", marginBottom: "12px" }}>
+  <Link to="/forgot-password" className="forgot-link">
+    Forgot Password?
+  </Link>
+</div>
+
                 </form>
+                
               ) : (
                 /* STEP 2: OTP */
                 <form onSubmit={handleVerifyLoginOtp} className="animated-form">
@@ -263,6 +273,9 @@ function LoginPage() {
                       />
                     </div>
                   </div>
+                  
+
+                  
 
                   <button className="btn-primary" type="submit">Verify & Login</button>
                   <button

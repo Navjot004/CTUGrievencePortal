@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 
+
 const grievanceSchema = new mongoose.Schema(
   {
     // ================= STUDENT INFO =================
@@ -14,6 +15,16 @@ const grievanceSchema = new mongoose.Schema(
       type: String,
       required: true // e.g. B.Tech CSE
     },
+    rating: {
+  stars: { type: Number, min: 1, max: 5 },
+  feedback: { type: String },
+  ratedAt: { type: Date },
+},
+isRated: {
+  type: Boolean,
+  default: false
+}
+,
 
     // ================= GRIEVANCE ROUTING (ONLY CATEGORY) =================
     category: {
@@ -35,6 +46,15 @@ const grievanceSchema = new mongoose.Schema(
         "School of Social Sciences and Liberal Arts"
       ]
     },
+    verificationAttempts: {
+  type: Number,
+  default: 0
+},
+autoClosed: {
+  type: Boolean,
+  default: false
+}
+,
 
     // ================= CONTENT =================
     message: { type: String, required: true },
@@ -76,6 +96,7 @@ const grievanceSchema = new mongoose.Schema(
         default: "None"
       }
     },
+    
     // ================= VISIBILITY (SOFT DELETE) =================
     hiddenFor: {
       type: [String], // Array of User IDs who have "deleted" this grievance
@@ -92,4 +113,5 @@ const Grievance =
   mongoose.models.Grievance ||
   mongoose.model("Grievance", grievanceSchema);
 
+  
 export default Grievance;

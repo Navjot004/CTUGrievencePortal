@@ -20,6 +20,10 @@ import StudentSectionAdminDashboard from "./pages/StudentSectionAdminDashboard";
 import ExaminationAdminDashboard from "./pages/ExaminationAdminDashboard";
 import AdminManageStaff from "./pages/AdminManageStaff";
 import SchoolAdminDashboard from "./pages/SchoolAdminDashboard";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+
+
 
 // Helper to decide where DEPT ADMINS (Priya) go
 const getDeptAdminRoute = (department) => {
@@ -126,6 +130,10 @@ function App() {
         <Route path="/admin/studentsection" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><StudentSectionAdminDashboard /></ProtectedRoute>} />
         <Route path="/admin/examination" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><ExaminationAdminDashboard /></ProtectedRoute>} />
         <Route path="/admin/school" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><SchoolAdminDashboard /></ProtectedRoute>} />
+
+
+<Route path="/forgot-password" element={<ForgotPassword />} />
+<Route path="/reset-password" element={<ResetPassword />} />
 
         {/* Catch All */}
         <Route path="*" element={<Navigate to="/" replace />} />

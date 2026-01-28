@@ -19,6 +19,8 @@ const userSchema = new mongoose.Schema({
   otpExpires: { type: Number },
   phoneOtp: { type: String }, // 🔥 Phone OTP
   phoneOtpExpires: { type: Number },
+  resetOtp: { type: String },
+resetOtpExpires: { type: Date },
 
   // Student Info
   program: String,
