@@ -201,7 +201,8 @@ function StaffRoleManager() {
             <tbody>
               {(() => {
                 const q = searchQuery.trim().toLowerCase();
-                let list = staffList.slice();
+                // ✅ Filter: Exclude Students (8-digit IDs)
+                let list = staffList.filter(s => s.id.length !== 8);
 
                 if (filterRole === 'admins') list = list.filter(s => s.isDeptAdmin);
                 else if (filterRole === 'team') list = list.filter(s => s.adminDepartment && !s.isDeptAdmin);
@@ -291,6 +292,8 @@ function StaffRoleManager() {
                                     "School of Design and innovation",
                                     "School of Allied Health Sciences",
                                     "School of Social Sciences and Liberal Arts",
+                                    "HR",
+                                    "CRC (Placement)"
                                   ].map(d => (
                                     <option key={d} value={d}>{d}</option>
                                   ))}

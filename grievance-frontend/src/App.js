@@ -10,6 +10,8 @@ import StudentSection from "./pages/StudentSection";
 import Accounts from "./pages/Accounts";
 import Examination from "./pages/Examination";
 import Department from "./pages/Department";
+import StudentHR from "./pages/StudentHR";
+import StudentCRC from "./pages/StudentCRC";
 import StaffDashboard from "./pages/StaffDashboard";
 import AdminStaffDashboard from "./pages/AdminStaffDashboard"; // ✅ Rajesh (Worker) ka Dashboard
 import AdminDashboard from "./pages/AdminDashboard";
@@ -25,6 +27,9 @@ import ResetPassword from "./pages/ResetPassword";
 
 
 
+import HRAdminDashboard from "./pages/HRAdminDashboard";
+import CRCAdminDashboard from "./pages/CRCAdminDashboard";
+
 // Helper to decide where DEPT ADMINS (Priya) go
 const getDeptAdminRoute = (department) => {
   if (department === "Accounts") return "/admin/account";
@@ -32,6 +37,8 @@ const getDeptAdminRoute = (department) => {
   if (department === "Student Section") return "/admin/studentsection";
   if (department === "Admission") return "/admin/admission";
   if (department === "Examination") return "/admin/examination";
+  if (department === "HR") return "/admin/hr";
+  if (department === "CRC (Placement)") return "/admin/crc";
   return "/admin/school";
 };
 
@@ -107,6 +114,8 @@ function App() {
         <Route path="/student/accounts" element={<ProtectedRoute allowedRoles={["student"]}><Accounts /></ProtectedRoute>} />
         <Route path="/student/examination" element={<ProtectedRoute allowedRoles={["student"]}><Examination /></ProtectedRoute>} />
         <Route path="/student/department" element={<ProtectedRoute allowedRoles={["student"]}><Department /></ProtectedRoute>} />
+        <Route path="/student/hr" element={<ProtectedRoute allowedRoles={["student"]}><StudentHR /></ProtectedRoute>} />
+        <Route path="/student/crc" element={<ProtectedRoute allowedRoles={["student"]}><StudentCRC /></ProtectedRoute>} />
 
         {/* --- STAFF ROUTES --- */}
 
@@ -130,6 +139,8 @@ function App() {
         <Route path="/admin/studentsection" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><StudentSectionAdminDashboard /></ProtectedRoute>} />
         <Route path="/admin/examination" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><ExaminationAdminDashboard /></ProtectedRoute>} />
         <Route path="/admin/school" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><SchoolAdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/hr" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><HRAdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/crc" element={<ProtectedRoute allowedRoles={["admin", "staff"]}><CRCAdminDashboard /></ProtectedRoute>} />
 
 
 <Route path="/forgot-password" element={<ForgotPassword />} />

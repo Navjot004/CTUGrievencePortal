@@ -10,14 +10,19 @@ exports.getAllStaff = async (req, res) => {
   try {
     const users = await UserModel.find({ role: "staff" }).select("-password");
 
+    // 🔥 Fix: Filter out students (Student IDs are exactly 8 digits)
+    // Sometimes students might have 'role: staff' due to data errors, so we exclude them by ID length.
+    const validStaffUsers = users.filter((user) => user.id.length !== 8);
+
     const staffWithDetails = await Promise.all(
-      users.map(async (user) => {
+      validStaffUsers.map(async (user) => {
         const adminRecord = await AdminStaffModel.findOne({ id: user.id });
         return {
           id: user.id,
           fullName: user.fullName,
           email: user.email,
           department: user.department,
+          role: user.role, // ✅ Necessary for frontend filtering
           adminDepartment: adminRecord ? adminRecord.adminDepartment : "",
           isDeptAdmin: adminRecord ? adminRecord.isDeptAdmin : false,
         };

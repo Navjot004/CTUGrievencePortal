@@ -17,6 +17,15 @@ const formatDate = (dateString) => {
     minute: "2-digit",
   });
 };
+const ReadOnlyStars = ({ stars = 0 }) => (
+  <div style={{ fontSize: "1.4rem", color: "#facc15" }}>
+    {"★".repeat(stars)}
+    <span style={{ color: "#cbd5e1" }}>
+      {"★".repeat(5 - stars)}
+    </span>
+  </div>
+);
+
 
 function AdminDashboard() {
   const navigate = useNavigate();
@@ -328,15 +337,34 @@ const handleExportExcel = () => {
                           </div>
                         </td>
 
-                        <td>
-                          <span
-                            className={`status-badge status-${(g.status || "")
-                              .toLowerCase()
-                              .replace(" ", "")}`}
-                          >
-                            {g.status}
-                          </span>
-                        </td>
+                  <td>
+  <span
+    className={`status-badge status-${(g.status || "")
+      .toLowerCase()
+      .replace(" ", "")}`}
+  >
+    {g.status}
+  </span>
+
+  {/* ⭐ Rating under Resolved */}
+  {g.status?.toLowerCase() === "resolved" && (
+    <div style={{ marginTop: "4px", fontSize: "0.9rem" }}>
+      {g.rating?.stars ? (
+        <span style={{ color: "#facc15" }}>
+          {"★".repeat(g.rating.stars)}
+          <span style={{ color: "#cbd5e1" }}>
+            {"★".repeat(5 - g.rating.stars)}
+          </span>
+        </span>
+      ) : (
+        <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
+          No rating yet
+        </span>
+      )}
+    </div>
+  )}
+</td>
+
 
                         {/* ✅ ASSIGNED STAFF COLUMN */}
                         <td>
@@ -409,6 +437,53 @@ const handleExportExcel = () => {
                   </div>
                 )}
               </div>
+              {/* ⭐ STUDENT RATING (READ ONLY) */}
+{selectedGrievance.status === "Resolved" &&
+ selectedGrievance.isRated &&
+ selectedGrievance.rating && (
+
+  <div
+    style={{
+      marginTop: "20px",
+      padding: "15px",
+      background: "#f8fafc",
+      borderRadius: "10px",
+      border: "1px solid #e2e8f0"
+    }}
+  >
+    <h4 style={{ marginBottom: "8px", color: "#1e293b" }}>
+      ⭐ Student Feedback
+    </h4>
+
+    <ReadOnlyStars stars={selectedGrievance.rating.stars} />
+
+    {selectedGrievance.rating.feedback && (
+      <p
+        style={{
+          marginTop: "8px",
+          fontStyle: "italic",
+          color: "#475569"
+        }}
+      >
+        “{selectedGrievance.rating.feedback}”
+      </p>
+    )}
+
+    <p
+      style={{
+        marginTop: "6px",
+        fontSize: "0.75rem",
+        color: "#94a3b8"
+      }}
+    >
+      Rated on{" "}
+      {new Date(
+        selectedGrievance.rating.ratedAt
+      ).toLocaleDateString()}
+    </p>
+  </div>
+)}
+
 
               <div style={{ textAlign: 'right', marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #eee' }}>
                 <button
@@ -438,7 +513,7 @@ const handleExportExcel = () => {
             </div>
           </div>
         )}
-
+           
         {/* ✅ SUPER SMOOTH INTERACTIONS (Makhan UI) */}
         <style>{`
           .dashboard-container { animation: fadeIn 0.4s ease-out; }

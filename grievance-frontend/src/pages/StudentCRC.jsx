@@ -4,20 +4,17 @@ import "../styles/Dashboard.css";
 import ctLogo from "../assets/ct-logo.png";
 import { GraduationCapIcon } from "../components/Icons";
 
-function StudentSection() {
+function StudentCRC() {
   const navigate = useNavigate();
   const role = localStorage.getItem("grievance_role");
-  const userId = localStorage.getItem("grievance_id");
-
-  const categoryTitle = "Student Section";
+  const userId = localStorage.getItem("grievance_id"); // 8-digit
 
   const [formData, setFormData] = useState({
     name: "",
     regid: userId || "",
     email: "",
     phone: "",
-    school: "",
-    issueType: "",
+    program: "", // 🔥 STUDENT COURSE
     message: "",
   });
 
@@ -26,38 +23,46 @@ function StudentSection() {
   const [statusType, setStatusType] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // 🔒 Route protection
   useEffect(() => {
     if (!role || role !== "student") navigate("/");
   }, [role, navigate]);
 
+  // ✅ Fetch student profile
   useEffect(() => {
-    const fetchUserDetails = async () => {
+    const fetchUser = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/auth/user/${userId}`);
+        const res = await fetch(
+          `http://localhost:5000/api/auth/user/${userId}`
+        );
         const data = await res.json();
+
         if (res.ok) {
           setFormData((prev) => ({
             ...prev,
             name: data.fullName || "",
             email: data.email || "",
             phone: data.phone || "",
-            school: data.department || "",
+            program: data.department || data.program || "", // 🔥 IMPORTANT
           }));
         }
       } catch (err) {
-        console.error(err);
+        console.error("User fetch error:", err);
       } finally {
         setLoading(false);
       }
     };
-    if (userId) fetchUserDetails();
+
+    if (userId) fetchUser();
   }, [userId]);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFormData({ ...formData, message: e.target.value });
   };
 
-  const handleFileChange = (e) => setAttachment(e.target.files[0]);
+  const handleFileChange = (e) => {
+    setAttachment(e.target.files[0]);
+  };
 
   const handleLogout = () => {
     localStorage.clear();
@@ -66,7 +71,7 @@ function StudentSection() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMsg("Submitting...");
+    setMsg("Submitting grievance...");
     setStatusType("info");
 
     // 1️⃣ Upload File to MongoDB (GridFS) First
@@ -80,44 +85,50 @@ function StudentSection() {
         const uploadJson = await uploadRes.json();
         attachmentUrl = uploadJson.filename;
       } catch (err) {
+        console.error("[FRONTEND] Upload Error:", err);
         setMsg(`Upload Error: ${err.message}`); setStatusType("error"); return;
       }
     }
 
-    // 2️⃣ Submit Grievance as JSON
+    // 2️⃣ Submit Grievance as JSON (Fix for Backend)
     const payload = {
       userId,
       name: formData.name,
       regid: formData.regid,
       email: formData.email,
       phone: formData.phone,
-      studentProgram: formData.school,
-      school: categoryTitle,
-      category: categoryTitle,
-      message: `${formData.issueType} - ${formData.message}`,
-      attachment: attachmentUrl || ""
+      studentProgram: formData.program,
+      category: "CRC (Placement)",
+      message: formData.message,
+      attachment: attachmentUrl || "" // Send filename string
     };
 
     try {
-      const res = await fetch("http://localhost:5000/api/grievances/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const responseData = await res.json();
-      if (!res.ok) throw new Error(responseData.message || "Submit failed");
+      const res = await fetch(
+        "http://localhost:5000/api/grievances/submit",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }, // ✅ Important
+          body: JSON.stringify(payload),
+        }
+      );
 
-      setMsg("Grievance submitted successfully!");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+
+      setMsg("✅ Grievance submitted successfully");
       setStatusType("success");
-      setFormData((prev) => ({ ...prev, issueType: "", message: "" }));
+      setFormData((prev) => ({ ...prev, message: "" }));
       setAttachment(null);
-      const fileInput = document.getElementById("fileInputSection");
+
+      const fileInput = document.getElementById("fileInput");
       if (fileInput) fileInput.value = "";
     } catch (err) {
-      setMsg(`${err.message}`);
+      setMsg(`❌ ${err.message}`);
       setStatusType("error");
     }
   };
+
 
   return (
     <div className="dashboard-container">
@@ -128,13 +139,15 @@ function StudentSection() {
             <h1>Student Dashboard</h1>
             <p>
               Welcome, <strong>{formData.name || userId}</strong>
-              {formData.school && <span className="status-badge status-assigned" style={{ marginLeft: '10px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                <GraduationCapIcon width="14" height="14" /> {formData.school}
+              {formData.program && <span className="status-badge status-assigned" style={{ marginLeft: '10px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <GraduationCapIcon width="14" height="14" /> {formData.program}
               </span>}
             </p>
           </div>
         </div>
-        <button className="logout-btn-header" onClick={handleLogout}>Logout</button>
+        <button className="logout-btn-header" onClick={handleLogout}>
+          Logout
+        </button>
       </header>
 
       <nav className="navbar">
@@ -142,18 +155,18 @@ function StudentSection() {
           <li><Link to="/student/dashboard">Dashboard</Link></li>
           <li><Link to="/student/welfare">Student Welfare</Link></li>
           <li><Link to="/student/admission">Admission</Link></li>
-          <li className="active"><Link to="/student/section">Student Section</Link></li>
+          <li><Link to="/student/section">Student Section</Link></li>
           <li><Link to="/student/accounts">Accounts</Link></li>
           <li><Link to="/student/examination">Examination</Link></li>
           <li><Link to="/student/department">Department</Link></li>
           <li><Link to="/student/hr">HR</Link></li>
-          <li><Link to="/student/crc">CRC (Placement)</Link></li>
+          <li className="active"><Link to="/student/crc">CRC (Placement)</Link></li>
         </ul>
       </nav>
 
       <main className="dashboard-body">
         <div className="card">
-          <h2>Submit {categoryTitle} Grievance</h2>
+          <h2>Submit CRC (Placement) Grievance</h2>
 
           {loading ? (
             <p>Loading your details...</p>
@@ -164,52 +177,86 @@ function StudentSection() {
               <div className="form-row">
                 <div className="input-group">
                   <label>Full Name</label>
-                  <input type="text" name="name" value={formData.name} readOnly className="read-only-input" />
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    readOnly
+                    className="read-only-input"
+                  />
                 </div>
                 <div className="input-group">
                   <label>Registration ID</label>
-                  <input type="text" name="regid" value={formData.regid} readOnly className="read-only-input" />
+                  <input
+                    type="text"
+                    name="regid"
+                    value={formData.regid}
+                    readOnly
+                    className="read-only-input"
+                  />
                 </div>
               </div>
 
               <div className="form-row">
                 <div className="input-group">
                   <label>Email</label>
-                  <input type="email" name="email" value={formData.email} readOnly className="read-only-input" />
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    readOnly
+                    className="read-only-input"
+                  />
                 </div>
                 <div className="input-group">
                   <label>Phone</label>
-                  <input type="text" name="phone" value={formData.phone} readOnly className="read-only-input" />
+                  <input
+                    type="text"
+                    name="phone"
+                    value={formData.phone}
+                    readOnly
+                    className="read-only-input"
+                  />
                 </div>
               </div>
 
               <div className="input-group">
-                <label>School / Department</label>
-                <input type="text" name="school" value={formData.school} readOnly className="read-only-input" />
+                <label>Program / Course</label>
+                <input
+                  type="text"
+                  name="program"
+                  value={formData.program}
+                  readOnly
+                  className="read-only-input"
+                />
               </div>
 
               <div className="input-group">
-                <label>Select Issue</label>
-                <select name="issueType" value={formData.issueType} onChange={handleChange} required>
-                  <option value="">-- Choose an Issue --</option>
-                  <option value="Document Request">Document Request</option>
-                  <option value="Enrollment Query">Enrollment Query</option>
-                  <option value="Certificate Issue">Certificate Issue</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-
-              <div className="input-group">
-                <label>Message (Optional)</label>
-                <textarea name="message" value={formData.message} onChange={handleChange} rows="4" placeholder="Details..."></textarea>
+                <label>Message</label>
+                <textarea
+                  name="message"
+                  value={formData.message}
+                  onChange={handleChange}
+                  rows="4"
+                  placeholder="Details..."
+                  required
+                />
               </div>
 
               <div className="input-group">
                 <label>Attach Document (Optional)</label>
-                <input id="fileInputSection" type="file" onChange={handleFileChange} accept=".pdf,.jpg,.jpeg,.png" className="file-input" />
+                <input
+                  id="fileInput"
+                  type="file"
+                  onChange={handleFileChange}
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  className="file-input"
+                />
               </div>
 
-              <button type="submit" className="submit-btn">Submit Grievance</button>
+              <button type="submit" className="submit-btn">
+                Submit Grievance
+              </button>
             </form>
           )}
         </div>
@@ -218,4 +265,4 @@ function StudentSection() {
   );
 }
 
-export default StudentSection;
+export default StudentCRC;
